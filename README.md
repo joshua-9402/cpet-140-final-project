@@ -48,7 +48,7 @@
 
 ## Overview
 
-<p>&emsp; This repository contains the final project for **Computer Programming I**. The project involves developing **a C++ system**that **automates or enhances a real-world business process, manual operation, or organizational workflow**. It focuses onaddressing the needs of a specific stakeholder or beneficiary, highlighting innovation, efficiency, and the practicalapplication of fundamental programming concepts. </p>
+<p>&emsp; This repository contains the final project for <b>Computer Programming I</b>. The project involves developing <b>a C++ system</b>that <b>automates or enhances a real-world business process, manual operation, or organizational workflow</b>. It focuses on addressing the needs of a specific stakeholder or beneficiary, highlighting innovation, efficiency, and the practicalapplication of fundamental programming concepts. </p>
 
 <p>&emsp; The project is implemented entirely in C++, showcasing structured and object-oriented programming principles. It includes multiple source files that demonstrate the use of functions, classes, and file handling to create a modular and maintainable system. The code follows a console-based interface, allowing users to perform essential operations such as data entry, record management, and information retrieval directly from the terminal. All data is stored and accessed through file handling mechanisms to ensure persistence and reliability. </p>
 
