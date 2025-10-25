@@ -1,7 +1,7 @@
 <p align="center">icon</p>
 <h1 align="center">Project Title</h1>
 
-> ###### This repository is the final project for CpET 140 - Computer Programming 1
+<h6 align="center">This repository is the final project for CpET 140 - Computer Programming 1 </h6>
 
 <h3 align="center">Members</h3>
 
@@ -48,17 +48,9 @@
 
 ## Overview
 
-This repository contains the final project for **Computer Programming I**. The project involves developing **a C++ system** 
-that **automates or enhances a real-world business process, manual operation, or organizational workflow**. It focuses on 
-addressing the needs of a specific stakeholder or beneficiary, highlighting innovation, efficiency, and the practical 
-application of fundamental programming concepts.
+<p>&emsp; This repository contains the final project for **Computer Programming I**. The project involves developing **a C++ system**that **automates or enhances a real-world business process, manual operation, or organizational workflow**. It focuses onaddressing the needs of a specific stakeholder or beneficiary, highlighting innovation, efficiency, and the practicalapplication of fundamental programming concepts. </p>
 
-The project is implemented entirely in C++, showcasing structured and object-oriented programming principles. It includes 
-multiple source files that demonstrate the use of functions, classes, and file handling to create a modular and maintainable 
-system. The code follows a console-based interface, allowing users to perform essential operations such as data entry, 
-record management, and information retrieval directly from the terminal. All data is stored and accessed through file 
-handling mechanisms to ensure persistence and reliability.
-
+<p>&emsp; The project is implemented entirely in C++, showcasing structured and object-oriented programming principles. It includes multiple source files that demonstrate the use of functions, classes, and file handling to create a modular and maintainable system. The code follows a console-based interface, allowing users to perform essential operations such as data entry, record management, and information retrieval directly from the terminal. All data is stored and accessed through file handling mechanisms to ensure persistence and reliability. </p>
 
 > ### Key Features and Concepts
 >
@@ -128,4 +120,5 @@ experience for end users.
 6. The system must utilize object-oriented programming principles, such as encapsulation and class-based design. 
 7. The code should be well-documented with comments and meaningful variable names for readability and maintainability. 
 8. The program should handle errors gracefully, avoiding crashes and guiding the user to correct mistakes.
+
 
