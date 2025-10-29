@@ -1,12 +1,16 @@
 #include "hello_imgui/hello_imgui.h"
 #include "imgui.h"
 
-void MyGui()
+void MainGUI()
 {
     ImGui::Text("Hello, BCpET 1101!");
     if (ImGui::Button("Exit"))
         HelloImGui::GetRunnerParams()->appShallExit = true;
 }
+
+void POS() {}
+
+void Inventory() {}
 
 
 int main()
@@ -22,9 +26,9 @@ int main()
     };
 
     // Window and GUI settings
-    params.callbacks.ShowGui = MyGui;
+    params.callbacks.ShowGui = MainGUI;
     params.appWindowParams.windowTitle = "CpET 140 - Final Project";
-    params.appWindowParams.windowGeometry.size = {1024, 720};
+    params.appWindowParams.windowGeometry.size = {1600, 900};
 
     HelloImGui::Run(params);
     return 0;
