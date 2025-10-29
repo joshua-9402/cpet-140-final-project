@@ -10,36 +10,29 @@
       <tr>
         <th>Name (Last Name, First Name)</th>
         <th>Username</th>
-        <th>SR-CODE</th>
       </tr>
       <tr>
         <td>DE LUNA, MARK CLARENCE L.</td>
-        <td></td>
         <td></td>
       </tr>
       <tr>
         <td>GUINA, MATTHEW ANTON C.</td>
         <td></td>
-        <td></td>
       </tr>
         <tr>
             <td>JUSAY, MARY GRACE P.</td>
-            <td></td>
             <td></td>
         </tr>
         <tr>
             <td>LITERAL, JOSHUA H.</td>
             <td> <a href="https://github.com/joshua-9402"> joshua-9402 </a> </td>
-            <td></td>
         </tr>
         <tr>
             <td>MATANGUIHAN, JANN VINCENT A.</td>
             <td></td>
-            <td></td>
         </tr>
         <tr>
             <td>PAILAS, POL JUSTINE T.</td>
-            <td></td>
             <td></td>
         </tr>
     </table>
@@ -52,8 +45,8 @@
 
 <p>&emsp; The project is implemented entirely in C++, showcasing structured and object-oriented programming principles. It includes multiple source files that demonstrate the use of functions, classes, and file handling to create a modular and maintainable system. The code follows a console-based interface, allowing users to perform essential operations such as data entry, record management, and information retrieval directly from the terminal. All data is stored and accessed through file handling mechanisms to ensure persistence and reliability. </p>
 
-> ### Key Features and Concepts
->
+### Key Features and Concepts
+
 > - Data Structures: 
 >   - Implementation of arrays
 >   - structs
