@@ -13,6 +13,13 @@ FetchContent_MakeAvailable(hello_imgui)
 # Add your app
 hello_imgui_add_app(
         pos-and-inventory-system
+
+        dependencies/sqlite/sqlite3.c
+        dependencies/sqlite/sqlite3.h
+
         src/main.cpp
+
+        src/lib/UI.cpp
+        src/lib/UI.h
         ASSETS_LOCATION "assets/"
 )
