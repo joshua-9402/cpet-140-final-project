@@ -1,3 +1,18 @@
+/*
+ * CpET 140 Final Project — Application entry point
+ *
+ * Contributors: Joshua Literal
+ *
+ * Purpose
+ * - Starts the application and constructs the UI runner.
+ *
+ * Boundaries
+ * - Entry point only; no business logic or persistence here.
+ *
+ * Notes
+ * - Configures title, font, and window size, then calls constructUI().
+ */
+
 #include <string>
 #include "lib/UI.h"
 
