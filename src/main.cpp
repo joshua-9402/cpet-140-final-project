@@ -7,7 +7,7 @@ constexpr int windowWidth = 1600;
 constexpr int windowHeight = 900;
 
 int main() {
-    constructUI(appTitle, fontName,windowWidth, windowHeight, "test");
+    constructUI(appTitle, fontName,windowWidth, windowHeight, "main");
 
     return 0;
 }
