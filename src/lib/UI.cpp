@@ -1,8 +1,6 @@
 #include "hello_imgui/hello_imgui.h"
 #include "imgui.h"
-#include <string>
-#include <functional>
-#include <unordered_map>
+
 
 // UI registry and current UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
