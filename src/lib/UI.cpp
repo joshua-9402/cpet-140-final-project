@@ -6,16 +6,16 @@
 #include <algorithm>    // for transform
 #include <ranges>       // added: for std::ranges::transform
 
+// UI registry and current UI management
+static std::unordered_map<std::string, std::function<void()>> g_uiMap;
+static std::function<void()> g_currentUI = nullptr;
+
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s)
 {
     std::ranges::transform(s, s.begin(), [](unsigned char c){ return std::tolower(c); });
     return s;
 }
-
-// UI registry and current UI management
-static std::unordered_map<std::string, std::function<void()>> g_uiMap;
-static std::function<void()> g_currentUI = nullptr;
 
 void failedUI()
 {
@@ -37,21 +37,10 @@ void mainUI() {
     ImGui::Text("Hello, BCpET 1101!");
     ImGui::Text("This is the Main Window");
 
-    if (ImGui::Button("Switch to TEST")) switchToUI("test");
     if (ImGui::Button("Switch to POS")) switchToUI("pos");
     if (ImGui::Button("Switch to Inventory")) switchToUI("inventory");
-    if (ImGui::Button("Exit"))
+    if (ImGui::Button("Close Application"))
         HelloImGui::GetRunnerParams()->appShallExit = true;
-}
-
-void testUI()
-{
-    ImGui::Text("Hello, BCpET 1101!");
-    ImGui::Text("This is the Test Window");
-
-    if (ImGui::Button("Switch to Main")) switchToUI("main");
-    if (ImGui::Button("Switch to POS")) switchToUI("pos");
-    if (ImGui::Button("Switch to Inventory")) switchToUI("inventory");
 }
 
 void posUI() {
@@ -71,9 +60,9 @@ void constructUI(const std::string &title, const std::string& font_location, con
 
     // populate UI registry (ensure it's available before selecting current UI)
     g_uiMap.clear();
-    g_uiMap.reserve(5); // small perf improvement
+
+    g_uiMap.reserve(4);
     g_uiMap["main"] = mainUI;
-    g_uiMap["test"] = testUI;
     g_uiMap["inventory"] = inventoryUI;
     g_uiMap["pos"] = posUI;
     g_uiMap["failed"] = failedUI;
