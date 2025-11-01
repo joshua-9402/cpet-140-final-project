@@ -19,7 +19,16 @@ hello_imgui_add_app(
 
         src/main.cpp
 
+        src/lib/db.cpp
+        src/lib/db.h
+
         src/lib/UI.cpp
         src/lib/UI.h
+
+        src/lib/inventory.cpp
+        src/lib/inventory.h
+
+        src/lib/pos.cpp
+        src/lib/pos.h
         ASSETS_LOCATION "assets/"
 )
