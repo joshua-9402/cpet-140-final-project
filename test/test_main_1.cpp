@@ -15,11 +15,11 @@ using namespace std;
 
 struct Product {
     string name;
-    double price;
-    int quantity;
+    double price{};
+    int quantity{};
 };
 
-void main_GUI() {
+int main() {
     const int MAX_PRODUCT = 10; // ket ilan pede, basta realistic. so bawal 100+
     Product products[MAX_PRODUCT];
     int productCount = 0;
