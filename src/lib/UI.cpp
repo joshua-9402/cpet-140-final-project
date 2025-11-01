@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <algorithm>    // for transform
 #include <ranges>       // added: for std::ranges::transform
-#include <cctype>       // added: for std::tolower
 
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s)
