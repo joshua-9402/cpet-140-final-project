@@ -1,3 +1,20 @@
+/*
+ * CpET 140 Final Project — UI module
+ *
+ * Contributors: Joshua Literal
+ *
+ * Purpose
+ * - Immediate-mode UI built with HelloImGui/ImGui. Manages a registry of UIs,
+ *   switching between them, font loading, and window setup.
+ *
+ * Boundaries
+ * - Presentation only: no business logic or persistence here. Call POS/Inventory
+ *   modules for operations.
+ *
+ * Notes
+ * - UI switching is immediate (case-insensitive). App exit uses HelloImGui runner.
+ */
+
 #include "hello_imgui/hello_imgui.h"
 #include "imgui.h"
 #include <string>
