@@ -5,7 +5,6 @@
 #ifndef CPET_140_FINAL_PROJECT_DB_H
 #define CPET_140_FINAL_PROJECT_DB_H
 
-
 class db {
 };
 

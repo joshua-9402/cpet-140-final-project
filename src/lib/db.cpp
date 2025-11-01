@@ -1,5 +1,5 @@
 /*
- * CpET 140 Final Project — Database module
+* CpET 140 Final Project — Database module
  *
  * Contributors: Joshua Literal
  *
