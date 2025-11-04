@@ -77,7 +77,31 @@ This project is a C++ application that demonstrates a small, modular POS/invento
   ```
 
 ## Application Structure
-- Modules communicate via simple C++ interfaces; DB functions open/close connections per operation unless a shared handle is used.
+
+### Module Responsibilities and Organization
+- main.cpp
+    - Responsibilities: program entry, basic diagnostics and configure and start the UI runner.
+    - Conventions: no logic, no direct DB schema work
+
+
+- src/lib/UI.cpp and UI.h
+    - Responsibilities: immediate-mode UI only — register UIs, load fonts, set HelloImGui params, invoke g_currentUI each frame.
+    - Conventions: register UI handlers, keep UIs small, avoid long inline logic, ShowGui should simply call the current UI.
+
+- src/lib/inventory.cpp and inventory.h
+    - Responsibilities: inventory item, list/filter items, stock adjustments.
+    - Conventions: keep inventory logic separate from DB, validate inputs, return clear error codes.
+
+
+- src/lib/pos.cpp and pos.h
+    - Responsibilities: sales transactions, cart management, payment processing.
+    - Conventions: separate logic from DB, handle payment calculations, ensure data integrity.
+
+
+- src/lib/db.cpp and db.h
+    - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
+    - Conventions: keep DB helpers small, use RAII for connections, prefer prepared statements, and always check SQLite return codes.
+
 
 
 ## Build & Run (desktop)
@@ -99,8 +123,9 @@ This project is a C++ application that demonstrates a small, modular POS/invento
 
       ./your-executable-name
 
-### Mobile
-- there is a separate repository for the Android version with appropriate setup and build instructions for both Android and iOS.
+### Mobile Version
+
+- there is a separate repository for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
 
 
 ## Dependencies
@@ -123,11 +148,22 @@ This project is a C++ application that demonstrates a small, modular POS/invento
 - Automated tests (recommended): add unit tests around db helpers and inventory logic (Catch2/GoogleTest).
 
 
-## Contribution
-
+## Contribution Guidelines
 The participation of everyone is needed to make this project a success. Please follow the guidelines below when contributing to this project.
 
+> Notes:
+> - `UI.cpp`, `UI.h`, `db.cpp` and `db.h` are OFF LIMITS especially for `constructUI()` and `switchToUI()` functions (in `UI.cpp`).
+>   - For bugs, please file an issue instead.
+>   - For enhancements, please discuss with the maintainers first or file an issue regarding the enhancement.
+>   - For adding new UIs, please file an issue first to discuss the addition.
+> - When contributing code, please ensure that your code adheres to the coding conventions outlined below.
+> - Any significant deviations from the coding conventions should be explained in the PR / commit description, or it will be rejected.
+
 ### Naming Conventions
+- Types and Classes:
+    - lowerCamelCase (e.g., `dbAccess`)
+
+
 - Functions / Methods:
   - lowerCamelCase (e.g., `createDatabase`, `switchToUI`).
   - Prefixes: verb indicating action (get, set, create, load, save, open, close etc.).
@@ -138,46 +174,49 @@ The participation of everyone is needed to make this project a success. Please f
     - `constructUI()`
 
 
-- Types and classes:
-  - lowerCamelCase (e.g., `dbAccess`)
-
-
 - Local variables / parameters / constants: 
   - lowerCamelCase (e.g., `fontPath`).
-  - Prefix:
-    - g_ for globals (e.g., `g_currentUI`)
-    - c_ for constants (e.g., `c_defaultFontSize`)
-    - l_ for locals (e.g., `l_itemCount`).
+  - Prefix (only parameters are exempted):
+    - `g_` for globals (e.g., `g_currentUI`)
+    - `c_` for constants (e.g., `c_defaultFontSize`)
+    - `l_` for locals (e.g., `l_itemCount`).
   - Suffix: any verb, adjective or noun indicating purpose (e.g., count, size, index).
-    - for variables representing a unit of something, use the unit as suffix (e.g., priceUsd, sizePx).
-
-
-### Module Responsibilities and Organization
-- main.cpp
-  - Responsibilities: program entry, basic diagnostics and configure and start the UI runner.
-  - Conventions: no logic, no direct DB schema work
-
-
-- src/lib/UI.cpp and UI.h
-  - Responsibilities: immediate-mode UI only — register UIs, load fonts, set HelloImGui params, invoke g_currentUI each frame.
-  - Conventions: register UI handlers, keep UIs small, avoid long inline logic, ShowGui should simply call the current UI.
-
-- src/lib/inventory.cpp and inventory.h
-  - Responsibilities: inventory item, list/filter items, stock adjustments.
-  - Conventions: keep inventory logic separate from DB, validate inputs, return clear error codes.
-
-
-- src/lib/pos.cpp and pos.h
-  - Responsibilities: sales transactions, cart management, payment processing.
-  - Conventions: separate logic from DB, handle payment calculations, ensure data integrity.
-
-
-- src/lib/db.cpp and db.h
-  - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
-  - Conventions: keep DB helpers small, use RAII for connections, prefer prepared statements, and always check SQLite return codes.
+    - for variables representing a unit of something, use the unit as suffix (e.g., `priceUsd`, `sizePx`).
 
 ### Commit Messages
-- Format: "<area>: <imperative summary>"
-  - Examples: "db: add createTable helper", "ui: move font loading to LoadAdditionalFonts".
+- Format: "<action>: <description>"
+  - For actions, use a verb indicating: the change
+    - `add` - addition of new functionality / file / module / feature
+    - `remove` - deletion of functionality / file / module / feature
+    - `fix` - bug fix
+    - `update` - update existing functionality / dependencies / docs
+    - `improve` - enhancement of existing functionality / performance / UX
+    - `refactor` - code restructuring without changing behavior
+    - `chore` - maintenance tasks (build scripts, CI config, etc.)
+  - For description, use a concise summary of the change.
+  - Examples: `db: add createTable helper`, `ui: move font loading to LoadAdditionalFonts`.
 - Include a brief body when needed: one-line rationale and test instructions.
 - Reference issue/PR numbers when applicable.
+- Examples: 
+  - "fix: correct inventory item deletion logic (#42)"
+  - "update: upgrade sqlite3 to 3.50.4 for security patches (#56)"
+
+### Filing Issues
+- The use of Filipino language is allowed when filing issues.
+- Use clear, descriptive titles.
+- Provide detailed descriptions, including steps to reproduce, expected vs. actual behavior, and screenshot or the error logs.
+- Assign appropriate labels:
+  - bug - something is not working as expected
+  - documentation - improvements or additions to documentation
+  - enhancement - new feature or request
+  - help wanted - assistance needed
+  - question - request for information or clarification
+- Reference related issues or PRs when applicable.
+
+
+### Filing Pull Requests
+- Ensure your branch is up-to-date with the main branch before creating a PR.
+- Provide a clear title and description of the changes made.
+- Reference any related issues.
+- Follow the project's coding conventions and guidelines. Any significant deviations should be explained in the PR description, or it will be rejected.
+- Ensure all tests pass before submitting the PR. Submitted PRs will undergo for a review and also include the test results.
