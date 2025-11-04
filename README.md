@@ -52,7 +52,7 @@ This project is a C++ application that demonstrates a small, modular POS/invento
 
 ### Repository Structure
   ```
-    repo-root/
+    cpet-140-final-project/
     ├─ assets/
     │  └─ fonts/
     │     └─ OpenSans-Regular.ttf
