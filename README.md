@@ -1,12 +1,12 @@
-<p style="text-align:center">icon</p>
-<h1 style="text-align:center">Project Title</h1>
+<p align="center">icon</p>
+<h1 align="center">Project Title</h1>
 
 <h6 align="center">This repository is the final project for CpET 140 - Computer Programming 1 </h6>
 
 <h3 align="center">Members</h3>
 
-<div style="display:flex; justify-content:center;">
-    <table style="width:51%; margin:0 auto;">
+<div align="center">
+    <table style="width:50%; margin:0 auto;">
       <tr>
         <th>Name (Last Name, First Name)</th>
         <th>Username</th>
