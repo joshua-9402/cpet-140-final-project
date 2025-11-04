@@ -39,79 +39,119 @@
 </div>
 
 
-## Overview
+## Technical Overview
 
-<p>&emsp; This repository contains the final project for <b>Computer Programming I</b>. The project involves developing <b>a C++ system</b>that <b>automates or enhances a real-world business process, manual operation, or organizational workflow</b>. It focuses on addressing the needs of a specific stakeholder or beneficiary, highlighting innovation, efficiency, and the practicalapplication of fundamental programming concepts. </p>
+This project is a C++ application that demonstrates a small, modular POS/inventory system with a UI layer and SQLite-backed persistence. It is designed for desktop platforms (Windows, macOS, Linux) and can be adapted to mobile platforms (Android, iOS) with platform-specific toolchains.
 
-<p>&emsp; The project is implemented entirely in C++, showcasing structured and object-oriented programming principles. It includes multiple source files that demonstrate the use of functions, classes, and file handling to create a modular and maintainable system. The code follows a console-based interface, allowing users to perform essential operations such as data entry, record management, and information retrieval directly from the terminal. All data is stored and accessed through file handling mechanisms to ensure persistence and reliability. </p>
+### Key facts
+- Language: C++17 (or later)
+- Build system: CMake
+- UI: ImGui (immediate-mode GUI)
+- Database: SQLite (single-file, local)
+- Target platforms: Desktop (Win/macOS/Linux); cross-compilable to Android/iOS
 
-### Key Features and Concepts
+## Architecture
 
-> - Data Structures: 
->   - Implementation of arrays
->   - structs
->   - classes for organized data handling
->
-> 
-> - Functions:
->   - Modular and reusable code components to simplify logic and maintenance
->
-> 
-> - File Handling:
->   - Persistent data storage and retrieval through text or binary files
->
-> 
-> - Object-Oriented Programming (OOP):
->   - Utilization of classes
->   - objects, encapsulation
->   - inheritance for scalable system design
->
-> 
-> - Input Validation:
->   - Ensures accuracy and reliability of user-provided data
->
-> - Error Handling:
->   - Provides stability and prevents system crashes during invalid operations
+- main
+  - Application entry, initialization, main loop, high-level lifecycle.
+- src/lib/UI.cpp
+  - ImGui-based window composition, window manager, per-window visibility/focus.
+- src/lib/db.cpp / db.h
+  - SQLite helpers: open/create DB, execute statements, schema creation utilities.
+- src/lib/inventory.cpp
+  - Inventory domain logic: item models, CRUD helpers.
+- src/lib/pos.cpp
+  - POS transaction logic and UI glue.
 
-## Goals
+Modules communicate via simple C++ interfaces; DB functions open/close connections per operation unless a shared handle is used.
 
-- **Apply Core C++ Concepts**
-  - Demonstrate practical understanding of data structures, functions, file handling, and object-oriented programming through a real-world application. 
+## Build & Run (desktop)
 
+### Prerequisites
+- C++17 toolchain (gcc/clang/MSVC)
+- CMake 3.15+
+- sqlite3 development headers
+- Optional: fetch/build ImGui and any renderer/backends used
 
-- **Automate Manual Processes**
-  - Convert a time-consuming or error-prone workflow into an efficient, automated digital system. 
+### Common commands (from repo root)
+- Configure and build:
+  - mkdir -p build && cd build
+  - cmake .. -DCMAKE_BUILD_TYPE=Release
+  - cmake --build . --config Release
+- Run:
+  - ./your-executable-name
 
+### Mobile (notes)
+- Android: use Android NDK and an Android CMake toolchain file; build an APK or use native-lib JNI entry.
+- iOS: generate an Xcode project with CMake or build with appropriate SDK flags; run in Simulator/Device.
 
-- **Enhance Efficiency and Accuracy**
-  - Reduce human error and improve the speed and reliability of data management tasks. 
+## Dependencies
 
+- sqlite3 (runtime + development headers)
+- ImGui (library or submodule; integrate with your renderer)
+- Optional: libraries for platform windows/rendering (GLFW/SDL/DirectX/Metal)
 
-- **Develop Problem-Solving Skills**
-  - Strengthen analytical thinking by designing, coding, and testing a complete C++ application from concept to execution. 
+## Testing & Validation
 
+- Manual smoke tests: startup, DB create/open, add item, create sale, close and reopen DB, UI interactions.
+- Automated tests (recommended): add unit tests around db helpers and inventory logic (Catch2/GoogleTest).
 
-- **Deliver a Functional Solution**
-  - Create a user-oriented system that meets the needs of a specific stakeholder or business, providing tangible value and usability.
+## Contribution
 
-## Stakeholder / Beneficiary Business Description
+The participation of everyone is needed to make this project a success. Please follow the guidelines below when contributing to this project.
 
+### Naming Conventions
+- Functions
+  - lowerCamelCase (e.g., createDatabase, switchToUI).
+- Local variables / parameters: 
+  - lowerCamelCase (e.g., fontPath, createTableSql).
+  - variable kind(global, constant, local, ) then underscore, then the variable name (e.g., g_windowWidth).
+- Types and classes
+  - PascalCase.
+- File names:
+  - lowercase_with_underscores.cpp / .h.
+- UI registry keys
+  - lowercased strings (use toLower helper before lookup).
 
+### Coding Style
+- Language level: C++17.
+- Resource management: prefer RAII; always close sqlite handles and free error strings.
+- Passing arguments: use const T& for non-trivial types (std::string const&).
+- Return pattern for C-style APIs: return bool for success and use an optional std::string* outError for human-readable errors (follow existing db.* style).
+- Error reporting: prefer sqlite3_errmsg(handle) when handle exists, otherwise sqlite3_errstr(code).
+- Avoid duplicating open/exec/close logic — use a small private helper (execSql) for one-off SQL work.
+- UI code: keep presentation-only. No DB or business logic in UI functions; call domain/db APIs from thin adapters.
+- Fonts: attempt to load font then fall back to AddFontDefault(); call io.Fonts->Build() when modifying fonts.
+- Use std::clamp and input sanitization for window sizes; reserve container capacities where repeated insertions are expected (e.g., g_uiMap.reserve()).
+- Use std::boolalpha when printing booleans for readable logs.
 
+### Module Responsibilities and Organization
+- main.cpp
+  - Responsibilities: program entry, basic diagnostics (e.g., db::isSqliteAvailable), create/open DB, configure and start the UI runner.
+  - Keep minimal: no business logic, no direct DB schema work (call db helpers instead).
+- src/lib/UI.cpp
+  - Responsibilities: immediate-mode UI only — register UIs, load fonts, set HelloImGui params, invoke g_currentUI each frame.
+  - Conventions: register UI handlers once, use lowercase keys, perform case-insensitive switching, keep each UI function small and focused, avoid long inline logic, and ensure ShowGui is a simple wrapper that calls the current UI.
+- src/lib/db.cpp / db.h
+  - Responsibilities: thin, well-documented wrappers around sqlite3: availability checks, create/open DB, execute statements, schema helpers.
+  - Conventions: each public helper must open the DB with sqlite3_open_v2 (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE), run the operation, set outError on failure, and close the handle before returning. Document arguments and possible outputs in a short C-style or Doxygen comment above the function.
 
-## Functional Requirements
+### Commit Messages
+- Format: "<area>: <imperative summary>"
+  - Examples: "db: add createTable helper", "ui: move font loading to LoadAdditionalFonts".
+- Include a brief body when needed: one-line rationale and test instructions.
+- Reference issue/PR numbers when applicable.
 
-The functional requirements define the core capabilities and operations that the system must perform to meet its 
-objectives. These ensure that the program functions effectively, handles data correctly, and provides a smooth 
-experience for end users.
-
-1. The system must allow users to add, view, update, and manage records efficiently. 
-2. The program should store and retrieve data from external files to maintain information between sessions. 
-3. The interface should be console-based, providing clear options and instructions for user interaction. 
-4. The system must include input validation to prevent invalid or incomplete entries. 
-5. The program should demonstrate modularity, with separate functions or classes handling specific operations. 
-6. The system must utilize object-oriented programming principles, such as encapsulation and class-based design. 
-7. The code should be well-documented with comments and meaningful variable names for readability and maintainability. 
-8. The program should handle errors gracefully, avoiding crashes and guiding the user to correct mistakes.
-
-
+### Quick examples (follow these patterns)
+- DB call pattern:
+```cpp
+std::string err;
+if (!db::createDatabase("app.db", &err)) {
+    // handle error; err contains human-readable message
+}
+```
+- UI registration:
+```cpp
+g_uiMap.reserve(4);
+g_uiMap["main"] = mainUI; // keys stored lower-case
+```
