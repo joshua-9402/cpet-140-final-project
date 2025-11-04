@@ -14,20 +14,26 @@ FetchContent_MakeAvailable(hello_imgui)
 hello_imgui_add_app(
         pos-and-inventory-system
 
+        # SQLite dependency
         dependencies/sqlite/sqlite3.c
         dependencies/sqlite/sqlite3.h
 
+        # The main application file
         src/main.cpp
 
+        # The Database I/O handler
         src/lib/db.cpp
         src/lib/db.h
 
+        # The User Interface handler
         src/lib/UI.cpp
         src/lib/UI.h
 
+        # The Inventory system
         src/lib/inventory.cpp
         src/lib/inventory.h
 
+        # The Point-of-Sale system
         src/lib/pos.cpp
         src/lib/pos.h
         ASSETS_LOCATION "assets/"
