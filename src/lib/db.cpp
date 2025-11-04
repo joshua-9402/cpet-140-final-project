@@ -35,7 +35,7 @@ bool db::isSqliteAvailable() {
 bool db::createDatabase(const std::string& path, std::string* outError) {
     sqlite3* handle = nullptr;
     // Explicitly open for read/write, creating the file if it doesn't exist.
-    const int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+    constexpr int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
     const int rc = sqlite3_open_v2(path.c_str(), &handle, flags, nullptr);
     const bool ok = (rc == SQLITE_OK && handle != nullptr);
     if (!ok && outError) {
@@ -50,19 +50,17 @@ bool db::createDatabase(const std::string& path, std::string* outError) {
 }
 
 // Helper: open DB, run SQL, set outError on failure, close DB.
-static bool execSql(const std::string& path, const char* sql, std::string* outError) {
+bool db::execSql(const std::string& path, const char* sql, std::string* outError) {
     sqlite3* handle = nullptr;
-    const int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-    const int rc_open = sqlite3_open_v2(path.c_str(), &handle, flags, nullptr);
-    if (rc_open != SQLITE_OK || handle == nullptr) {
+    constexpr int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+    if (const int rc_open = sqlite3_open_v2(path.c_str(), &handle, flags, nullptr); rc_open != SQLITE_OK || handle == nullptr) {
         if (outError) *outError = sqlite3_errstr(rc_open);
         if (handle) sqlite3_close(handle);
         return false;
     }
 
     char* errMsg = nullptr;
-    const int rc_exec = sqlite3_exec(handle, sql, nullptr, nullptr, &errMsg);
-    if (rc_exec != SQLITE_OK) {
+    if (const int rc_exec = sqlite3_exec(handle, sql, nullptr, nullptr, &errMsg); rc_exec != SQLITE_OK) {
         if (outError) {
             if (errMsg) {
                 *outError = errMsg;

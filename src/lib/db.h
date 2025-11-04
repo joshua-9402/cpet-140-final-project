@@ -65,7 +65,7 @@ public:
      *   will be created (parent directory must exist). Example: "data/app.db"
      *
      * @param createTableSql
-     *   The SQL statement to execute. Typically a single CREATE TABLE statement,
+     *   The SQL statement to execute. Typically, a single CREATE TABLE statement,
      *   e.g.:
      *     "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT);"
      *   The string may contain multiple statements separated by semicolons if needed.
@@ -83,6 +83,8 @@ public:
      * - false -> Execution failed; outError (if provided) contains error details.
      */
     static bool createTable(const std::string& path, const std::string& createTableSql, std::string* outError = nullptr);
+
+    static bool execSql(const std::string& path, const char* sql, std::string* outError);
 };
 
 
