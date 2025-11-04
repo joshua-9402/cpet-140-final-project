@@ -6,7 +6,7 @@
 <h3 align="center">Members</h3>
 
 <div style="display:flex; justify-content:center;">
-    <table style="width:82%; margin:0 auto;">
+    <table style="width:51%; margin:0 auto;">
       <tr>
         <th>Name (Last Name, First Name)</th>
         <th>Username</th>
