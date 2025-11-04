@@ -185,7 +185,7 @@ The participation of everyone is needed to make this project a success. Please f
 
 ### Commit Messages
 - Format: "<action>: <description>"
-  - For actions, use a verb indicating: the change
+  - For actions, use a verb indicating the change
     - `add` - addition of new functionality / file / module / feature
     - `remove` - deletion of functionality / file / module / feature
     - `fix` - bug fix
@@ -193,6 +193,9 @@ The participation of everyone is needed to make this project a success. Please f
     - `improve` - enhancement of existing functionality / performance / UX
     - `refactor` - code restructuring without changing behavior
     - `chore` - maintenance tasks (build scripts, CI config, etc.)
+    - the only exception is `initial commit` and the few subsequent commits in the repository and the `README.md`.
+      - `README.md` follows a different convention since it is a documentation file.
+        - `docs` - update README.md, add technical overview, fix typos, etc.
   - For description, use a concise summary of the change.
   - Examples: `db: add createTable helper`, `ui: move font loading to LoadAdditionalFonts`.
 - Include a brief body when needed: one-line rationale and test instructions.
