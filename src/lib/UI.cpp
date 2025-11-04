@@ -22,10 +22,12 @@
 #include <unordered_map>
 #include <algorithm>    // for transform
 #include <ranges>       // added: for std::ranges::transform
+#include <cctype>       // added: for std::tolower
 
 // UI registry and current UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
+static std::string g_failedMessage; // holds message shown by failedUI
 
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s)
@@ -36,7 +38,7 @@ static std::string toLower(std::string s)
 
 void failedUI()
 {
-    ImGui::Text("Failed to launch application/invalid argument.");
+    ImGui::Text("%s", g_failedMessage.c_str());
     if (ImGui::Button("Exit"))
         HelloImGui::GetRunnerParams()->appShallExit = true;
 }
@@ -46,8 +48,12 @@ void switchToUI(const std::string& name)
 {
     const std::string key = toLower(name);
     auto it = g_uiMap.find(key);
-    if (it != g_uiMap.end()) g_currentUI = it->second;
-    else g_currentUI = failedUI;
+    if (it != g_uiMap.end()) {
+        g_currentUI = it->second;
+    } else {
+        g_failedMessage = "Unknown UI: " + name;
+        g_currentUI = failedUI;
+    }
 }
 
 void mainUI() {
