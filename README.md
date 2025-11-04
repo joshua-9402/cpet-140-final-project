@@ -100,14 +100,13 @@ This project is a C++ application that demonstrates a small, modular POS/invento
       ./your-executable-name
 
 ### Mobile
-- Android: there is a separate repository for the Android version with appropriate Gradle/CMake setup; run via Android Studio or command line with SDK/NDK.
-- iOS: A separate repository contains an Xcode project; open in Xcode and run on simulator/device.
+- there is a separate repository for the Android version with appropriate setup and build instructions for both Android and iOS.
 
 
 ## Dependencies
 
 - sqlite3 (runtime + development headers)
-- ImGui (library or submodule; integrate with your renderer)
+- Hello ImGui 
 - Optional:
   - libraries for platform windows/rendering (GLFW/SDL/DirectX/Metal)
 
@@ -130,37 +129,52 @@ The participation of everyone is needed to make this project a success. Please f
 
 ### Naming Conventions
 - Functions / Methods:
-  - lowerCamelCase (e.g., createDatabase, switchToUI).
-  - Prefixes: verb indicating action (get, set, create, load, save etc.).
-  - Suffixes: indicate type of operation (e.g., Async for asynchronous operations).
+  - lowerCamelCase (e.g., `createDatabase`, `switchToUI`).
+  - Prefixes: verb indicating action (get, set, create, load, save, open, close etc.).
+  - Suffixes: use clear, descriptive suffixes that indicate the operation's target or context (for example, use `Database` for functions that perform database operations).
+  - Exemptions: `main()` function.
+  - Examples:
+    - `createDatabase()`
+    - `constructUI()`
 
 
 - Types and classes:
-  - lowerCamelCase (e.g., dbAccess)
+  - lowerCamelCase (e.g., `dbAccess`)
 
 
 - Local variables / parameters / constants: 
-  - lowerCamelCase (e.g., fontPath).
+  - lowerCamelCase (e.g., `fontPath`).
   - Prefix:
-    - g_ for globals (e.g., g_currentUI)
-    - c_ for constants (e.g., c_defaultFontSize)
-    - l_ for locals (e.g., l_itemCount).
+    - g_ for globals (e.g., `g_currentUI`)
+    - c_ for constants (e.g., `c_defaultFontSize`)
+    - l_ for locals (e.g., `l_itemCount`).
   - Suffix: any verb, adjective or noun indicating purpose (e.g., count, size, index).
     - for variables representing a unit of something, use the unit as suffix (e.g., priceUsd, sizePx).
 
-### Coding Style
-- Language level: C++17.
 
 ### Module Responsibilities and Organization
 - main.cpp
-  - Responsibilities: program entry, basic diagnostics (e.g., db::isSqliteAvailable), create/open DB, configure and start the UI runner.
-  - Keep minimal: no business logic, no direct DB schema work (call db helpers instead).
-- src/lib/UI.cpp
+  - Responsibilities: program entry, basic diagnostics and configure and start the UI runner.
+  - Conventions: no logic, no direct DB schema work
+
+
+- src/lib/UI.cpp and UI.h
   - Responsibilities: immediate-mode UI only — register UIs, load fonts, set HelloImGui params, invoke g_currentUI each frame.
-  - Conventions: register UI handlers once, use lowercase keys, perform case-insensitive switching, keep each UI function small and focused, avoid long inline logic, and ensure ShowGui is a simple wrapper that calls the current UI.
-- src/lib/db.cpp / db.h
-  - Responsibilities: thin, well-documented wrappers around sqlite3: availability checks, create/open DB, execute statements, schema helpers.
-  - Conventions: each public helper must open the DB with sqlite3_open_v2 (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE), run the operation, set outError on failure, and close the handle before returning. Document arguments and possible outputs in a short C-style or Doxygen comment above the function.
+  - Conventions: register UI handlers, keep UIs small, avoid long inline logic, ShowGui should simply call the current UI.
+
+- src/lib/inventory.cpp and inventory.h
+  - Responsibilities: inventory item, list/filter items, stock adjustments.
+  - Conventions: keep inventory logic separate from DB, validate inputs, return clear error codes.
+
+
+- src/lib/pos.cpp and pos.h
+  - Responsibilities: sales transactions, cart management, payment processing.
+  - Conventions: separate logic from DB, handle payment calculations, ensure data integrity.
+
+
+- src/lib/db.cpp and db.h
+  - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
+  - Conventions: keep DB helpers small, use RAII for connections, prefer prepared statements, and always check SQLite return codes.
 
 ### Commit Messages
 - Format: "<area>: <imperative summary>"
