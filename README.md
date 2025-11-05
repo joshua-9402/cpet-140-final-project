@@ -125,7 +125,7 @@ This project is a C++ application that demonstrates a small, modular POS/invento
         - executes a given SQL statement with optional parameters
 
 
-## Build & Run (desktop)
+## Build & Run (Desktop)
 
 ### Prerequisites
 - C++26 or later (the compiler must support C++26)
@@ -144,7 +144,8 @@ This project is a C++ application that demonstrates a small, modular POS/invento
 
       ./your-executable-name
 
-### Mobile Version
+
+## Build and Run (Mobile)
 
 - there is a separate repository for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
 
