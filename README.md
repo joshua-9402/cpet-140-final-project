@@ -44,9 +44,9 @@
 This project is a C++ application that demonstrates a small, modular POS/inventory system with a UI layer and SQLite-backed persistence. It is designed for desktop platforms (Windows, macOS, Linux) and can be adapted to mobile platforms (Android, iOS) with platform-specific toolchains.
 
 ### Project Highlights
-- Language: C++17 (or later)
-- Build system: CMake
-- UI: Hello ImGui (immediate-mode GUI)
+- Language: C++26
+- Build system: CMake v4.0
+- UI: Hello ImGui (immediate-mode GUI) v1.19.3
 - Database: SQLite (single-file, local, embedded)
 - Target platforms: Desktop (Win/macOS/Linux), Mobile (Android/iOS)
 
@@ -102,17 +102,35 @@ This project is a C++ application that demonstrates a small, modular POS/invento
     - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
     - Conventions: keep DB helpers small, use RAII for connections, prefer prepared statements, and always check SQLite return codes.
 
+### API / Interfaces
+- From `main.cpp`
+    - `main()` function
+        - starts the whole application
+        - checking for dependencies and libraries
+        - constructs UI
+- From `UI.cpp`
+    - `constructUI()` function
+        - sets up Hello ImGui
+        - loads fonts
+        - registers UIs
+- From `db.cpp`
+    - `createDatabase()` function
+        - creates a new SQLite database file with the required schema
+    - `openDatabase()` function
+        - opens an existing SQLite database file
+    - `executeSQL()` function
+        - executes a given SQL statement with optional parameters
 
 
 ## Build & Run (desktop)
 
 ### Prerequisites
-- C++26
+- C++26 or later (the compiler must support C++26)
 - CMake 4.0 or later
 - sqlite3 3.50.4
 - Hello ImGui
 
-### Common commands (from repo root)
+### Commands (building from repository's root)
 - Configure and build:
 
         mkdir -p build && cd build
@@ -223,3 +241,55 @@ The participation of everyone is needed to make this project a success. Please f
 - Reference any related issues.
 - Follow the project's coding conventions and guidelines. Any significant deviations should be explained in the PR description, or it will be rejected.
 - Ensure all tests pass before submitting the PR. Submitted PRs will undergo for a review and also include the test results.
+
+### Troubleshooting & Debugging Tips
+- For `main.cpp` module
+  - Make sure that all functions / methods are correctly called
+  - Only put valid values when calling functions / methods or configuring application variables to avoid unexpected behaviors.
+  - For `main()` function:
+    - Ensure that all dependencies are correctly initialized before starting the UI.
+    - For `constructUI()`, make sure to correctly match the variables and the arguments.
+
+
+- For `UI.cpp` module
+  - The `switchUI()`, `mainUI()`, `posUI()`, `inventoryUI()`, and `failedUI()` are private functions. No one except the functions / methods  in the `UI.cpp` can access it.
+  - For `constructUI()`, this function is STRICTLY OFF-LIMITS as it contains critical UI initialization logic; do not modify it without prior approval from the project maintainers.
+
+
+- For `pos.cpp`
+
+
+- For `inventory.cpp`
+
+
+- For `db.cpp` and database-related module / dependencies
+  - This module is STRICTLY OFF-LIMITS.
+  - Enable verbose SQLite logging during development (sqlite3_log).
+  - Add a debug mode to log SQL statements and durations.
+  - Reproduce issues with a temporary DB and add unit/regression tests once fixed.
+  - Calling methods from `db.cpp` is `<db>::method` (e.g., `db::createDatabase(<path>, <error>)`)
+  - For `isSqliteAvailable()` method
+    - Returns either `true` or `false with error code`.
+  - For `createDatabase()`
+    - It will create a new database or open a database (if there is an existing database)
+    - Returns either `true` or `false with error`
+
+### Configuration
+- Configuration is intentionally minimal and file-based for portability.
+- Common options:
+  - database.path — path to the SQLite file (default: ./data/app.db)
+  - ui.fontPath — path to the UI font file (default: assets/fonts/OpenSans-Regular.ttf)
+- Load configuration early in main.cpp and allow environment variables to override file values for CI/containers.
+
+### Logging & Diagnostics
+- Centralize logging to a small helper (log::info/warn/error) so logging backend can be swapped (spdlog, custom).
+- Log at these levels:
+  - DEBUG: SQL statements, timing, detailed flows.
+  - INFO: startup/shutdown, DB migrations applied, major user actions (checkout).
+  - WARN/ERROR: validation failures, DB errors, exceptions.
+- Include correlation IDs for transactions when debugging multistep flows.
+
+### Known Limitations
+- Single-file SQLite limits multi-user concurrent writes; WAL helps but not a replacement for a server DB in multi-client scenarios.
+- No built-in encryption of the DB file; consider SQLCipher or OS-level disk encryption for sensitive deployments.
+- UI is immediate-mode and desktop-focused; mobile UI experience requires a separate UI layer implementation.
