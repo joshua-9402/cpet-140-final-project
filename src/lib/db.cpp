@@ -21,7 +21,7 @@
 
 // Check availability by opening and closing an in-memory database.
 // Possible outputs: true (OK), false (failed to open).
-bool db::isSqliteAvailable() {
+bool db::checkSqliteAvailable() {
     sqlite3* handle = nullptr;
     const int rc = sqlite3_open(":memory:", &handle);
     const bool ok = (rc == SQLITE_OK && handle != nullptr);

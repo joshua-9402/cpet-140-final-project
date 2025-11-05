@@ -26,7 +26,7 @@ public:
      * - true
      * - false
      */
-    static bool isSqliteAvailable();
+    static bool checkSqliteAvailable();
 
     /**
      * Create (or open if it already exists) a SQLite database file at the given path.
