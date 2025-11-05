@@ -13,6 +13,7 @@
  *
  * Notes
  * - UI switching is immediate (case-insensitive). App exit uses HelloImGui runner.
+ * - This part is OFF LIMITS especially to constructUI()
  */
 
 #include "hello_imgui/hello_imgui.h"
@@ -36,7 +37,7 @@ static std::string toLower(std::string s)
     return s;
 }
 
-void failedUI()
+static void failedUI()
 {
     ImGui::Text("%s", g_failedMessage.c_str());
     if (ImGui::Button("Exit"))
@@ -44,7 +45,7 @@ void failedUI()
 }
 
 // Request a switch to another UI by name. Perform the switch immediately (case-insensitive).
-void switchToUI(const std::string& name)
+static void switchToUI(const std::string& name)
 {
     const std::string key = toLower(name);
     auto it = g_uiMap.find(key);
@@ -56,7 +57,7 @@ void switchToUI(const std::string& name)
     }
 }
 
-void mainUI() {
+static void mainUI() {
     ImGui::Text("Hello, BCpET 1101!");
     ImGui::Text("This is the Main Window");
 
@@ -66,13 +67,13 @@ void mainUI() {
         HelloImGui::GetRunnerParams()->appShallExit = true;
 }
 
-void posUI() {
+static void posUI() {
     ImGui::Text("This is the POS UI");
 
     if (ImGui::Button("Switch to Main")) switchToUI("main");
 }
 
-void inventoryUI() {
+static void inventoryUI() {
     ImGui::Text("This is the Inventory UI");
 
     if (ImGui::Button("Switch to Main")) switchToUI("main");
