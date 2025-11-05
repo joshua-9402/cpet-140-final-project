@@ -67,10 +67,13 @@ This project is a C++ application that demonstrates a small, modular POS/invento
     │  ├─ main.cpp
     │  └─ lib/
     │     ├─ UI.cpp
+    │     ├─ UI.h
     │     ├─ db.cpp
     │     ├─ db.h
     │     ├─ inventory.cpp
-    │     └─ pos.cpp
+    │     ├─ inventory.h
+    │     ├─ pos.cpp
+    │     └─ pos.h
     ├─ .gitignore
     ├─ CMakeLists.txt
     └─ README.md
