@@ -217,6 +217,9 @@ The participation of everyone is needed to make this project a success. Please f
     - `improve` - enhancement of existing functionality / performance / UX
     - `refactor` - code restructuring without changing behavior
     - `chore` - maintenance tasks (build scripts, CI config, etc.)
+    - `build` - changes to build process or dependencies
+      - this is different from `chore` since it directly affects the build process or dependencies
+      - this option is only available for `CMakeLists.txt` or build scripts
     - the only exception is `initial commit` and the few subsequent commits in the repository and the `README.md`.
       - `README.md` follows a different convention since it is a documentation file.
         - `docs` - update README.md, add technical overview, fix typos, etc.
