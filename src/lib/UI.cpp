@@ -28,7 +28,8 @@
 // UI registry and current UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
-static std::string g_failedMessage; // holds message shown by failedUI
+static std::string g_failedMessage;
+void createFailedMessage(const std::string &message) {g_failedMessage =  message;};
 
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s)
@@ -52,7 +53,7 @@ static void switchToUI(const std::string& name)
     if (it != g_uiMap.end()) {
         g_currentUI = it->second;
     } else {
-        g_failedMessage = "Unknown UI: " + name;
+        createFailedMessage("Unknown UI: " + name);
         g_currentUI = failedUI;
     }
 }
