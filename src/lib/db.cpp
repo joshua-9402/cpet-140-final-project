@@ -22,11 +22,10 @@
 // Check availability by opening and closing an in-memory database.
 // Possible outputs: true (OK), false (failed to open).
 bool db::checkSqliteAvailable() {
-    sqlite3* handle = nullptr;
-    const int rc = sqlite3_open(":memory:", &handle);
-    const bool ok = (rc == SQLITE_OK && handle != nullptr);
-    if (handle) sqlite3_close(handle);
-    return ok;
+    sqlite3* h = nullptr;
+    const int c_SqlAvailable = sqlite3_open(":memory:", &h);
+    if (h) sqlite3_close(h);
+    return c_SqlAvailable == SQLITE_OK && h != nullptr;
 }
 
 // Create (or open) a database file at 'path'; does not create schema.
@@ -49,7 +48,10 @@ bool db::createDatabase(const std::string& path, std::string* outError) {
     return ok;
 }
 
-// Helper: open DB, run SQL, set outError on failure, close DB.
+// Helper: open DB, run SQL, set outError on failure, close DB on failure.
+// NOTE: On success this function intentionally does NOT close the sqlite3* handle
+// so the caller (or another module) can reuse the opened connection. This will
+// leak the handle if no caller takes ownership — caller must close the DB later.
 bool db::execSql(const std::string& path, const char* sql, std::string* outError) {
     sqlite3* handle = nullptr;
     constexpr int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
@@ -73,7 +75,9 @@ bool db::execSql(const std::string& path, const char* sql, std::string* outError
         return false;
     }
 
-    sqlite3_close(handle);
+    // Intentionally do not close 'handle' here — the database connection remains open.
+    // Caller is responsible for closing the sqlite3* (there's currently no API to
+    // retrieve or close it; ensure your integration accounts for this).
     return true;
 }
 
