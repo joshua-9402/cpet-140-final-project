@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 4.0) # minimum CMake version
 project(cpet_140_final_project) # project name
 set(CMAKE_CXX_STANDARD 26) # set C++ standard to C++26
 
@@ -36,5 +36,6 @@ hello_imgui_add_app(
         # The Point-of-Sale system
         src/lib/pos.cpp
         src/lib/pos.h
+
         ASSETS_LOCATION "assets/"
 )
