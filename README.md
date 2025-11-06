@@ -116,6 +116,8 @@ This project is a C++ application that demonstrates a small, modular POS/invento
         - sets up Hello ImGui
         - loads fonts
         - registers UIs
+    - `createFailedMessage()` function
+        - the `g_failedMessage` variable is not accessible in other modules, so this function is used to create a failed message needed.
 - From `db.cpp`
     - `createDatabase()` function
         - creates a new SQLite database file with the required schema
