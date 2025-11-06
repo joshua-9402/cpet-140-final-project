@@ -149,7 +149,7 @@ This project is a C++ application that demonstrates a small, modular POS/invento
 
 ## Build and Run (Mobile)
 
-- there is a separate repository for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
+- there is a separate <a href="https://github.com/joshua-9402"> repository </a> for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
 
 
 ## Dependencies
