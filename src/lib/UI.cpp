@@ -23,7 +23,6 @@
 #include <unordered_map>
 #include <algorithm>    // for transform
 #include <ranges>       // added: for std::ranges::transform
-#include <cctype>       // added: for std::tolower
 
 // UI registry and current UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
