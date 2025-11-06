@@ -280,18 +280,7 @@ The participation of everyone is needed to make this project a success. Please f
 
 ### Configuration
 - Configuration is intentionally minimal and file-based for portability.
-- Common options:
-  - database.path — path to the SQLite file (default: ./data/app.db)
-  - ui.fontPath — path to the UI font file (default: assets/fonts/OpenSans-Regular.ttf)
 - Load configuration early in main.cpp and allow environment variables to override file values for CI/containers.
-
-### Logging & Diagnostics
-- Centralize logging to a small helper (log::info/warn/error) so logging backend can be swapped (spdlog, custom).
-- Log at these levels:
-  - DEBUG: SQL statements, timing, detailed flows.
-  - INFO: startup/shutdown, DB migrations applied, major user actions (checkout).
-  - WARN/ERROR: validation failures, DB errors, exceptions.
-- Include correlation IDs for transactions when debugging multistep flows.
 
 ### Known Limitations
 - Single-file SQLite limits multi-user concurrent writes; WAL helps but not a replacement for a server DB in multi-client scenarios.
