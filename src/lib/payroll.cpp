@@ -15,5 +15,5 @@
  * - Single-threaded by default; validate quantities and prevent negative stock.
  */
 
-#include "inventory.h"
+#include "payroll.h"
 #include <string>

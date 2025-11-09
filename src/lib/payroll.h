@@ -2,7 +2,7 @@
 #define CPET_140_FINAL_PROJECT_INVENTORY_H
 
 
-class inventory {
+class payroll {
 };
 
 

@@ -30,12 +30,12 @@ hello_imgui_add_app(
         src/lib/UI.h
 
         # The Inventory system
-        src/lib/inventory.cpp
-        src/lib/inventory.h
+        src/lib/payroll.cpp
+        src/lib/payroll.h
 
         # The Point-of-Sale system
-        src/lib/pos.cpp
-        src/lib/pos.h
+        src/lib/monitoring.cpp
+        src/lib/monitoring.h
 
         ASSETS_LOCATION "assets/"
 )

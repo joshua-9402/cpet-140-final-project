@@ -91,15 +91,6 @@ This project is a C++ application that demonstrates a small, modular POS/invento
     - Responsibilities: immediate-mode UI only — register UIs, load fonts, set HelloImGui params, invoke g_currentUI each frame.
     - Conventions: register UI handlers, keep UIs small, avoid long inline logic, ShowGui should simply call the current UI.
 
-- src/lib/inventory.cpp and inventory.h
-    - Responsibilities: inventory item, list/filter items, stock adjustments.
-    - Conventions: keep inventory logic separate from DB, validate inputs, return clear error codes.
-
-
-- src/lib/pos.cpp and pos.h
-    - Responsibilities: sales transactions, cart management, payment processing.
-    - Conventions: separate logic from DB, handle payment calculations, ensure data integrity.
-
 
 - src/lib/db.cpp and db.h
     - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
@@ -165,8 +156,8 @@ This project is a C++ application that demonstrates a small, modular POS/invento
 - Manual smoke tests: 
   - startup
   - DB create/open
-  - add item
-  - create sale
+  - add/edit/delete inventory items
+  - add/edit/delete payroll transactions
   - close and reopen DB
   - UI interactions.
 - Automated tests (recommended): add unit tests around db helpers and inventory logic (Catch2/GoogleTest).
@@ -266,10 +257,10 @@ The participation of everyone is needed to make this project a success. Please f
   - For `createFailedMessage()`, this function is used to create a failed message when the application fails to start. Do not modify it without prior approval from the project maintainers.
 
 
-- For `pos.cpp`
+- For `payroll.cpp`
 
 
-- For `inventory.cpp`
+- For `monitoring.cpp`
 
 
 - For `db.cpp` and database-related module / dependencies
