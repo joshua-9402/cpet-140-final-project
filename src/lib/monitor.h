@@ -2,7 +2,7 @@
 #define CPET_140_FINAL_PROJECT_POS_H
 
 
-class monitoring {
+class monitor {
 };
 
 
