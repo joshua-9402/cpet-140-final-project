@@ -18,6 +18,7 @@
 
 #include "hello_imgui/hello_imgui.h"
 #include "imgui.h"
+#include "UI.h"
 #include <string>
 #include <functional>
 #include <unordered_map>
@@ -27,32 +28,30 @@
 // UI registry and current UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
-static std::string g_failedMessage;
-void createFailedMessage(const std::string &message) {g_failedMessage =  message;};
+std::string ui::g_failedMessage;
 
-// Lowercase helper used by both constructUI and switchToUI
-static std::string toLower(std::string s)
-{
-    std::ranges::transform(s, s.begin(), [](unsigned char c){ return std::tolower(c); });
-    return s;
-}
 
-static void failedUI()
-{
-    ImGui::Text("%s", g_failedMessage.c_str());
+static void failedUI() {
+    ImGui::Text("%s", ui::g_failedMessage.c_str());
     if (ImGui::Button("Exit"))
         HelloImGui::GetRunnerParams()->appShallExit = true;
 }
 
+
+// Lowercase helper used by both constructUI and switchToUI
+static std::string toLower(std::string s) {
+    std::ranges::transform(s, s.begin(), [](unsigned char c){ return std::tolower(c); });
+    return s;
+}
+
+
 // Request a switch to another UI by name. Perform the switch immediately (case-insensitive).
-static void switchToUI(const std::string& name)
-{
+static void switchToUI(const std::string& name) {
     const std::string key = toLower(name);
-    auto it = g_uiMap.find(key);
-    if (it != g_uiMap.end()) {
+    if (const auto it = g_uiMap.find(key); it != g_uiMap.end()) {
         g_currentUI = it->second;
     } else {
-        createFailedMessage("Unknown UI: " + name);
+        ui::g_failedMessage = "Unknown UI: " + name;
         g_currentUI = failedUI;
     }
 }
@@ -61,42 +60,41 @@ static void mainUI() {
     ImGui::Text("Hello, BCpET 1101!");
     ImGui::Text("This is the Main Window");
 
-    if (ImGui::Button("Switch to POS")) switchToUI("pos");
-    if (ImGui::Button("Switch to Inventory")) switchToUI("inventory");
+    if (ImGui::Button("Switch to Payroll UI")) switchToUI("payroll");
+    if (ImGui::Button("Switch to Monitoring System")) switchToUI("monitor");
     if (ImGui::Button("Close Application"))
         HelloImGui::GetRunnerParams()->appShallExit = true;
 }
 
-static void posUI() {
-    ImGui::Text("This is the POS UI");
+static void payrollUI() {
+    ImGui::Text("This is the Payroll UI");
 
     if (ImGui::Button("Switch to Main")) switchToUI("main");
 }
 
-static void inventoryUI() {
-    ImGui::Text("This is the Inventory UI");
+static void monitorUI() {
+    ImGui::Text("This is the Monitoring UI");
 
     if (ImGui::Button("Switch to Main")) switchToUI("main");
 }
 
-void constructUI(const std::string &title, const std::string& font_location, const int width, const int length, const std::string& window) {
+void ui::constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_lengthPX, const std::string& a_window) {
     HelloImGui::RunnerParams params;
 
     // populate UI registry (ensure it's available before selecting current UI)
     g_uiMap.clear();
-
     g_uiMap.reserve(4);
     g_uiMap["main"] = mainUI;
-    g_uiMap["inventory"] = inventoryUI;
-    g_uiMap["pos"] = posUI;
+    g_uiMap["monitor"] = monitorUI;
+    g_uiMap["payroll"] = payrollUI;
     g_uiMap["failed"] = failedUI;
 
     // Load your custom font from assets/fonts, with fallback to default font
-    params.callbacks.LoadAdditionalFonts = [font_location]()
+    params.callbacks.LoadAdditionalFonts = [a_fontLocation]()
     {
-        ImGuiIO& io = ImGui::GetIO();
-        const std::string fontPath = HelloImGui::AssetFileFullPath(font_location);
-        ImFont* font = nullptr; // fixed: proper pointer type
+        const ImGuiIO& io = ImGui::GetIO();
+        const std::string fontPath = HelloImGui::AssetFileFullPath(a_fontLocation);
+        const ImFont* font = nullptr; // fixed: proper pointer type
         if (!fontPath.empty()) {
             font = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 22.0f);
         }
@@ -108,28 +106,31 @@ void constructUI(const std::string &title, const std::string& font_location, con
     };
 
     // normalize and sanitize inputs (case-insensitive start key)
-    const std::string startKey = window.empty() ? "main" : toLower(window);
+    const std::string startKey = a_window.empty() ? "main" : toLower(a_window);
 
     // initialize current UI based on requested window (case-insensitive)
-    auto it = g_uiMap.find(startKey);
-    if (it != g_uiMap.end()) {
+    if (const auto it = g_uiMap.find(startKey); it != g_uiMap.end()) {
         g_currentUI = it->second;
     } else {
         // fallback to main if unknown, but keep failed registered for explicit errors
         g_currentUI = g_uiMap.contains("main") ? g_uiMap["main"] : failedUI;
     }
 
-    // Use a wrapper so we can call the current UI each frame (no queued switching)
-    params.callbacks.ShowGui = []() {
-        if (g_currentUI) g_currentUI();
-    };
+    /*
+     * Use a wrapper so we can call the current UI each frame (no queued switching)
+     *
+     * !!!!!!!!!!!!!!! DO NOT DELETE THIS PART !!!!!!!!!!!!!!!
+     */
+    params.callbacks.ShowGui = []() {if (g_currentUI) g_currentUI();};
 
     // Window and GUI settings
     // clamp sizes to reasonable bounds so caller can't accidentally create tiny or huge windows
-    int clampedW = std::clamp(width, 640, 3840);
-    int clampedH = std::clamp(length, 480, 2160);
-    params.appWindowParams.windowTitle = title.empty() ? "App" : title;
-    params.appWindowParams.windowGeometry.size = { clampedW, clampedH };
+    const int l_clampedWidth = std::clamp(a_widthPx, 640, 3840);
+    const int l_clampedLength = std::clamp(a_lengthPX, 480, 2160);
+    params.appWindowParams.windowGeometry.size = { l_clampedWidth, l_clampedLength };
+
+    // Rename the whole application to "system" if there is no argument/s in the variable "title"
+    params.appWindowParams.windowTitle = a_title.empty() ? "system" : a_title;
 
     HelloImGui::Run(params);
 }
