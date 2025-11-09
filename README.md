@@ -84,27 +84,30 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 ## Application Structure
 
 ### Module Responsibilities and Organization
-- main.cpp
+- `main.cpp`
     - Responsibilities: program entry, basic diagnostics and configure and start the UI runner.
     - Conventions: no logic, no direct DB schema work
 
 
-- src/lib/UI.cpp and UI.h
+- `src/lib/UI.cpp` and `UI.h`
     - Responsibilities: immediate-mode UI only — register UIs, load fonts, set HelloImGui params, invoke g_currentUI each frame.
     - Conventions: register UI handlers, keep UIs small, avoid long inline logic, ShowGui should simply call the current UI.
 
 
-- src/lib/db.cpp and db.h
+- `src/lib/db.cpp` and `db.h`
     - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
     - Conventions: keep DB helpers small, use RAII for connections, prefer prepared statements, and always check SQLite return codes.
 
-- src/lib/payroll.cpp and payroll.h
-  - Responsibilities:
-  - Conventions:
 
-- src/lib/monitor.cpp and monitor.h
-  - Responsibilities:
-  - Conventions:
+
+- `src/lib/payroll.cpp` and `src/lib/payroll.h`
+  - Responsibilities: payroll logic (records, rates, time entries, deductions, taxes), CRUD (Create, Read, Update, and Delete) and payroll runs; validate inputs and produce deterministic calculations. Delegate persistence to `db`.
+  - Conventions: no UI or raw SQLite calls — use `db::` helpers; prefer RAII and integer/fixed\-point for money; small, testable lowerCamelCase functions; return explicit result types and add unit tests; avoid global state.
+
+
+- `src/lib/monitor.cpp` and `monitor.h`
+  - Responsibilities: collect and expose domain-specific expense metrics (per-project expense totals, payroll/outflow summaries, invoice/payment status); aggregate and persist expense snapshots via `db::` helpers on demand; provide a synchronous, lightweight query API for the UI and `payroll` module; validate inputs and emit alerts/logs for threshold breaches.
+  - Conventions: no system monitoring (CPU/memory) and no background threads/polling/timers here; delegate persistence to `db::` helpers
 
 ### API / Interfaces
 - From `main.cpp`
