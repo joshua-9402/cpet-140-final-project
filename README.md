@@ -41,12 +41,14 @@
 
 ## Technical Overview
 
-This project is a C++ application that demonstrates a small, modular POS/inventory system with a UI layer and SQLite-backed persistence. It is designed for desktop platforms (Windows, macOS, Linux) and can be adapted to mobile platforms (Android, iOS) with platform-specific toolchains.
+This project is a C++ application that demonstrates a payroll and monitoring system with a UI layer and SQLite-backed persistence. It is designed for desktop platforms (Windows, macOS, Linux) and can be adapted to mobile platforms (Android, iOS) with platform-specific toolchains.
 
 ### Project Highlights
 - Language: C++26
 - Build system: CMake v4.0
-- UI: Hello ImGui (immediate-mode GUI) v1.19.3
+- UI
+  - Hello ImGui (immediate-mode GUI) v1.19.3
+  - Qt UI Framework
 - Database: SQLite (single-file, local, embedded)
 - Target platforms: Desktop (Win/macOS/Linux), Mobile (Android/iOS)
 
@@ -70,10 +72,10 @@ This project is a C++ application that demonstrates a small, modular POS/invento
     │     ├─ UI.h
     │     ├─ db.cpp
     │     ├─ db.h
-    │     ├─ inventory.cpp
-    │     ├─ inventory.h
-    │     ├─ pos.cpp
-    │     └─ pos.h
+    │     ├─ monitor.cpp
+    │     ├─ monitor.h
+    │     ├─ payroll.cpp
+    │     └─ payroll.h
     ├─ .gitignore
     ├─ CMakeLists.txt
     └─ README.md
@@ -96,6 +98,14 @@ This project is a C++ application that demonstrates a small, modular POS/invento
     - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
     - Conventions: keep DB helpers small, use RAII for connections, prefer prepared statements, and always check SQLite return codes.
 
+- src/lib/payroll.cpp and payroll.h
+  - Responsibilities:
+  - Conventions:
+
+- src/lib/monitor.cpp and monitor.h
+  - Responsibilities:
+  - Conventions:
+
 ### API / Interfaces
 - From `main.cpp`
     - `main()` function
@@ -107,20 +117,13 @@ This project is a C++ application that demonstrates a small, modular POS/invento
         - sets up Hello ImGui
         - loads fonts
         - registers UIs
-    - `createFailedMessage()` function
-        - the `g_failedMessage` variable is not accessible in other modules, so this function is used to create a failed message needed.
 - From `db.cpp`
-    - `createDatabase()` function
-        - creates a new SQLite database file with the required schema
-    - `openDatabase()` function
-        - opens an existing SQLite database file
-    - `executeSQL()` function
-        - executes a given SQL statement with optional parameters
+
 
 
 ## Build & Run (Desktop)
 
-### Prerequisites
+### Prerequisites (For Development Computer Only)
 - C++26 or later (the compiler must support C++26)
 - CMake 4.0 or later
 - sqlite3 3.50.4
@@ -136,6 +139,8 @@ This project is a C++ application that demonstrates a small, modular POS/invento
 - Run:
 
       ./your-executable-name
+
+
 
 
 ## Build and Run (Mobile)
@@ -181,7 +186,15 @@ The participation of everyone is needed to make this project a success. Please f
 
 - Functions / Methods:
   - lowerCamelCase (e.g., `createDatabase`, `switchToUI`).
-  - Prefixes: verb indicating action (get, set, create, load, save, open, close etc.).
+  - Prefixes: verb indicating action
+    - Example:
+      - get - fetching a file or a variable in a specific location
+      - set - 
+      - create - 
+      - load - loading a file / variable in the application's memory
+      - save - 
+      - open - 
+      - close - 
   - Suffixes: use clear, descriptive suffixes that indicate the operation's target or context (for example, use `Database` for functions that perform database operations).
   - Exemptions: `main()` function.
   - Examples:
@@ -189,12 +202,13 @@ The participation of everyone is needed to make this project a success. Please f
     - `constructUI()`
 
 
-- Local variables / parameters / constants: 
+- Local variables / parameters / arguments / constants: 
   - lowerCamelCase (e.g., `fontPath`).
-  - Prefix (only parameters are exempted):
+  - Prefix:
     - `g_` for globals (e.g., `g_currentUI`)
     - `c_` for constants (e.g., `c_defaultFontSize`)
     - `l_` for locals (e.g., `l_itemCount`).
+    - `a_` for arguments (e.g., `a_machineCode`)
   - Suffix: any verb, adjective or noun indicating purpose (e.g., count, size, index).
     - for variables representing a unit of something, use the unit as suffix (e.g., `priceUsd`, `sizePx`).
 
