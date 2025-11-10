@@ -16,19 +16,23 @@
  * - This part is OFF LIMITS especially to constructUI()
  */
 
-#include "hello_imgui/hello_imgui.h"
-#include "imgui.h"
-#include "UI.h"
+#include <iostream>
 #include <string>
 #include <functional>
 #include <unordered_map>
 #include <algorithm>    // for transform
 #include <ranges>       // added: for std::ranges::transform
+#include "hello_imgui/hello_imgui.h"
+#include "imgui.h"
+#include "ui.h"
 
 // UI registry and current UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
 std::string ui::g_failedMessage;
+
+// UI element size variables
+auto g_buttonSizePx = ImVec2(200, 40); // x for width, y for height
 
 
 static void failedUI() {
@@ -56,15 +60,13 @@ static void switchToUI(const std::string& name) {
     }
 }
 
-static void mainUI() {
+static void selectorUI() {
     ImGui::Text("Hello, BCpET 1101!");
-    ImGui::Text("This is the Main Window");
 
-    if (ImGui::Button("Switch to Payroll UI")) switchToUI("payroll");
-    if (ImGui::Button("Switch to Monitoring System")) switchToUI("monitor");
-    if (ImGui::Button("Close Application"))
-        HelloImGui::GetRunnerParams()->appShallExit = true;
-}
+    if (ImGui::Button("Payroll UI", g_buttonSizePx)) switchToUI("payroll");
+    if (ImGui::Button("Monitoring System", g_buttonSizePx)) switchToUI("monitor");
+
+    if (ImGui::Button("Exit", g_buttonSizePx))HelloImGui::GetRunnerParams()->appShallExit = true;}
 
 static void payrollUI() {
     ImGui::Text("This is the Payroll UI");
@@ -84,7 +86,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     // populate UI registry (ensure it's available before selecting current UI)
     g_uiMap.clear();
     g_uiMap.reserve(4);
-    g_uiMap["main"] = mainUI;
+    g_uiMap["main"] = selectorUI;
     g_uiMap["monitor"] = monitorUI;
     g_uiMap["payroll"] = payrollUI;
     g_uiMap["failed"] = failedUI;
