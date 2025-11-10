@@ -26,8 +26,8 @@ hello_imgui_add_app(
         src/lib/db.h
 
         # The User Interface handler
-        src/lib/UI.cpp
-        src/lib/UI.h
+        src/ui/ui.cpp
+        src/ui/ui.h
 
         # The Payroll system
         src/lib/payroll.cpp
