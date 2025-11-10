@@ -12,7 +12,7 @@ FetchContent_MakeAvailable(hello_imgui)
 
 # Add your app
 hello_imgui_add_app(
-        pos-and-inventory-system
+        payroll-and-monitoring-system
 
         # SQLite dependency
         dependencies/sqlite/sqlite3.c
