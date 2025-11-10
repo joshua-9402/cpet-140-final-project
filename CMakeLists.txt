@@ -40,5 +40,15 @@ hello_imgui_add_app(
         src/lib/monitor.cpp
         src/lib/monitor.h
 
+
+        # Security System
+        src/security/auth.cpp
+        src/security/auth.h
+
+        src/security/cryptography.cpp
+        src/security/cryptography.h
+
+
+        # Assets location
         ASSETS_LOCATION "assets/"
 )
