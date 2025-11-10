@@ -99,15 +99,15 @@ static void mainUI() {
     if (!g_rightUI) g_rightUI = summaryUI; // default right panel
 
     // Full-viewport, borderless root so the main UI is in the app window itself
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
     // Use work area to avoid overlapping HelloImGui menu/dockspace areas
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);
-    ImGuiWindowFlags rootFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                                 ImGuiWindowFlags_NoSavedSettings |
-                                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-                                 ImGuiWindowFlags_NoDocking; // prevent docking overlay from capturing inputs
+    constexpr ImGuiWindowFlags rootFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                                           ImGuiWindowFlags_NoSavedSettings |
+                                           ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                                           ImGuiWindowFlags_NoDocking; // prevent docking overlay from capturing inputs
     // Nudge focus to our root window for the first frames to ensure interactivity
     static int s_focusFrames = 30;
     if (s_focusFrames > 0) { ImGui::SetNextWindowFocus(); --s_focusFrames; }
