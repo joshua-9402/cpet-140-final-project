@@ -93,6 +93,7 @@ static void monitorUI() {
     ImGui::Text("This is the Monitoring UI");
 }
 
+
 // Main two-column layout: left = selector, right = active panel (summary/payroll/monitor)
 static void mainUI() {
     if (!g_rightUI) g_rightUI = summaryUI; // default right panel
