@@ -22,8 +22,8 @@ hello_imgui_add_app(
         src/main.cpp
 
         # The Database I/O handler
-        src/lib/db.cpp
-        src/lib/db.h
+        src/handler/db.cpp
+        src/handler/db.h
 
         # The User Interface handler
         src/ui/ui.cpp
