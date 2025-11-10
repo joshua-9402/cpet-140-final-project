@@ -14,26 +14,29 @@ FetchContent_MakeAvailable(hello_imgui)
 hello_imgui_add_app(
         payroll-and-monitoring-system
 
-        # SQLite dependency
+        # dependency
         dependencies/sqlite/sqlite3.c
         dependencies/sqlite/sqlite3.h
 
         # The main application file
         src/main.cpp
 
-        # The Database I/O handler
+
+        # I/O handlers
         src/handler/db.cpp
         src/handler/db.h
 
-        # The User Interface handler
         src/ui/ui.cpp
         src/ui/ui.h
 
-        # The Payroll system
+        src/handler/system.cpp
+        src/handler/system.h
+
+
+        # The Systems
         src/lib/payroll.cpp
         src/lib/payroll.h
 
-        # The Monitoring Service
         src/lib/monitor.cpp
         src/lib/monitor.h
 
