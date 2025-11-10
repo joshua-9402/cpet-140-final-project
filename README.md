@@ -225,7 +225,8 @@ The participation of everyone is needed to make this project a success. Please f
 ### Commit Messages
 - Format: "<action>: <description>"
   - For actions, use a verb indicating the change
-    - `add` - addition of new functionality / file / module / feature
+    - `add` - addition of new functionality
+    - `feat` - addition of a significant new feature
     - `remove` - deletion of functionality / file / module / feature
     - `fix` - bug fix
     - `update` - update existing functionality / dependencies / docs
