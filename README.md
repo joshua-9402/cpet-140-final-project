@@ -148,7 +148,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 
 ## Build and Run (Mobile)
 
-- there is a separate <a href="https://github.com/joshua-9402"> repository </a> for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
+- there is a separate <a href="https://github.com/joshua-9402/cpet-140-final-project-mobile"> repository </a> for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
 
 
 ## Dependencies
@@ -181,6 +181,7 @@ The participation of everyone is needed to make this project a success. Please f
 >   - For adding new UIs, please file an issue first to discuss the addition.
 > - When contributing code, please ensure that your code adheres to the coding conventions outlined below.
 > - Any significant deviations from the coding conventions should be explained in the PR / commit description, or it will be rejected.
+> - The use of other languages other than English is not allowed unless specified.
 
 ### Naming Conventions
 - Types and Classes:
@@ -191,29 +192,35 @@ The participation of everyone is needed to make this project a success. Please f
   - lowerCamelCase (e.g., `createDatabase`, `switchToUI`).
   - Prefixes: verb indicating action
     - Example:
-      - get - fetching a file or a variable in a specific location
-      - set - 
-      - create - 
-      - load - loading a file / variable in the application's memory
-      - save - 
-      - open - 
-      - close - 
+      - get - retrieve a value or resource from a known location (e.g., read a variable, fetch a record or file)
+      - set - assign or update a value or configuration (e.g., update a variable, modify a record or file)
+      - create - allocate or persist a new resource or object 
+      - load - load a file or resource into application memory
+      - save - persist in-memory data to storage
+      - delete - remove or deallocate a resource or object
+      - update - modify an existing resource or object
+      - open - open a resource or connection for use
+      - close - release or shut down a resource or connection
+      - convert - transform data between formats or units
+      - change - modify state or configuration
   - Suffixes: use clear, descriptive suffixes that indicate the operation's target or context (for example, use `Database` for functions that perform database operations).
-  - Exemptions: `main()` function.
+  - Exemptions: 
+    - The `main()` function in `main.cpp`.
+    - The UI handler functions in `UI.cpp` (e.g., `mainUI()`, `payrollUI()`, `monitorUI()`, `failedUI()`).
   - Examples:
     - `createDatabase()`
     - `constructUI()`
 
 
-- Local variables / parameters / arguments / constants: 
+- Variables (Local, Global, and Constant) and parameters:
   - lowerCamelCase (e.g., `fontPath`).
   - Prefix:
-    - `g_` for globals (e.g., `g_currentUI`)
-    - `c_` for constants (e.g., `c_defaultFontSize`)
-    - `l_` for locals (e.g., `l_itemCount`).
-    - `a_` for arguments (e.g., `a_machineCode`)
+    - `g` for global variable (e.g., `g_currentUI`)
+    - `l` for local variable (e.g., `l_itemCount`).
+    - `c` for constant variable (e.g., `c_defaultFontSize`)
+    - `p` for parameter (e.g., `p_machineCode`)
   - Suffix: any verb, adjective or noun indicating purpose (e.g., count, size, index).
-    - for variables representing a unit of something, use the unit as suffix (e.g., `priceUsd`, `sizePx`).
+    - for variables representing a unit of something, use the unit as suffix (e.g., `c_priceUsd`, `g_sizePx`).
 
 ### Commit Messages
 - Format: "<action>: <description>"
@@ -236,8 +243,8 @@ The participation of everyone is needed to make this project a success. Please f
 - Include a brief body when needed: one-line rationale and test instructions.
 - Reference issue/PR numbers when applicable.
 - Examples: 
-  - "fix: correct inventory item deletion logic (#42)"
-  - "update: upgrade sqlite3 to 3.50.4 for security patches (#56)"
+  - `fix: correct inventory item deletion logic (#42)`
+  - `update: upgrade sqlite3 to 3.50.4 for security patches (#56)`
 
 ### Filing Issues
 - The use of Filipino language is allowed when filing issues.
