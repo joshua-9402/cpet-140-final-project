@@ -32,43 +32,40 @@
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
 static std::function<void()> g_rightUI = nullptr; // Right panel active UI (shown in main two-column layout)
-auto g_buttonSizePx = ImVec2(200, 40); // x for width, y for height of buttons
+auto g_buttonSizePxSelector = ImVec2(270, 40); // x for width, y for height of buttons
 std::string ui::g_failedMessage; // Global failed message for failedUI
+const std::string g_userName = "testUserName";
+const std::string g_companyName = "testCompanyName";
+const std::string g_position = "testPosition";
 
 
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s) {
-    std::ranges::transform(s, s.begin(), [](unsigned char c){ return std::tolower(c); });
+    std::ranges::transform(s, s.begin(), [](const unsigned char c){ return std::tolower(c); });
     return s;
 }
 
 
-static void selectorUI() {
-    std::string l_greetings;
-    if (const int hour = system::fetchTime(system::PartDateTime::HOUR); hour >= 0 && hour < 12) {
-        l_greetings = "Good Morning";
-    }
-    else if (hour >= 12 && hour < 18) {
-        l_greetings = "Good Afternoon";
-    }
-    else {
-        l_greetings = "Good Evening";
-    }
+static ImVec2 fullWidthButtonSize(float a_height = g_buttonSizePxSelector.y) { return ImVec2(ImGui::GetContentRegionAvail().x, a_height); }
 
-    ImGui::SetCursorPos(ImVec2(30.0f, 30.0f)); // Position in the window
-    ImGui::SetWindowFontScale(1.5f); // Font scale for the greeting
-    ImGui::Text("%s", l_greetings.c_str());
-    ImGui::SetWindowFontScale(1.0f); // Resetting font scale for buttons
 
-    if (ImGui::Button("Summary", g_buttonSizePx)) {
-        if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; }
-    if (ImGui::Button("Payroll", g_buttonSizePx)) {
-        if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; }
-    if (ImGui::Button("Expenses", g_buttonSizePx)) {
-        if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; }
+void setTextCenter(const char* text){
+    const float windowWidth = ImGui::GetWindowSize().x;
+    const float textWidth = ImGui::CalcTextSize(text).x;
 
-    if (ImGui::Button("Exit", g_buttonSizePx))
-        HelloImGui::GetRunnerParams()->appShallExit = true;
+    // Move to center position
+    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+    ImGui::Text("%s", text);
+}
+
+
+void setTextRight(const char* text){
+    const float windowWidth = ImGui::GetWindowSize().x;
+    const float textWidth = ImGui::CalcTextSize(text).x;
+
+    // Position the cursor so that text ends at the right edge
+    ImGui::SetCursorPosX(windowWidth - textWidth - ImGui::GetStyle().WindowPadding.x);
+    ImGui::Text("%s", text);
 }
 
 
@@ -76,6 +73,58 @@ static void failedUI() {
     ImGui::Text("%s", ui::g_failedMessage.c_str());
     if (ImGui::Button("Exit"))
         HelloImGui::GetRunnerParams()->appShallExit = true;
+}
+
+
+static void accountUI() {
+    ImGui::Text("Name:");
+    setTextRight(g_userName.c_str());
+    ImGui::Text("Position:");
+    setTextRight(g_position.c_str());
+    ImGui::Text("Company Name");
+    setTextRight(g_companyName.c_str());
+}
+
+
+static void selectorUI() {
+    // Greeting and username
+    std::string l_greetings;
+    if (const int hour = system::fetchTime(system::PartDateTime::HOUR); hour >= 0 && hour < 12) {
+        l_greetings = "Good Morning,";
+    }
+    else if (hour >= 12 && hour < 18) {
+        l_greetings = "Good Afternoon,";
+    }
+    else {
+        l_greetings = "Good Evening,";
+    }
+
+    ImGui::SetCursorPos(ImVec2(20.0f, 10.0f));
+    setTextCenter("appLogo"); // Placeholder for logo
+
+    ImGui::SetCursorPos(ImVec2(20.0f, 80.0f)); // x = padding from left, y = small padding from top
+    ImGui::SetWindowFontScale(1.7f); // Larger greeting
+    ImGui::Text("%s", l_greetings.c_str());
+    ImGui::SetWindowFontScale(1.0f); // Reset font scale
+    ImGui::SetCursorPos(ImVec2(40.0f, 115.0f));
+    ImGui::Text("%s", g_userName.c_str());
+
+    // Navigation buttons control the right pane
+    ImGui::SetCursorPos(ImVec2(8.0f, 200.0f));
+    if (ImGui::Button("Summary", fullWidthButtonSize())) { if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; }
+    if (ImGui::Button("Payroll", fullWidthButtonSize())) { if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; }
+    if (ImGui::Button("Expenses", fullWidthButtonSize())) { if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; }
+
+    // Top: Account info inside a bordered child, matching the two-column style
+    ImGui::Spacing();
+    const float lineH = ImGui::GetTextLineHeightWithSpacing();
+    const float accountHeight = lineH * 6.0f + 12.0f; // 6 text lines + small padding
+    ImGui::BeginChild("AccountPanel", ImVec2(0, accountHeight), true);
+    accountUI();
+    ImGui::EndChild();
+    ImGui::Spacing();
+
+    if (ImGui::Button("Exit", fullWidthButtonSize())) HelloImGui::GetRunnerParams()->appShallExit = true;
 }
 
 
@@ -114,8 +163,7 @@ static void mainUI() {
     ImGui::Begin("##MainRoot", nullptr, rootFlags);
 
     const float total = ImGui::GetContentRegionAvail().x;
-    const float leftWidth = std::clamp(total * 0.35f, 220.0f, 480.0f);
-
+    const float leftWidth = std::clamp(total * 0.18f, 220.0f, 480.0f);
     // Left pane: fixed-width child so it does not move when resizing
     ImGui::BeginChild("LeftPane", ImVec2(leftWidth, 0), true);
     selectorUI();
