@@ -91,28 +91,6 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 
 ## Application Structure
 
-### System FLow chart
-flowchart TD
-A([Start - main.cpp]) --> B[Initialize dependencies & configuration]
-B --> C[Launch UI layer (UI.cpp / UI.h)]
-C --> D{User Command}
-
-    D -->|Payroll| E[Payroll Module (payroll.cpp / payroll.h)]
-    D -->|Monitoring| F[Monitoring Module (monitor.cpp / monitor.h)]
-    D -->|Authentication| G[Auth Module (auth.cpp / auth.h)]
-    
-    E --> H[Database Handler (db.cpp / db.h)]
-    F --> H
-    G --> H
-    
-    H --> C[Return to UI Layer]
-    
-    C --> I{More Commands?}
-    I -->|Yes| D
-    I -->|No| J[Cleanup & Exit]
-    J --> K([End])
-
-
 ### Module Responsibilities and Organization
 - `main.cpp`
     - Responsibilities: program entry, basic diagnostics and configure and start the UI runner.
