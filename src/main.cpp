@@ -14,9 +14,9 @@
  * - Configures title, font, and window size, then calls constructUI().
  */
 
-#include <ostream>
+
 #include <string>
-#include "lib/UI.h"
+#include "ui/ui.h"
 
 // Application configuration variables
 const std::string g_appTitle = "Main Window";
