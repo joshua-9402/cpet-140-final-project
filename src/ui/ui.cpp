@@ -46,7 +46,7 @@ static std::string toLower(std::string s) {
 }
 
 
-static ImVec2 fullWidthButtonSize(float a_height = g_buttonSizePxSelector.y) { return ImVec2(ImGui::GetContentRegionAvail().x, a_height); }
+static ImVec2 fullWidthButtonSize(const float a_height = g_buttonSizePxSelector.y) { return ImVec2(ImGui::GetContentRegionAvail().x, a_height); }
 
 
 void setTextCenter(const char* text){
@@ -180,7 +180,7 @@ static void mainUI() {
 }
 
 
-void ui::constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_lengthPX, const std::string& a_window) {
+void ui::constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_lengthPx, const std::string& a_window) {
     HelloImGui::RunnerParams params;
     // Ensure HelloImGui does not create a DockSpace: keep the default full-screen window
     // (ProvideFullScreenWindow). No explicit docking toggle available in this version.
@@ -188,11 +188,12 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
 
     // populate UI registry (ensure it's available before selecting current UI)
     g_uiMap.clear();
-    g_uiMap.reserve(2);
+    g_uiMap.reserve(6);
     g_uiMap["main"] = mainUI;
     g_uiMap["summary"] = summaryUI;
     g_uiMap["payroll"] = payrollUI;
     g_uiMap["monitor"] = monitorUI;
+    g_uiMap["account"] = accountUI;
     g_uiMap["failed"] = failedUI;
 
     // Load your custom font from assets/fonts, with fallback to default font
@@ -212,8 +213,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     };
 
     // Determine start key and select initial right panel; always render main layout
-    const std::string startKey = a_window.empty() ? "main" : toLower(a_window);
-    if (startKey == "payroll") {
+    if (const std::string startKey = a_window.empty() ? "main" : toLower(a_window); startKey == "payroll") {
         if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; else g_rightUI = payrollUI;
     }
     else if (startKey == "monitor") {
@@ -228,17 +228,13 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     }
     g_currentUI = mainUI;
 
-    /*
-     * Use a wrapper so we can call the current UI each frame (no queued switching)
-     *
-     * !!!!!!!!!!!!!!! DO NOT DELETE THIS PART !!!!!!!!!!!!!!!
-     */
+    //Use a wrapper so we can call the current UI each frame (no queued switching)
     params.callbacks.ShowGui = []() {if (g_currentUI) g_currentUI();};
 
     // Window and GUI settings
     // clamp sizes to reasonable bounds so caller can't accidentally create tiny or huge windows
     const int l_clampedWidth = std::clamp(a_widthPx, 640, 3840);
-    const int l_clampedLength = std::clamp(a_lengthPX, 480, 2160);
+    const int l_clampedLength = std::clamp(a_lengthPx, 480, 2160);
     params.appWindowParams.windowGeometry.size = { l_clampedWidth, l_clampedLength };
 
     // Rename the whole application to "system" if there is no argument/s in the variable "title"
