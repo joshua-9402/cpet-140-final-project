@@ -53,33 +53,46 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 - Target platforms: Desktop (Win/macOS/Linux), Mobile (Android/iOS)
 
 ### Repository Structure
-  ```
-    cpet-140-final-project/
-    ├─ assets/
-    │  └─ fonts/
-    │     └─ OpenSans-Regular.ttf
-    ├─ dependencies/
-    │   └─ sqlite3/
-    │      ├─ sqlite3.c
-    │      └─ sqlite3.h
-    ├─ doc/
-    │  ├─ CpET 140 - Computer Programming 1 - Final Output.pdf
-    │  └─ hello_imgui_manual.pdf
-    ├─ src/
-    │  ├─ main.cpp
-    │  └─ lib/
-    │     ├─ UI.cpp
-    │     ├─ UI.h
-    │     ├─ db.cpp
-    │     ├─ db.h
-    │     ├─ monitor.cpp
-    │     ├─ monitor.h
-    │     ├─ payroll.cpp
-    │     └─ payroll.h
-    ├─ .gitignore
-    ├─ CMakeLists.txt
-    └─ README.md
-  ```
+
+'''
+
+      cpet-140-final-project/
+      ├── assets/
+      │   └── fonts/
+      │      └── OpenSans-Regular.ttf
+      ├── dependencies/
+      │   └── sqlite3/
+      │      ├── sqlite3.c
+      │      └── sqlite3.h
+      ├── doc/
+      │   ├── CpET 140 - Computer Programming 1 - Final Output.pdf
+      │   └── hello_imgui_manual.pdf
+      ├── src/
+      │   ├── main.cpp
+      │   ├── handler/
+      │   │   ├── db.cpp
+      │   │   ├── db.h
+      │   │   ├── io.cpp
+      │   │   ├── io.h
+      │   │   ├── system.cpp
+      │   │   └── system.h
+      │   ├── lib/
+      │   │   ├── monitor.cpp
+      │   │   ├── monitor.h
+      │   │   ├── payroll.cpp
+      │   │   └── payroll.h
+      │   ├── security/
+      │   │  ├── auth.cpp
+      │   │  └── auth.h
+      │   └── ui/
+      │      ├── ui.cpp
+      │      └── ui.h
+      ├── .gitignore
+      ├── CMakeLists.txt
+      └── README.md
+
+'''
+
 
 ## Application Structure
 
