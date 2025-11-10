@@ -183,6 +183,12 @@ The participation of everyone is needed to make this project a success. Please f
 > - Any significant deviations from the coding conventions should be explained in the PR / commit description, or it will be rejected.
 > - The use of other languages other than English is not allowed unless specified.
 
+### Whitespace and Formatting
+- Use 4 spaces or 1 tab for indentation .
+- Limit lines to a maximum of 100 characters (comments only) for better readability.
+- For spaces in function / methods:
+  - give two line for each function / method definition and implementation.
+
 ### Naming Conventions
 - Types and Classes:
     - lowerCamelCase (e.g., `dbAccess`)
