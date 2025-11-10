@@ -26,10 +26,12 @@
 #include "imgui.h"
 #include "ui.h"
 
+
 // UI registry and current UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
 std::string ui::g_failedMessage;
+
 
 // UI element size variables
 auto g_buttonSizePx = ImVec2(200, 40); // x for width, y for height
@@ -60,6 +62,7 @@ static void switchToUI(const std::string& name) {
     }
 }
 
+
 static void selectorUI() {
     ImGui::Text("Hello, BCpET 1101!");
 
@@ -68,17 +71,20 @@ static void selectorUI() {
 
     if (ImGui::Button("Exit", g_buttonSizePx))HelloImGui::GetRunnerParams()->appShallExit = true;}
 
+
 static void payrollUI() {
     ImGui::Text("This is the Payroll UI");
 
     if (ImGui::Button("Switch to Main")) switchToUI("main");
 }
 
+
 static void monitorUI() {
     ImGui::Text("This is the Monitoring UI");
 
     if (ImGui::Button("Switch to Main")) switchToUI("main");
 }
+
 
 void ui::constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_lengthPX, const std::string& a_window) {
     HelloImGui::RunnerParams params;

@@ -18,6 +18,7 @@
 #include <string>
 #include "ui/ui.h"
 
+
 // Application configuration variables
 const std::string g_appTitle = "Main Window";
 const std::string g_fontName = "fonts/OpenSans-Regular.ttf";

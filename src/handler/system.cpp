@@ -10,6 +10,7 @@ enum class partDateTime {
     SECOND
 };
 
+
 int fetchTime(const partDateTime p_part) {
     // Get current time
     const auto now = std::chrono::system_clock::now();

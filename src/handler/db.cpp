@@ -17,15 +17,20 @@
  * - !!!!!!!!!! THIS NEEDS A REWORK ASAP !!!!!!!!!!
  */
 
+
 #include "db.h"
 #include <sqlite3.h>
+
 
 /*
  * This method will launch SQLite
  */
+
+
 bool launchSQLITE() {
  return true;
 }
+
 
 bool createDatabase() {
  return true;
