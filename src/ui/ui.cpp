@@ -28,18 +28,12 @@
 #include "../handler/system.h"
 
 
-// UI registry and current UI management
+// UI registry and UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
-std::string ui::g_failedMessage;
-
-// Right panel active UI (shown in main two-column layout)
-static std::function<void()> g_rightUI = nullptr;
-
-
-
-// UI element size variables
-auto g_buttonSizePx = ImVec2(200, 40); // x for width, y for height
+static std::function<void()> g_rightUI = nullptr; // Right panel active UI (shown in main two-column layout)
+auto g_buttonSizePx = ImVec2(200, 40); // x for width, y for height of buttons
+std::string ui::g_failedMessage; // Global failed message for failedUI
 
 
 static void failedUI() {
