@@ -34,11 +34,11 @@ hello_imgui_add_app(
 
 
         # The Systems
-        src/lib/payroll.cpp
-        src/lib/payroll.h
+        src/core/payroll.cpp
+        src/core/payroll.h
 
-        src/lib/monitor.cpp
-        src/lib/monitor.h
+        src/core/monitor.cpp
+        src/core/monitor.h
 
 
         # Security System
