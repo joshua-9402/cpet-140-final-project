@@ -53,9 +53,6 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 - Target platforms: Desktop (Win/macOS/Linux), Mobile (Android/iOS)
 
 ### Repository Structure
-
-'''
-
       cpet-140-final-project/
       ├── assets/
       │   └── fonts/
@@ -90,8 +87,6 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       ├── .gitignore
       ├── CMakeLists.txt
       └── README.md
-
-'''
 
 
 ## Application Structure
