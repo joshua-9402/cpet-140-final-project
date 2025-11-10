@@ -36,13 +36,6 @@ auto g_buttonSizePx = ImVec2(200, 40); // x for width, y for height of buttons
 std::string ui::g_failedMessage; // Global failed message for failedUI
 
 
-static void failedUI() {
-    ImGui::Text("%s", ui::g_failedMessage.c_str());
-    if (ImGui::Button("Exit"))
-        HelloImGui::GetRunnerParams()->appShallExit = true;
-}
-
-
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s) {
     std::ranges::transform(s, s.begin(), [](unsigned char c){ return std::tolower(c); });
@@ -75,6 +68,13 @@ static void selectorUI() {
         if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; }
 
     if (ImGui::Button("Exit", g_buttonSizePx))
+        HelloImGui::GetRunnerParams()->appShallExit = true;
+}
+
+
+static void failedUI() {
+    ImGui::Text("%s", ui::g_failedMessage.c_str());
+    if (ImGui::Button("Exit"))
         HelloImGui::GetRunnerParams()->appShallExit = true;
 }
 
