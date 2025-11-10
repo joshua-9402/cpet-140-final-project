@@ -50,38 +50,6 @@ static std::string toLower(std::string s) {
 }
 
 
-// Request a switch to another UI by name. Perform the switch immediately (case-insensitive).
-static void switchToUI(const std::string& name) {
-    const std::string key = toLower(name);
-
-    // Keep the two-column main layout always visible.
-    // Known detail names only change the right panel using the registry (no forward decls needed).
-    if (key == "summary") {
-        if (const auto it = g_uiMap.find("summary"); it != g_uiMap.end()) g_rightUI = it->second;
-        if (const auto itMain = g_uiMap.find("main"); itMain != g_uiMap.end()) g_currentUI = itMain->second;
-        return;
-    }
-    if (key == "payroll") {
-        if (const auto it = g_uiMap.find("payroll"); it != g_uiMap.end()) g_rightUI = it->second;
-        if (const auto itMain = g_uiMap.find("main"); itMain != g_uiMap.end()) g_currentUI = itMain->second;
-        return;
-    }
-    if (key == "monitor") {
-        if (const auto it = g_uiMap.find("monitor"); it != g_uiMap.end()) g_rightUI = it->second;
-        if (const auto itMain = g_uiMap.find("main"); itMain != g_uiMap.end()) g_currentUI = itMain->second;
-        return;
-    }
-    if (key == "main") {
-        if (const auto itMain = g_uiMap.find("main"); itMain != g_uiMap.end()) g_currentUI = itMain->second;
-        return;
-    }
-
-    // Unknown: show failed screen (diagnostic)
-    ui::g_failedMessage = "Unknown UI: " + name;
-    g_currentUI = failedUI;
-}
-
-
 static void selectorUI() {
     std::string l_greetings;
     if (const int hour = system::fetchTime(system::PartDateTime::HOUR); hour >= 0 && hour < 12) {
