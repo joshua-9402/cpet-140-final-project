@@ -25,12 +25,17 @@
 #include "hello_imgui/hello_imgui.h"
 #include "imgui.h"
 #include "ui.h"
+#include "../handler/system.h"
 
 
 // UI registry and current UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
 std::string ui::g_failedMessage;
+
+// Right panel active UI (shown in main two-column layout)
+static std::function<void()> g_rightUI = nullptr;
+
 
 
 // UI element size variables
@@ -54,47 +59,129 @@ static std::string toLower(std::string s) {
 // Request a switch to another UI by name. Perform the switch immediately (case-insensitive).
 static void switchToUI(const std::string& name) {
     const std::string key = toLower(name);
-    if (const auto it = g_uiMap.find(key); it != g_uiMap.end()) {
-        g_currentUI = it->second;
-    } else {
-        ui::g_failedMessage = "Unknown UI: " + name;
-        g_currentUI = failedUI;
+
+    // Keep the two-column main layout always visible.
+    // Known detail names only change the right panel using the registry (no forward decls needed).
+    if (key == "summary") {
+        if (const auto it = g_uiMap.find("summary"); it != g_uiMap.end()) g_rightUI = it->second;
+        if (const auto itMain = g_uiMap.find("main"); itMain != g_uiMap.end()) g_currentUI = itMain->second;
+        return;
     }
+    if (key == "payroll") {
+        if (const auto it = g_uiMap.find("payroll"); it != g_uiMap.end()) g_rightUI = it->second;
+        if (const auto itMain = g_uiMap.find("main"); itMain != g_uiMap.end()) g_currentUI = itMain->second;
+        return;
+    }
+    if (key == "monitor") {
+        if (const auto it = g_uiMap.find("monitor"); it != g_uiMap.end()) g_rightUI = it->second;
+        if (const auto itMain = g_uiMap.find("main"); itMain != g_uiMap.end()) g_currentUI = itMain->second;
+        return;
+    }
+    if (key == "main") {
+        if (const auto itMain = g_uiMap.find("main"); itMain != g_uiMap.end()) g_currentUI = itMain->second;
+        return;
+    }
+
+    // Unknown: show failed screen (diagnostic)
+    ui::g_failedMessage = "Unknown UI: " + name;
+    g_currentUI = failedUI;
 }
 
 
 static void selectorUI() {
-    ImGui::Text("Hello, BCpET 1101!");
+    std::string l_greetings;
+    if (const int hour = system::fetchTime(system::PartDateTime::HOUR); hour >= 0 && hour < 12) {
+        l_greetings = "Good Morning";
+    }
+    else if (hour >= 12 && hour < 18) {
+        l_greetings = "Good Afternoon";
+    }
+    else {
+        l_greetings = "Good Evening";
+    }
 
-    if (ImGui::Button("Payroll UI", g_buttonSizePx)) switchToUI("payroll");
-    if (ImGui::Button("Monitoring System", g_buttonSizePx)) switchToUI("monitor");
+    ImGui::SetCursorPos(ImVec2(30.0f, 30.0f)); // Position in the window
+    ImGui::SetWindowFontScale(1.5f); // Font scale for the greeting
+    ImGui::Text("%s", l_greetings.c_str());
+    ImGui::SetWindowFontScale(1.0f); // Resetting font scale for buttons
 
-    if (ImGui::Button("Exit", g_buttonSizePx))HelloImGui::GetRunnerParams()->appShallExit = true;}
+    if (ImGui::Button("Summary", g_buttonSizePx)) {
+        if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; }
+    if (ImGui::Button("Payroll", g_buttonSizePx)) {
+        if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; }
+    if (ImGui::Button("Expenses", g_buttonSizePx)) {
+        if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; }
+
+    if (ImGui::Button("Exit", g_buttonSizePx))
+        HelloImGui::GetRunnerParams()->appShallExit = true;
+}
+
+
+static void summaryUI() {
+    ImGui::Text("Summary Panel");
+}
 
 
 static void payrollUI() {
     ImGui::Text("This is the Payroll UI");
-
-    if (ImGui::Button("Switch to Main")) switchToUI("main");
 }
 
 
 static void monitorUI() {
     ImGui::Text("This is the Monitoring UI");
+}
 
-    if (ImGui::Button("Switch to Main")) switchToUI("main");
+// Main two-column layout: left = selector, right = active panel (summary/payroll/monitor)
+static void mainUI() {
+    if (!g_rightUI) g_rightUI = summaryUI; // default right panel
+
+    // Full-viewport, borderless root so the main UI is in the app window itself
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    // Use work area to avoid overlapping HelloImGui menu/dockspace areas
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGuiWindowFlags rootFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                                 ImGuiWindowFlags_NoSavedSettings |
+                                 ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                                 ImGuiWindowFlags_NoDocking; // prevent docking overlay from capturing inputs
+    // Nudge focus to our root window for the first frames to ensure interactivity
+    static int s_focusFrames = 30;
+    if (s_focusFrames > 0) { ImGui::SetNextWindowFocus(); --s_focusFrames; }
+    ImGui::Begin("##MainRoot", nullptr, rootFlags);
+
+    const float total = ImGui::GetContentRegionAvail().x;
+    const float leftWidth = std::clamp(total * 0.35f, 220.0f, 480.0f);
+
+    // Left pane: fixed-width child so it does not move when resizing
+    ImGui::BeginChild("LeftPane", ImVec2(leftWidth, 0), true);
+    selectorUI();
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right pane: fills remaining width
+    ImGui::BeginChild("RightPane", ImVec2(0, 0), true);
+    if (g_rightUI) g_rightUI();
+    ImGui::EndChild();
+
+    ImGui::End();
 }
 
 
 void ui::constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_lengthPX, const std::string& a_window) {
     HelloImGui::RunnerParams params;
+    // Ensure HelloImGui does not create a DockSpace: keep the default full-screen window
+    // (ProvideFullScreenWindow). No explicit docking toggle available in this version.
+    params.imGuiWindowParams.defaultImGuiWindowType = HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
 
     // populate UI registry (ensure it's available before selecting current UI)
     g_uiMap.clear();
-    g_uiMap.reserve(4);
-    g_uiMap["main"] = selectorUI;
-    g_uiMap["monitor"] = monitorUI;
+    g_uiMap.reserve(2);
+    g_uiMap["main"] = mainUI;
+    g_uiMap["summary"] = summaryUI;
     g_uiMap["payroll"] = payrollUI;
+    g_uiMap["monitor"] = monitorUI;
     g_uiMap["failed"] = failedUI;
 
     // Load your custom font from assets/fonts, with fallback to default font
@@ -113,16 +200,22 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
         io.Fonts->Build();
     };
 
-    // normalize and sanitize inputs (case-insensitive start key)
+    // Determine start key and select initial right panel; always render main layout
     const std::string startKey = a_window.empty() ? "main" : toLower(a_window);
-
-    // initialize current UI based on requested window (case-insensitive)
-    if (const auto it = g_uiMap.find(startKey); it != g_uiMap.end()) {
-        g_currentUI = it->second;
-    } else {
-        // fallback to main if unknown, but keep failed registered for explicit errors
-        g_currentUI = g_uiMap.contains("main") ? g_uiMap["main"] : failedUI;
+    if (startKey == "payroll") {
+        if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; else g_rightUI = payrollUI;
     }
+    else if (startKey == "monitor") {
+        if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; else g_rightUI = monitorUI;
+    }
+    else if (startKey == "summary" || startKey == "main") {
+        if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; else g_rightUI = summaryUI;
+    }
+    else {
+        ui::g_failedMessage = "Unknown start window: " + startKey;
+        if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; else g_rightUI = summaryUI;
+    }
+    g_currentUI = mainUI;
 
     /*
      * Use a wrapper so we can call the current UI each frame (no queued switching)

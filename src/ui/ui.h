@@ -9,7 +9,7 @@ class ui {
     static std::string g_failedMessage;
 
     // Global methods
-    static void constructUI(const std::string &a_title, const std::string& font_location, int width, int length, const std::string& window);
+    static void constructUI(const std::string &a_title, const std::string& font_location, int width, int length, const std::string& a_window);
 
 };
 #endif //CPET_140_FINAL_PROJECT_UI_H
