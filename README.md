@@ -221,6 +221,7 @@ The participation of everyone is needed to make this project a success. Please f
   - Exemptions: 
     - The `main()` function in `main.cpp`.
     - The UI handler functions in `UI.cpp` (e.g., `mainUI()`, `payrollUI()`, `monitorUI()`, `failedUI()`).
+    - The Cryptography module functions in `cryptography.cpp` (e.g., `encryptData()`, `decryptData()`, `hashData()`).
   - Examples:
     - `createDatabase()`
     - `constructUI()`
@@ -250,9 +251,13 @@ The participation of everyone is needed to make this project a success. Please f
     - `build` - changes to build process or dependencies
       - this is different from `chore` since it directly affects the build process or dependencies
       - this option is only available for `CMakeLists.txt` or build scripts
-    - the only exception is `initial commit` and the few subsequent commits in the repository and the `README.md`.
+    - the only exception is `initial commit` and the few subsequent commits in the repository, the `README.md` and `cryptography.cpp`.
       - `README.md` follows a different convention since it is a documentation file.
         - `docs` - update README.md, add technical overview, fix typos, etc.
+      -  `cryptography.cpp` follows a different convention since it is a security-related file.
+        - `encrypt` - add encryption functionality, update encryption algorithms, fix encryption bugs, etc.
+        - `decrypt` - add decryption functionality, update decryption algorithms, fix decryption bugs, etc.
+        - `hash` - add hashing functionality, update hashing algorithms, fix hashing bugs, etc.
   - For description, use a concise summary of the change.
   - Examples: `db: add createTable helper`, `ui: move font loading to LoadAdditionalFonts`.
 - Include a brief body when needed: one-line rationale and test instructions.
