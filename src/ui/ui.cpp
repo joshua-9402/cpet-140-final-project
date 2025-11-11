@@ -37,6 +37,7 @@ static std::function<void()> g_currentUI = nullptr;
 static std::function<void()> g_rightUI = nullptr; // Right panel active UI (shown in main two-column layout)
 auto g_buttonSizePxSelector = ImVec2(270, 40); // x for width, y for height of buttons
 std::string ui::g_failedMessage; // Global failed message for failedUI
+const std::string g_accountNumber = "1234567890";
 const std::string g_userName = "testUserName";
 const std::string g_companyName = "testCompanyName";
 const std::string g_position = "testPosition";
@@ -80,11 +81,13 @@ static void failedUI() {
 
 
 static void accountUI() {
+    ImGui::Text("Account No.:");
+    setTextRight(g_accountNumber.c_str());
     ImGui::Text("Name:");
     setTextRight(g_userName.c_str());
     ImGui::Text("Position:");
     setTextRight(g_position.c_str());
-    ImGui::Text("Company Name");
+    ImGui::Text("Business Name");
     setTextRight(g_companyName.c_str());
 }
 
@@ -113,20 +116,24 @@ static void selectorUI() {
     ImGui::Text("%s", g_userName.c_str());
 
     // Navigation buttons control the right pane
-    ImGui::SetCursorPos(ImVec2(8.0f, 200.0f));
-    if (ImGui::Button("Summary", fullWidthButtonSize())) { if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; }
-    if (ImGui::Button("Payroll", fullWidthButtonSize())) { if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; }
-    if (ImGui::Button("Expenses", fullWidthButtonSize())) { if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; }
+    ImGui::SetCursorPos(ImVec2(8.0f, 210.0f));
+    if (ImGui::Button("Summary", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; }
+    ImGui::SetCursorPos(ImVec2(8.0f, 320.0f));
+    if (ImGui::Button("Payroll", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; }
+    ImGui::SetCursorPos(ImVec2(8.0f, 430.0f));
+    if (ImGui::Button("Expenses", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; }
 
     // Top: Account info inside a bordered child, matching the two-column style
     ImGui::Spacing();
+    ImGui::SetCursorPos(ImVec2(8.0f, 580.0f));
     const float lineH = ImGui::GetTextLineHeightWithSpacing();
-    const float accountHeight = lineH * 6.0f + 12.0f; // 6 text lines + small padding
+    const float accountHeight = lineH * 8.0f + 12.0f; // 6 text lines + small padding
     ImGui::BeginChild("AccountPanel", ImVec2(0, accountHeight), true);
     accountUI();
     ImGui::EndChild();
     ImGui::Spacing();
 
+    ImGui::SetCursorPos(ImVec2(8.0f, 815.0f));
     if (ImGui::Button("Exit", fullWidthButtonSize())) HelloImGui::GetRunnerParams()->appShallExit = true;
 }
 
