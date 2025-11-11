@@ -1,19 +1,22 @@
 /*
  * CpET 140 Final Project — UI module
+ * Payroll and Monitoring System - UI module
  *
- * Contributors: Joshua Literal
+ * Contributors:
+ *  Joshua Literal
  *
  * Purpose
- * - Immediate-mode UI built with HelloImGui/ImGui. Manages a registry of UIs,
- *   switching between them, font loading, and window setup.
+ * - Immediate-mode UI built with HelloImGui/ImGui. Manages a registry of UIs, switching between them, font loading,
+ *   and window setup.
+ * - Provides the main two-column layout with navigation on the left and active panel on the right.
  *
  * Boundaries
- * - Presentation only: no business logic or persistence here. Call POS/Inventory
- *   modules for operations.
+ * - Presentation only. No business logic or persistence here. Call payroll.cpp and monitor.cpp modules for operations.
  *
  * Notes
  * - UI switching is immediate (case-insensitive). App exit uses HelloImGui runner.
- * - This part is OFF LIMITS especially to constructUI()
+ * - This part is OFF LIMITS especially to constructUI(), the global variables, and to the UI registry/map.
+ * - Uses C++17 features like std::unordered_map and std::function for flexibility.
  */
 
 #include <iostream>
