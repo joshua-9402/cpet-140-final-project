@@ -5,10 +5,10 @@
 
 class ui {
     public:
-    // Globally accessible variable for ui class
+    // Global Variable/s
     static std::string g_failedMessage;
 
-    // Global methods
+    // Global Methods
     static void constructUI(const std::string &a_title, const std::string& a_fontLocation, int a_widthPx, int a_lengthPx, const std::string& a_window);
 
 };
