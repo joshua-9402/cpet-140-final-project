@@ -21,6 +21,10 @@ hello_imgui_add_app(
         # The main application file
         src/main.cpp
 
+        # App config
+        src/config/app_config.cpp
+        src/config/app_config.h
+
 
         # I/O handlers
         src/handler/db.cpp
