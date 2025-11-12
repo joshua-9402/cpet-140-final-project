@@ -28,10 +28,12 @@ hello_imgui_add_app(
         src/config/app_config.h
 
 
-        # I/O handlers
+        # Handlers
+        src/handler/auth.cpp
+        src/handler/auth.h
+
         src/handler/db.cpp
         src/handler/db.h
-
 
         src/handler/system.cpp
         src/handler/system.h
@@ -48,11 +50,6 @@ hello_imgui_add_app(
 
         src/core/monitor.cpp
         src/core/monitor.h
-
-
-        # Security System
-        src/security/auth.cpp
-        src/security/auth.h
 
 
         # Assets location
