@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 4.0) # minimum CMake version
 project(cpet_140_final_project) # project name
-set(CMAKE_CXX_STANDARD 26) # set C++ standard to C++26
+set(CMAKE_CXX_STANDARD 20) # set C++ standard to C++20
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Fetch Hello ImGui (automatic download)
 include(FetchContent)
@@ -30,14 +32,17 @@ hello_imgui_add_app(
         src/handler/db.cpp
         src/handler/db.h
 
-        src/ui/ui.cpp
-        src/ui/ui.h
 
         src/handler/system.cpp
         src/handler/system.h
 
 
-        # The Systems
+        # UI Components
+        src/ui/ui.cpp
+        src/ui/ui.h
+
+
+        # The Main Systems
         src/core/payroll.cpp
         src/core/payroll.h
 
@@ -49,10 +54,24 @@ hello_imgui_add_app(
         src/security/auth.cpp
         src/security/auth.h
 
-        src/security/cryptography.cpp
-        src/security/cryptography.h
-
 
         # Assets location
         ASSETS_LOCATION "assets/"
 )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+    message(STATUS "Release build configured with -O3 optimization.")
+endif()
+
+# GCC and Clang optimization flags
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -DNDEBUG")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto")
+endif()
+
+# MSVC optimization flags
+if (MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /GL /DNDEBUG")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/LTCG")  # link-time code generation
+endif()
