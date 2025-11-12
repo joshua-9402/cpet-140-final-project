@@ -1,11 +1,12 @@
 /*
  * CpET 140 Final Project — Application entry point
  *
- * Contributors: Joshua Literal
+ * Contributors:
+ *  Joshua Literal
  *
  * Purpose
  * - Starts the application, do any necessary checks, constructs the UI and finally run the application.
- * - Handles auth, incoming, and outgoing data from / to the system
+ * - Uses configuration variables for title, font, and window size.
  *
  * Boundaries
  * - Entry point only; no business logic or persistence here.
@@ -17,16 +18,9 @@
 
 #include <string>
 #include "ui/ui.h"
-
-
-// Application configuration variables
-const std::string g_appTitle = "Main Window";
-const std::string g_fontName = "fonts/OpenSans-Regular.ttf";
-constexpr int g_windowWidth = 1600;
-constexpr int g_windowHeight = 900;
-
+#include "config/app_config.h"
 
 int main() {
-    ui::constructUI(g_appTitle, g_fontName, g_windowWidth, g_windowHeight, "main");
+    ui::constructUI(g_appTitle, g_fontName, g_defaultWidth, g_defaultHeight, "main");
     return 0;
 }
