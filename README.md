@@ -46,9 +46,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 ### Project Highlights
 - Language: C++26
 - Build system: CMake v4.0
-- UI
-  - Hello ImGui (immediate-mode GUI) v1.19.3
-  - Qt UI Framework
+- UI: Hello ImGui (immediate-mode GUI) v1.19.3
 - Database: SQLite (single-file, local, embedded)
 - Target platforms: Desktop (Win/macOS/Linux), Mobile (Android/iOS)
 
@@ -141,17 +139,11 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 - Hello ImGui
 
 ### Commands (building from repository's root)
-- Configure and build:
+- Configure, build and run in RELEASE:
 
-        mkdir -p build && cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-        cmake --build . --config Release
-
-- Run:
-
-      ./your-executable-name
-
-
+        cmake -S . -B build_release -DCMAKE_BUILD_TYPE=Release
+        cmake --build build_release
+        open build_release/payroll-and-monitoring-system.app
 
 
 ## Build and Run (Mobile)
@@ -251,13 +243,9 @@ The participation of everyone is needed to make this project a success. Please f
     - `build` - changes to build process or dependencies
       - this is different from `chore` since it directly affects the build process or dependencies
       - this option is only available for `CMakeLists.txt` or build scripts
-    - the only exception is `initial commit` and the few subsequent commits in the repository, the `README.md` and `cryptography.cpp`.
+    - the only exception is `initial commit` and the few subsequent commits in the repository and `README.md`
       - `README.md` follows a different convention since it is a documentation file.
         - `docs` - update README.md, add technical overview, fix typos, etc.
-      -  `cryptography.cpp` follows a different convention since it is a security-related file.
-        - `encrypt` - add encryption functionality, update encryption algorithms, fix encryption bugs, etc.
-        - `decrypt` - add decryption functionality, update decryption algorithms, fix decryption bugs, etc.
-        - `hash` - add hashing functionality, update hashing algorithms, fix hashing bugs, etc.
   - For description, use a concise summary of the change.
   - Examples: `db: add createTable helper`, `ui: move font loading to LoadAdditionalFonts`.
 - Include a brief body when needed: one-line rationale and test instructions.
@@ -325,5 +313,4 @@ The participation of everyone is needed to make this project a success. Please f
 
 ### Known Limitations
 - Single-file SQLite limits multi-user concurrent writes; WAL helps but not a replacement for a server DB in multi-client scenarios.
-- No built-in encryption of the DB file; consider SQLCipher or OS-level disk encryption for sensitive deployments.
 - UI is immediate-mode and desktop-focused; mobile UI experience requires a separate UI layer implementation.
