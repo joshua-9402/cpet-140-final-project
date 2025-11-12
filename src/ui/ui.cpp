@@ -19,14 +19,8 @@
  * - Uses C++17 features like std::unordered_map and std::function for flexibility.
  */
 
-#include <iostream>
 #include <string>
-#include <functional>
-#include <unordered_map>
-#include <algorithm>    // for transform
-#include <ranges>       // added: for std::ranges::transform
 #include "hello_imgui/hello_imgui.h"
-#include "imgui.h"
 #include "ui.h"
 #include "../handler/system.h"
 
@@ -50,7 +44,7 @@ static std::string toLower(std::string s) {
 }
 
 
-static ImVec2 fullWidthButtonSize(const float a_height = g_buttonSizePxSelector.y) { return ImVec2(ImGui::GetContentRegionAvail().x, a_height); }
+static ImVec2 fullWidthButtonSize(const float a_height = g_buttonSizePxSelector.y) { return {ImGui::GetContentRegionAvail().x, a_height}; }
 
 
 void setTextCenter(const char* text){
@@ -77,6 +71,11 @@ static void failedUI() {
     ImGui::Text("%s", ui::g_failedMessage.c_str());
     if (ImGui::Button("Exit"))
         HelloImGui::GetRunnerParams()->appShallExit = true;
+}
+
+
+static void auth() {
+    ImGui::Text("Authorization Page");
 }
 
 
@@ -125,7 +124,7 @@ static void selectorUI() {
 
     // Top: Account info inside a bordered child, matching the two-column style
     ImGui::Spacing();
-    ImGui::SetCursorPos(ImVec2(8.0f, 580.0f));
+    ImGui::SetCursorPos(ImVec2(8.0f, 600.0f));
     const float lineH = ImGui::GetTextLineHeightWithSpacing();
     const float accountHeight = lineH * 8.0f + 12.0f; // 6 text lines + small padding
     ImGui::BeginChild("AccountPanel", ImVec2(0, accountHeight), true);
@@ -133,7 +132,7 @@ static void selectorUI() {
     ImGui::EndChild();
     ImGui::Spacing();
 
-    ImGui::SetCursorPos(ImVec2(8.0f, 815.0f));
+    ImGui::SetCursorPos(ImVec2(8.0f, 830.0f));
     if (ImGui::Button("Exit", fullWidthButtonSize())) HelloImGui::GetRunnerParams()->appShallExit = true;
 }
 
@@ -192,6 +191,7 @@ static void mainUI() {
 
 void ui::constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_lengthPx, const std::string& a_window) {
     HelloImGui::RunnerParams params;
+
     // Ensure HelloImGui does not create a DockSpace: keep the default full-screen window
     // (ProvideFullScreenWindow). No explicit docking toggle available in this version.
     params.imGuiWindowParams.defaultImGuiWindowType = HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
@@ -199,27 +199,32 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     // populate UI registry (ensure it's available before selecting current UI)
     g_uiMap.clear();
     g_uiMap.reserve(6);
+    g_uiMap["auth"] = auth;
     g_uiMap["main"] = mainUI;
     g_uiMap["summary"] = summaryUI;
     g_uiMap["payroll"] = payrollUI;
     g_uiMap["monitor"] = monitorUI;
-    g_uiMap["account"] = accountUI;
     g_uiMap["failed"] = failedUI;
 
-    // Load your custom font from assets/fonts, with fallback to default font
-    params.callbacks.LoadAdditionalFonts = [a_fontLocation]()
-    {
-        const ImGuiIO& io = ImGui::GetIO();
+    // Load a custom font with only the default ASCII character set to save memory.
+    // By providing this callback, we take control of font loading.
+    params.callbacks.LoadAdditionalFonts = [a_fontLocation]() {
+        ImGuiIO& io = ImGui::GetIO();
+        // Clear any existing fonts to ensure we only load what we need.
+        io.Fonts->Clear();
+
         const std::string fontPath = HelloImGui::AssetFileFullPath(a_fontLocation);
-        const ImFont* font = nullptr; // fixed: proper pointer type
+
+        ImFontConfig fontConfig;
+        // This is the crucial part for memory saving: load only the default character set.
+        fontConfig.GlyphRanges = io.Fonts->GetGlyphRangesDefault();
+
         if (!fontPath.empty()) {
-            font = io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 22.0f);
+            io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 22.0f, &fontConfig);
+        } else {
+            // As a fallback, load ImGui's default font if our custom one fails, but still with the limited character set.
+            io.Fonts->AddFontDefault(&fontConfig);
         }
-        if (!font) {
-            // fallback to default font so UI remains readable
-            io.Fonts->AddFontDefault();
-        }
-        io.Fonts->Build();
     };
 
     // Determine start key and select initial right panel; always render main layout
