@@ -133,7 +133,8 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 ## Build & Run (Desktop)
 
 ### Prerequisites (For Development Computer Only)
-- C++26 or later (the compiler must support C++26)
+- C++23 or later (the compiler must support C++23 or later)
+> - It should be at C++26 but Apple Clang partially support C++26 
 - CMake 4.0 or later
 - sqlite3 3.50.4
 - Hello ImGui
