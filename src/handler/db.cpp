@@ -14,24 +14,114 @@
  * Notes
  * - Single-threaded by default; callers must synchronize if used from workers.
  * - Prefer explicit status results and avoid partial writes on failure.
- * - !!!!!!!!!! THIS NEEDS A REWORK ASAP !!!!!!!!!!
+ *
+ * Database:
+ * For Payroll System:
+ * |----------|----------------|-----------|-------------------------|--------------------------|
+ * | ID       | Name           | Position  | Salary (hour per PHP)   | Hours Worked (per Month) |
+ * |----------|----------------|-----------|-------------------------|--------------------------|
+ * | 000001   | Juan Dela Cruz | Secretary | 70.00                   | 192  (24 * 8)            |
+ * |----------|----------------|-----------|-------------------------|--------------------------|
+ * | 000002   | Maria Santos   | Manager   | 100.00                  | 208  (26 * 8)            |
+ * |----------|----------------|-----------|-------------------------|--------------------------|
+ * | 000003   | Pedro Reyes    | Engineer  | 200.00                  | 176  (22 * 8)            |
+ * |----------|----------------|-----------|-------------------------|--------------------------|
+ * | 000004   | Ana Lopez      | Technician| 80.00                   | 200  (25 * 8)            |
+ * |----------|----------------|-----------|-------------------------|--------------------------|
+ * | 000005   | Luis Garcia    | Laborer   | 30.00                   | 184  (23 * 8)            |
+ *
+ * For Tracker/Monitoring System:
+ * - status can be "Active", "In-Progress", "Completed", "On-Hold".
+ * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
+ * | Project ID       | Project Name                               | Status      | Project Start Date      | Notes                    |
+ * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
+ * | PRJ-0001         | BatStateU Aboitiz LIMA Campus Construction | In-Progress | 2025-01-15              | Initial phase completed  |
+ * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
+ *
+ * For Tracker/Monitoring System Building Materials (Per Project) (materials/${PROJECT_ID}Materials.db, e.g., materials/PRJ-0001Materials.db):
+ * |------------------|------------------|-------------------------|------------------|
+ * | Material ID      | Material Name           | Quantity         | Unit Price (PHP) |
+ * |------------------|------------------|-------------------------|------------------|
+ * | MAT-0001        | Cement            | 100 bags                | 250.00           |
+ * |------------------|------------------|-------------------------|------------------|
+ *
  */
 
 
 #include "db.h"
+#include "../config/app_config.h"
 #include <sqlite3.h>
+#include <string>
+#include <fstream> // Required for file operations
 
 
-/*
- * This method will launch SQLite
- */
-
-
-bool launchSQLITE() {
- return true;
+bool createFileText(const std::string& p_filename) {
+    if (const std::ofstream createdFile(p_filename); createdFile.is_open()) {return true;}
+    return false;
 }
 
 
-bool createDatabase() {
- return true;
+std::string readFileText(const std::string& p_filename, const int p_lineFileText) {
+
+    // Try the exact filename first, then fallback to filename + ".txt"
+    std::ifstream inputFile(p_filename);
+    if (!inputFile.is_open()) {inputFile.clear(); inputFile.open(p_filename + ".txt");}
+
+    if (!inputFile.is_open()) {return "";} // not found / error
+
+    std::string line;
+    int currentLineNumber = 0;
+    while (std::getline(inputFile, line)) {++currentLineNumber; if (currentLineNumber == p_lineFileText) {return line;}}
+    return ""; // line not found
+}
+
+
+bool createDatabase(const std::string& p_dbName) {
+    sqlite3* db; // Pointer to the SQLite database connection
+
+    // Return code for SQLite operations
+    // Open/create the database file
+    // If "example.db" doesn't exist, it will be created.
+    int database = sqlite3_open(p_dbName.c_str(), &db);
+
+
+    if (database) {return false;}
+
+    // SQL statement to create a table
+    const std::string databaseTable = "CREATE TABLE IF NOT EXISTS USERS("
+                      "ID INT PRIMARY KEY NOT NULL,"
+                      "NAME TEXT NOT NULL,"
+                      "AGE INT NOT NULL,"
+                      "SALARY REAL );";
+
+    // Execute the SQL statement
+    database = sqlite3_exec(db, databaseTable.c_str(), nullptr, nullptr, nullptr);
+
+    if (database != SQLITE_OK) {return false;}
+
+    // Close the database connection
+    sqlite3_close(db);
+
+    return true;
+}
+
+
+bool openDatabase(const std::string& p_dbName) {
+    sqlite3* db; // Database connection object
+
+    if (const int database = sqlite3_open(p_dbName.c_str(), &db); database == SQLITE_OK) {return true;}
+    return false;
+}
+
+
+bool closeDatabase(const std::string& p_dbName) {
+    sqlite3* db; // Pointer to the SQLite database connection
+
+    // Open the database to obtain a valid handle before closing.
+    int rc = sqlite3_open(p_dbName.c_str(), &db);
+    if (rc != SQLITE_OK) { if (db) { sqlite3_close(db); } return false;}
+
+    // Close the database and report status.
+    rc = sqlite3_close(db);
+    return (rc == SQLITE_OK);
 }
