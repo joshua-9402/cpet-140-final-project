@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 4.0) # minimum CMake version
 project(cpet_140_final_project) # project name
-set(CMAKE_CXX_STANDARD 26) # set C++ standard to C++26
+set(CMAKE_CXX_STANDARD 23) # set C++ standard to C++23 (AppleClang doesn't support C++26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
