@@ -71,7 +71,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │   │   ├── io.h
       │   │   ├── system.cpp
       │   │   └── system.h
-      │   ├── lib/
+      │   ├── core/
       │   │   ├── monitor.cpp
       │   │   ├── monitor.h
       │   │   ├── payroll.cpp
@@ -185,9 +185,11 @@ The participation of everyone is needed to make this project a success. Please f
 
 ### Whitespace and Formatting
 - Use 4 spaces or 1 tab for indentation .
-- Limit lines to a maximum of 100 characters (comments only) for better readability.
-- For spaces in function / methods:
-  - give two line for each function / method definition and implementation.
+- Limit lines to a maximum of 20 words (comments only) for better readability.
+  - This restriction applies only to inline comments within source files; header comments, top-of-function/method comments, and documentation files are exempted.
+- Use blank lines to separate logical sections of code.
+  - For spaces in function / methods:
+    - give two line for each function / method definition and implementation.
 
 ### Naming Conventions
 - Types and Classes:
@@ -198,25 +200,24 @@ The participation of everyone is needed to make this project a success. Please f
   - lowerCamelCase (e.g., `createDatabase`, `switchToUI`).
   - Prefixes: verb indicating action
     - Example:
-      - get - retrieve a value or resource from a known location (e.g., read a variable, fetch a record or file)
-      - set - assign or update a value or configuration (e.g., update a variable, modify a record or file)
-      - create - allocate or persist a new resource or object 
-      - load - load a file or resource into application memory
-      - save - persist in-memory data to storage
-      - delete - remove or deallocate a resource or object
-      - update - modify an existing resource or object
-      - open - open a resource or connection for use
-      - close - release or shut down a resource or connection
-      - convert - transform data between formats or units
-      - change - modify state or configuration
+      - `get` - retrieve a value or resource from a known location (e.g., read a variable, fetch a record or file)
+      - `set` - assign or update a value or configuration (e.g., update a variable, modify a record or file)
+      - `create` - allocate or persist a new resource or object 
+      - `load` - load a file or resource into application memory
+      - `save` - persist in-memory data to storage
+      - `delete` - remove or deallocate a resource or object
+      - `update` - modify an existing resource or object
+      - `open` - open a resource or connection for use
+      - `close` - release or shut down a resource or connection
+      - `convert` - transform data between formats or units
+      - `change` - modify state or configuration
   - Suffixes: use clear, descriptive suffixes that indicate the operation's target or context (for example, use `Database` for functions that perform database operations).
   - Exemptions: 
     - The `main()` function in `main.cpp`.
     - The UI handler functions in `UI.cpp` (e.g., `mainUI()`, `payrollUI()`, `monitorUI()`, `failedUI()`).
-    - The Cryptography module functions in `cryptography.cpp` (e.g., `encryptData()`, `decryptData()`, `hashData()`).
-  - Examples:
-    - `createDatabase()`
-    - `constructUI()`
+    - Examples:
+      - `createDatabase()`
+      - `constructUI()`
 
 
 - Variables (Local, Global, and Constant) and parameters:
