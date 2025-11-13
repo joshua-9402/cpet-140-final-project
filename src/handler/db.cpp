@@ -61,6 +61,7 @@
 #include <sqlite3.h>
 #include <string>
 #include <fstream> // Required for file operations
+const config appConfig; // Create an instance of the config
 
 
 bool createFileText(const std::string& p_filename) {
@@ -71,7 +72,6 @@ bool createFileText(const std::string& p_filename) {
 
 std::string readFileText(const std::string& p_filename, const int p_lineFileText) {
 
-    // Try the exact filename first, then fallback to filename + ".txt"
     std::ifstream inputFile(p_filename);
     if (!inputFile.is_open()) {inputFile.clear(); inputFile.open(p_filename + ".txt");}
 
@@ -109,7 +109,7 @@ bool createDatabase(const std::string& p_dbName) {
 
     if (database) {return false;}
 
-    if (p_dbName == g_dbNamePayroll) {
+    if (p_dbName == appConfig.g_dbNamePayroll) {
         // SQL statement to create the Employees table for Payroll System
         const std::string databaseTable =
             "CREATE TABLE IF NOT EXISTS Employees ("
@@ -122,7 +122,7 @@ bool createDatabase(const std::string& p_dbName) {
         // Execute the SQL statement
         database = sqlite3_exec(db, databaseTable.c_str(), nullptr, nullptr, nullptr);
     }
-    else if (p_dbName == g_dbNameTracker) {
+    else if (p_dbName == appConfig.g_dbNameTracker) {
         // SQL statement to create the Projects table for Tracker/Monitoring System
         const std::string databaseTable =
             "CREATE TABLE IF NOT EXISTS Projects ("
