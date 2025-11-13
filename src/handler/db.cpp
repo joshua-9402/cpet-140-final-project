@@ -14,6 +14,7 @@
  * Notes
  * - Single-threaded by default; callers must synchronize if used from workers.
  * - Prefer explicit status results and avoid partial writes on failure.
+ * - For Date and Time, use ISO 8601 format (year, month, day) (e.g., "2023-10-05").
  *
  * Database:
  * For Payroll System:
@@ -31,11 +32,11 @@
  * | 000005   | Luis Garcia    | Laborer   | 30.00                   | 184  (23 * 8)            |
  *
  * For Tracker/Monitoring System:
- * - status can be "Active", "In-Progress", "Completed", "On-Hold".
+ * - status can be "Active", "Completed", "On-Hold", or "In Progress".
  * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
  * | Project ID       | Project Name                               | Status      | Project Start Date      | Notes                    |
  * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
- * | PRJ-0001         | BatStateU Aboitiz LIMA Campus Construction | In-Progress | 2025-01-15              | Initial phase completed  |
+ * | PRJ-0001         | BatStateU Aboitiz LIMA Campus Construction | In Progress | 2025-01-15              | Initial phase completed  |
  * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
  *
  * For Tracker/Monitoring System Building Materials (Per Project) (materials/${PROJECT_ID}Materials.db, e.g., materials/PRJ-0001Materials.db):
@@ -76,6 +77,20 @@ std::string readFileText(const std::string& p_filename, const int p_lineFileText
 }
 
 
+bool appendFileText(const std::string& p_filename, const std::string& p_newText, const bool addNewline = true) {
+    std::ofstream outputFile(p_filename, std::ios::app);
+
+    if (!outputFile.is_open()) return false;
+
+    outputFile << p_newText;
+    if (addNewline) outputFile << '\n';
+
+    // flush and check for errors
+    outputFile.flush();
+    return !outputFile.fail();
+}
+
+
 bool createDatabase(const std::string& p_dbName) {
     sqlite3* db; // Pointer to the SQLite database connection
 
@@ -87,15 +102,36 @@ bool createDatabase(const std::string& p_dbName) {
 
     if (database) {return false;}
 
-    // SQL statement to create a table
-    const std::string databaseTable = "CREATE TABLE IF NOT EXISTS USERS("
-                      "ID INT PRIMARY KEY NOT NULL,"
-                      "NAME TEXT NOT NULL,"
-                      "AGE INT NOT NULL,"
-                      "SALARY REAL );";
-
-    // Execute the SQL statement
-    database = sqlite3_exec(db, databaseTable.c_str(), nullptr, nullptr, nullptr);
+    if (p_dbName == g_dbNamePayroll) {
+        // SQL statement to create the Employees table for Payroll System
+        const std::string databaseTable =
+            "CREATE TABLE IF NOT EXISTS Employees ("
+            "ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "Name TEXT NOT NULL,"
+            "Position TEXT NOT NULL,"
+            "Salary REAL NOT NULL,"
+            "HoursWorked REAL NOT NULL"
+            ");";
+        // Execute the SQL statement
+        database = sqlite3_exec(db, databaseTable.c_str(), nullptr, nullptr, nullptr);
+    }
+    else if (p_dbName == g_dbNameTracker) {
+        // SQL statement to create the Projects table for Tracker/Monitoring System
+        const std::string databaseTable =
+            "CREATE TABLE IF NOT EXISTS Projects ("
+            "ProjectID INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "ProjectName TEXT NOT NULL,"
+            "Status TEXT NOT NULL,"
+            "StartDate TEXT NOT NULL,"
+            "Notes TEXT"
+            ");";
+        // Execute the SQL statement
+        database = sqlite3_exec(db, databaseTable.c_str(), nullptr, nullptr, nullptr);
+    }
+    else {
+        sqlite3_close(db);
+        return false; // Unknown database name
+    }
 
     if (database != SQLITE_OK) {return false;}
 

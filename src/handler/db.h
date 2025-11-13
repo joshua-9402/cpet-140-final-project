@@ -7,10 +7,17 @@
  * - Lightweight database file creation (no schema creation)
  */
 
+#include <string>
+
 class db {
 public:
-    static bool launchSQLITE();
-    static bool createDatabase();
+    static bool createFileText(const std::string& p_filename);
+    static std::string readFileText(const std::string& p_filename, const int p_lineFileText);
+
+
+    static bool createDatabase(const std::string& p_dbName);
+    static bool openDatabase(const std::string& p_dbName);
+    static bool closeDatabase(const std::string& p_dbName);
 };
 
 
