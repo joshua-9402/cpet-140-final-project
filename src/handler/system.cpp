@@ -1,6 +1,6 @@
 #include "system.h"
 #include <chrono>
-#include <ctime>
+#include <sys/stat.h> // For mkdir()
 
 int system::fetchTime(const PartDateTime part) {
     // Get current time
@@ -18,4 +18,13 @@ int system::fetchTime(const PartDateTime part) {
         case PartDateTime::SECOND: return localTime->tm_sec;
         default: return -1;
     }
+}
+
+
+bool createDirectory(const std::string& p_directoryName) {
+    const char* folderName = p_directoryName.c_str();
+
+    if (constexpr mode_t permissions = 0777; mkdir(folderName, permissions) == 0) {return true;}
+
+    return false;
 }
