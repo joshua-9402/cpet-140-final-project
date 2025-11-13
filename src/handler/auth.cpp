@@ -22,6 +22,7 @@
 #include <string>
 #include "../ui/ui.h"
 #include "../config/app_config.h"
+const config appConfig; // Create an instance of the config
 
 
 /*
@@ -35,7 +36,7 @@
 std::string authGateway(const std::string& username, const std::string& password, const std::string& deviceCode) {
     if (deviceCode.empty()) {
         ui::g_failedMessage = "error: invalid verification code";
-        ui::constructUI(g_appTitle, g_fontName, g_defaultWidth, g_defaultHeight, "failedUI");
+        ui::constructUI(appConfig.g_appTitle, appConfig.g_fontName, appConfig.g_defaultWidth, appConfig.g_defaultHeight, "failedUI");
     }
     return username + "_" + password + "_" + deviceCode;
 }
