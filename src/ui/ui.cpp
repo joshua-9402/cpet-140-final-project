@@ -16,13 +16,16 @@
  * Notes
  * - UI switching is immediate (case-insensitive). App exit uses HelloImGui runner.
  * - This part is OFF LIMITS especially to constructUI(), the global variables, and to the UI registry/map.
- * - Uses C++17 features like std::unordered_map and std::function for flexibility.
  */
 
 #include <string>
 #include "hello_imgui/hello_imgui.h"
 #include "ui.h"
 #include "../handler/system.h"
+#include "../config/app_config.h"
+#include <filesystem>
+#include <iostream>
+#include <vector>
 
 
 // UI registry and UI management
@@ -33,7 +36,6 @@ auto g_buttonSizePxSelector = ImVec2(270, 40); // x for width, y for height of b
 std::string ui::g_failedMessage; // Global failed message for failedUI
 const std::string g_accountNumber = "1234567890";
 const std::string g_userName = "testUserName";
-const std::string g_companyName = "testCompanyName";
 const std::string g_position = "testPosition";
 
 
@@ -74,20 +76,46 @@ static void failedUI() {
 }
 
 
-static void auth() {
+static void loginUI() {
     ImGui::Text("Authorization Page");
+    if (ImGui::Button("Log In")) {
+        g_auth = true;
+        HelloImGui::GetRunnerParams()->appShallExit = true;
+    }
+    if (ImGui::Button("Exit")) {HelloImGui::GetRunnerParams()->appShallExit = true;}
 }
 
 
 static void accountUI() {
-    ImGui::Text("Account No.:");
+    // Load business logo only once on first call
+    static HelloImGui::ImageAndSize businessLogo;
+    static bool logoLoadAttempted = false;
+
+    if (!logoLoadAttempted) {
+        logoLoadAttempted = true;
+        businessLogo = HelloImGui::ImageAndSizeFromAsset("icons/business_logo.png");
+    }
+
+    // Display user image, centered
+    if (businessLogo.textureId != static_cast<ImTextureID>(0)) {
+        constexpr float imageSize = 70.0f;
+        const float imagePosX = (ImGui::GetWindowWidth() - imageSize) * 0.1f;
+        ImGui::SetCursorPosX(imagePosX);
+        ImGui::Image(businessLogo.textureId, ImVec2(imageSize, imageSize));
+    }
+
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
     setTextRight(g_accountNumber.c_str());
-    ImGui::Text("Name:");
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
     setTextRight(g_userName.c_str());
-    ImGui::Text("Position:");
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
     setTextRight(g_position.c_str());
-    ImGui::Text("Business Name");
-    setTextRight(g_companyName.c_str());
+
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
+    if (ImGui::Button("Log Out", fullWidthButtonSize(40))) {
+        g_auth = false;
+        HelloImGui::GetRunnerParams()->appShallExit = true;
+    }
 }
 
 
@@ -126,14 +154,18 @@ static void selectorUI() {
     ImGui::Spacing();
     ImGui::SetCursorPos(ImVec2(8.0f, 600.0f));
     const float lineH = ImGui::GetTextLineHeightWithSpacing();
-    const float accountHeight = lineH * 8.0f + 12.0f; // 6 text lines + small padding
+    const float accountHeight = lineH * 10.0f + 12.0f; // 6 text lines + small padding
+
+    // Push a custom background color (RGB: 0.25, 0.25, 0.25) for the next ImGui child window.
+    // This creates a lighter gray panel that visually separates the account info from the surrounding UI
+    // Value of rgb / 255 (e.g., the value is 177, then 177/255 = 0.69f)
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.28f, 0.28f, 0.28f, 1.0f));
+
     ImGui::BeginChild("AccountPanel", ImVec2(0, accountHeight), true);
     accountUI();
     ImGui::EndChild();
+    ImGui::PopStyleColor();
     ImGui::Spacing();
-
-    ImGui::SetCursorPos(ImVec2(8.0f, 830.0f));
-    if (ImGui::Button("Exit", fullWidthButtonSize())) HelloImGui::GetRunnerParams()->appShallExit = true;
 }
 
 
@@ -189,8 +221,16 @@ static void mainUI() {
 }
 
 
-void ui::constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_lengthPx, const std::string& a_window) {
+void ui::constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_heightPx, const std::string& a_window) {
     HelloImGui::RunnerParams params;
+
+    namespace fs = std::filesystem;
+    for (const auto &base : {fs::current_path(), fs::path(__FILE__).parent_path().parent_path().parent_path()}) {
+        if (const fs::path assets = base / "assets"; fs::exists(assets)) {
+            HelloImGui::SetAssetsFolder(assets.string());
+            break;
+        }
+    }
 
     // Ensure HelloImGui does not create a DockSpace: keep the default full-screen window
     // (ProvideFullScreenWindow). No explicit docking toggle available in this version.
@@ -199,7 +239,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     // populate UI registry (ensure it's available before selecting current UI)
     g_uiMap.clear();
     g_uiMap.reserve(6);
-    g_uiMap["auth"] = auth;
+    g_uiMap["auth"] = loginUI;
     g_uiMap["main"] = mainUI;
     g_uiMap["summary"] = summaryUI;
     g_uiMap["payroll"] = payrollUI;
@@ -209,7 +249,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     // Load a custom font with only the default ASCII character set to save memory.
     // By providing this callback, we take control of font loading.
     params.callbacks.LoadAdditionalFonts = [a_fontLocation]() {
-        ImGuiIO& io = ImGui::GetIO();
+        const ImGuiIO& io = ImGui::GetIO();
         // Clear any existing fonts to ensure we only load what we need.
         io.Fonts->Clear();
 
@@ -227,29 +267,36 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
         }
     };
 
-    // Determine start key and select initial right panel; always render main layout
-    if (const std::string startKey = a_window.empty() ? "main" : toLower(a_window); startKey == "payroll") {
+    // Determine start key and select initial UI
+
+    if (const std::string startKey = a_window.empty() ? "main" : toLower(a_window); startKey == "auth") {
+        g_currentUI = loginUI;
+    }
+    else if (startKey == "payroll") {
         if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; else g_rightUI = payrollUI;
+        g_currentUI = mainUI;
     }
     else if (startKey == "monitor") {
         if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; else g_rightUI = monitorUI;
+        g_currentUI = mainUI;
     }
     else if (startKey == "summary" || startKey == "main") {
         if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; else g_rightUI = summaryUI;
+        g_currentUI = mainUI;
     }
     else {
         ui::g_failedMessage = "Unknown start window: " + startKey;
         if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; else g_rightUI = summaryUI;
+        g_currentUI = mainUI;
     }
-    g_currentUI = mainUI;
 
     //Use a wrapper so we can call the current UI each frame (no queued switching)
     params.callbacks.ShowGui = []() {if (g_currentUI) g_currentUI();};
 
     // Window and GUI settings
     // clamp sizes to reasonable bounds so caller can't accidentally create tiny or huge windows
-    const int l_clampedWidth = std::clamp(a_widthPx, 640, 3840);
-    const int l_clampedLength = std::clamp(a_lengthPx, 480, 2160);
+    const int l_clampedWidth = std::clamp(a_widthPx, 50, 3840);
+    const int l_clampedLength = std::clamp(a_heightPx, 50, 2160);
     params.appWindowParams.windowGeometry.size = { l_clampedWidth, l_clampedLength };
 
     // Rename the whole application to "system" if there is no argument/s in the variable "title"
