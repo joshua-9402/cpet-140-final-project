@@ -14,7 +14,6 @@
  * Notes
  * - Single-threaded by default; callers must synchronize if used from workers.
  * - Prefer explicit status results and avoid partial writes on failure.
- * - For Date and Time, use ISO 8601 format (year, month, day) (e.g., "2023-10-05").
  *
  * Database:
  * For Payroll System:
@@ -30,20 +29,28 @@
  * | 000004   | Ana Lopez      | Technician| 80.00                   | 200  (25 * 8)            |
  * |----------|----------------|-----------|-------------------------|--------------------------|
  * | 000005   | Luis Garcia    | Laborer   | 30.00                   | 184  (23 * 8)            |
+ * |----------|----------------|-----------|-------------------------|--------------------------|
  *
  * For Tracker/Monitoring System:
  * - status can be "Active", "Completed", "On-Hold", or "In Progress".
- * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
- * | Project ID       | Project Name                               | Status      | Project Start Date      | Notes                    |
- * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
- * | PRJ-0001         | BatStateU Aboitiz LIMA Campus Construction | In Progress | 2025-01-15              | Initial phase completed  |
- * |------------------|--------------------------------------------|-------------|-------------------------|--------------------------|
+ * - For date, use ISO 8601 format (year-month-day) (e.g., "2023-10-05").
+ * |------------|--------------------------------------------|-------------|--------------------|----------------------|
+ * | Project ID | Project Name                               | Status      | Project Start Date | Notes                |
+ * |------------|--------------------------------------------|-------------|--------------------|----------------------|
+ * | PRJ-00001  | BatStateU Aboitiz LIMA Campus Construction | In Progress | 2025-01-15         | Under Construction   |
+ * |------------|--------------------------------------------|-------------|--------------------|----------------------|
  *
- * For Tracker/Monitoring System Building Materials (Per Project) (materials/${PROJECT_ID}Materials.db, e.g., materials/PRJ-0001Materials.db):
+ * For Tracker/Monitoring System Building Materials (Per Project) (materials/${PROJECT_ID}-Materials.db, e.g., materials/PRJ-0001-Materials.db):
  * |------------------|------------------|-------------------------|------------------|
- * | Material ID      | Material Name           | Quantity         | Unit Price (PHP) |
+ * | Material ID      | Material Name    | Quantity                | Unit Price (PHP) |
+ * |                  |                  | (in unit appropriate    |                  |
+ * |                  |                  | with the material)      |                  |
  * |------------------|------------------|-------------------------|------------------|
- * | MAT-0001        | Cement            | 100 bags                | 250.00           |
+ * | MAT-0001         | Cement           | 100 (bags)              | 250.00           |
+ * |------------------|------------------|-------------------------|------------------|
+ * | MAT-0002         | Steel Rebars     | 500 (kilograms)         | 75.00            |
+ * |------------------|------------------|-------------------------|------------------|
+ * | MAT-0003         | Gravel           | 2 (cubic meters)         | 1500.00         |
  * |------------------|------------------|-------------------------|------------------|
  *
  */
