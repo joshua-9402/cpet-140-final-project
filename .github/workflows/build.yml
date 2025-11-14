@@ -21,9 +21,7 @@ jobs:
               os: ubuntu-latest,
               arch: x64,
               artifact: "payroll-and-monitoring-system-linux-x64",
-              build_type: "Release",
-              cc: "gcc-11",
-              cxx: "g++-11"
+              build_type: "Release"
             }
 
           # macOS builds
@@ -87,15 +85,14 @@ jobs:
     # Install dependencies for Windows
     - name: Install Windows dependencies
       if: runner.os == 'Windows'
+      shell: pwsh
       run: |
-        choco install cmake ninja
+        choco install ninja -y
+        ninja --version
 
     # Configure CMake for Linux/Windows
     - name: Configure CMake (Linux/Windows)
       if: runner.os != 'macOS'
-      env:
-        CC: ${{ matrix.config.cc }}
-        CXX: ${{ matrix.config.cxx }}
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -G Ninja
 
@@ -108,6 +105,18 @@ jobs:
     # Build
     - name: Build
       run: cmake --build build --config ${{ matrix.config.build_type }} -j 4
+
+    # Verify build output
+    - name: Verify build output
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          ls -lh build/payroll-and-monitoring-system || (echo "Build failed - executable not found" && exit 1)
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          ls -lh build/payroll-and-monitoring-system* || (echo "Build failed - executable not found" && exit 1)
+        elif [ "$RUNNER_OS" == "Windows" ]; then
+          ls -lh build/payroll-and-monitoring-system.exe || ls -lh build/Release/payroll-and-monitoring-system.exe || (echo "Build failed - executable not found" && exit 1)
+        fi
 
     # Package artifacts for Linux
     - name: Package Linux artifacts
@@ -139,7 +148,14 @@ jobs:
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path artifact
-        Copy-Item build/payroll-and-monitoring-system.exe artifact/
+        if (Test-Path "build/payroll-and-monitoring-system.exe") {
+          Copy-Item build/payroll-and-monitoring-system.exe artifact/
+        } elseif (Test-Path "build/Release/payroll-and-monitoring-system.exe") {
+          Copy-Item build/Release/payroll-and-monitoring-system.exe artifact/
+        } else {
+          Write-Error "Could not find executable"
+          exit 1
+        }
         Copy-Item -Recurse assets artifact/
         Compress-Archive -Path artifact/* -DestinationPath ${{ matrix.config.artifact }}.zip
 

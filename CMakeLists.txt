@@ -69,8 +69,13 @@ endif()
 # GCC and Clang optimization flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Note: Removed -march=native for better CI/CD compatibility
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto -DNDEBUG")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto")
+    # LTO can be disabled by setting -DNO_LTO=ON if it causes issues
+    if(NOT NO_LTO)
+        set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto -DNDEBUG")
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto")
+    else()
+        set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+    endif()
 endif()
 
 # MSVC optimization flags
