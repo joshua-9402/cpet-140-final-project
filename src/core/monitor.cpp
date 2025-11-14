@@ -493,7 +493,7 @@ namespace monitor {
         std::string expenseData = data.str();
 
         // Call db.h to append data
-        return appendDatabase(dbName, expenseData);
+        return appendToDatabase(dbName, expenseData);
     }
 
     // Save payroll summary to database using db.h
@@ -509,7 +509,7 @@ namespace monitor {
         std::string payrollData = data.str();
 
         // Call db.h to append data
-        return appendDatabase(dbName, payrollData);
+        return appendToDatabase(dbName, payrollData);
     }
 
     // Save project budget to text file using db.h
