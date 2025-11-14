@@ -49,31 +49,31 @@
 <details open>
 <summary><i>Quick Navigation</i></summary>
 
-- I. Documentation
-- [Technical Overview](#technical-overview)
-  - [Project Highlights](#project-highlights)
-  - [Repository Structure](#repository-structure)
-- [Application Structure](#application-structure)
-  - [Module Responsibilities](#module-responsibilities)
-  - [Interfaces](#interfaces)
-  - [Calling / Invoking Conventions](#calling--invoking-conventions)
+I. Documentation
+  - [Technical Overview](#technical-overview)
+    - [Project Highlights](#project-highlights)
+    - [Repository Structure](#repository-structure)
+  - [Application Structure](#application-structure)
+    - [Module Responsibilities](#module-responsibilities)
+    - [Interfaces](#interfaces)
+    - [Calling / Invoking Conventions](#calling--invoking-conventions)
 
-- II. Getting Started
-- [Build & Run (Desktop)](#build--run-desktop)
-  - [Prerequisites (For Development Computer Only)](#prerequisites-for-development-computer-only)
-  - [Commands (building from repository's root)](#commands-building-from-repositorys-root)
-- [Build and Run (Mobile)](#build-and-run-mobile)
-- [Dependencies](#dependencies)
+II. Getting Started
+  - [Build & Run (Desktop)](#build--run-desktop)
+    - [Prerequisites (For Development Computer Only)](#prerequisites-for-development-computer-only)
+    - [Commands (building from repository's root)](#commands-building-from-repositorys-root)
+  - [Build and Run (Mobile)](#build-and-run-mobile)
+  - [Dependencies](#dependencies)
 
-- III. Quality & Contributions
-- [Testing & Validation](#testing--validation)
-- [Contribution Guidelines](#contribution-guidelines)
-  - [Whitespace and Formatting](#whitespace-and-formatting)
-  - [Naming Conventions](#naming-conventions)
-  - [Commit Messages](#commit-messages)
-  - [Filing Issues](#filing-issues)
-  - [Filing Pull Requests](#filing-pull-requests)
-  - [Troubleshooting & Debugging Tips](#troubleshooting--debugging-tips)
+III. Quality & Contributions
+  - [Testing & Validation](#testing--validation)
+  - [Contribution Guidelines](#contribution-guidelines)
+    - [Whitespace and Formatting](#whitespace-and-formatting)
+    - [Naming Conventions](#naming-conventions)
+    - [Commit Messages](#commit-messages)
+    - [Filing Issues](#filing-issues)
+    - [Filing Pull Requests](#filing-pull-requests)
+    - [Troubleshooting & Debugging Tips](#troubleshooting--debugging-tips)
   
 
 </details>
