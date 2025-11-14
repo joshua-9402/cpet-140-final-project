@@ -65,7 +65,7 @@ You can manually trigger a build from GitHub:
 
 ### Prerequisites
 Ensure you have:
-- CMake 4.0+
+- CMake 3.22+
 - C++23 compatible compiler
 - Ninja build system (recommended) or Make
 - Platform-specific dependencies (see above)
@@ -98,10 +98,10 @@ cmake --build build --config Release -j 4
 ## Optimizations
 
 The CMakeLists.txt includes platform-specific optimizations:
-- **GCC/Clang**: `-O3 -march=native -flto` (Link-Time Optimization)
+- **GCC/Clang**: `-O3 -flto` (Maximum optimization + Link-Time Optimization)
 - **MSVC**: `/O2 /GL /LTCG` (Maximum optimization + Link-Time Code Generation)
 
-Note: `-march=native` is disabled in CI builds for broader compatibility.
+Note: `-march=native` has been removed for better CI/CD compatibility and portability across different CPUs.
 
 ## Troubleshooting
 
