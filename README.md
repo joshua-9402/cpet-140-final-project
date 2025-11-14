@@ -44,14 +44,12 @@
 
 ---
 
-## **Table of Contents**
+## Table of Contents
 
 <details open>
 <summary><i>Quick Navigation</i></summary>
 
-<br>
-
-**I. Documentation**
+- I. Documentation
 - [Technical Overview](#technical-overview)
   - [Project Highlights](#project-highlights)
   - [Repository Structure](#repository-structure)
@@ -59,14 +57,14 @@
   - [Module Responsibilities and Organization](#module-responsibilities-and-organization)
   - [Interfaces](#interfaces)
 
-**II. Getting Started**
+- II. Getting Started
 - [Build & Run (Desktop)](#build--run-desktop)
   - [Prerequisites (For Development Computer Only)](#prerequisites-for-development-computer-only)
   - [Commands (building from repository's root)](#commands-building-from-repositorys-root)
 - [Build and Run (Mobile)](#build-and-run-mobile)
 - [Dependencies](#dependencies)
 
-**III. Quality & Contributions**
+- III. Quality & Contributions
 - [Testing & Validation](#testing--validation)
 - [Contribution Guidelines](#contribution-guidelines)
   - [Whitespace and Formatting](#whitespace-and-formatting)
@@ -75,8 +73,7 @@
   - [Filing Issues](#filing-issues)
   - [Filing Pull Requests](#filing-pull-requests)
   - [Troubleshooting & Debugging Tips](#troubleshooting--debugging-tips)
-  - [Configuration](#configuration)
-  - [Known Limitations](#known-limitations)
+  
 
 </details>
 
@@ -143,7 +140,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 
 ## Application Structure
 
-### Module Responsibilities and Organization
+### Module Responsibilities
 - `main.cpp`
     - Responsibilities: program entry, basic diagnostics and configure and start the UI runner.
     - Conventions: no logic, no direct DB schema work
