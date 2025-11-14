@@ -49,16 +49,6 @@ static std::string toLower(std::string s) {
 static ImVec2 fullWidthButtonSize(const float a_height = g_buttonSizePxSelector.y) { return {ImGui::GetContentRegionAvail().x, a_height}; }
 
 
-void setTextCenter(const char* text){
-    const float windowWidth = ImGui::GetWindowSize().x;
-    const float textWidth = ImGui::CalcTextSize(text).x;
-
-    // Move to center position
-    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
-    ImGui::Text("%s", text);
-}
-
-
 void setButtonCenter(const char* text, const ImVec2& size){
     const float windowWidth = ImGui::GetWindowSize().x;
     const float buttonWidth = size.x;
@@ -66,6 +56,16 @@ void setButtonCenter(const char* text, const ImVec2& size){
     // Move to center position
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
     ImGui::Button(text, size);
+}
+
+
+void setTextCenter(const char* text){
+    const float windowWidth = ImGui::GetWindowSize().x;
+    const float textWidth = ImGui::CalcTextSize(text).x;
+
+    // Move to center position
+    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+    ImGui::Text("%s", text);
 }
 
 
@@ -79,15 +79,16 @@ void setTextRight(const char* text){
 }
 
 
-static void loadBusinessLogo(const float p_locationXPx) {
-    static HelloImGui::ImageAndSize businessLogo;
+static void loadImage(const std::string& p_location, const float p_locationXPx, const float p_locationYPx, const float p_imageSize) {
+    static HelloImGui::ImageAndSize imageFile;
 
-    if constexpr (true) {businessLogo = HelloImGui::ImageAndSizeFromAsset("icons/business_logo.png");}
-    if (businessLogo.textureId != static_cast<ImTextureID>(0)) {
-        constexpr float imageSize = 70.0f;
+    if constexpr (true) {imageFile = HelloImGui::ImageAndSizeFromAsset(p_location.c_str());}
+    if (imageFile.textureId != static_cast<ImTextureID>(0)) {
+        const float imageSize = p_imageSize;
         const float imagePosX = (ImGui::GetWindowWidth() - imageSize) * p_locationXPx;
         ImGui::SetCursorPosX(imagePosX);
-        ImGui::Image(businessLogo.textureId, ImVec2(imageSize, imageSize));
+        ImGui::SetCursorPosY(p_locationYPx);
+        ImGui::Image(imageFile.textureId, ImVec2(imageSize, imageSize));
     }
 }
 
@@ -107,7 +108,7 @@ static void loginUI() {
     constexpr float textboxWidth = 460.0f;
     static bool showError = false;
 
-    loadBusinessLogo(0.05f);
+    loadImage("icons/business_logo.png", 0.05f, 10.1f, 70.0f);
     ImGui::SetCursorPos(ImVec2(18.0f, 90.0f));
     ImGui::Text("Welcome, please log in to continue");
 
@@ -154,16 +155,8 @@ static void loginUI() {
 
 static void accountUI() {
     // Load business logo only once on first call
-    loadBusinessLogo(0.1f);
-    static HelloImGui::ImageAndSize userLogo;
-
-    if constexpr (true) {userLogo = HelloImGui::ImageAndSizeFromAsset("icons/user_icon.png");}
-    // Display user image, centered
-    if (userLogo.textureId != static_cast<ImTextureID>(0)) {
-        constexpr float imageSize = 60.0f;
-        ImGui::SetCursorPos(ImVec2(170.0f, 15.0f));
-        ImGui::Image(userLogo.textureId, ImVec2(imageSize, imageSize));
-    }
+    loadImage("icons/business_logo.png", 0.1f, 10.0f, 70.1f);
+    loadImage("icons/user_icon.png", 0.8f, 10.0f, 60.0f);
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
     setTextRight(g_accountNumber.c_str());
