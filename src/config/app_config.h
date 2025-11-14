@@ -12,6 +12,8 @@ public:
     config(); // Constructor
 
     const std::string g_appTitle;            // Main App Title
+    const std::string g_loginTitle;          // Login Window Title
+
     const std::string g_fontName;            // Default font path (relative to assets)
     const std::string g_dbNamePayroll;       // Database file name for payroll
     const std::string g_dbNameTracker;       // Database file name for tracker

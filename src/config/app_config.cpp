@@ -5,6 +5,8 @@ bool g_auth = false;
 
 // Definitions of application configuration constants
 static constexpr std::string APP_TITLE = "APP TITLE";
+static constexpr std::string LOGIN_TITLE = "LOGIN";
+
 static const std::string FONT_NAME = "fonts/OpenSans-Regular.ttf";
 static constexpr std::string DB_NAME_PAYROLL = "payroll.db";
 static constexpr std::string DB_NAME_TRACKER = "tracker.db";
@@ -27,5 +29,6 @@ config::config()
     , g_defaultHeight(DEFAULT_HEIGHT)
     , g_smallWidth(SMALL_UI_WIDTH)
     , g_smallHeight(SMALL_UI_HEIGHT)
+    , g_loginTitle(LOGIN_TITLE)
 {
 }
