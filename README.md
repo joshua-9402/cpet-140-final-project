@@ -1,5 +1,5 @@
 <p align="center">icon</p>
-<h1 align="center">Project Title</h1>
+<h1 align="center">StructuraCost</h1>
 
 <h6 align="center">This repository is the final project for CpET 140 - Computer Programming 1 </h6>
 
