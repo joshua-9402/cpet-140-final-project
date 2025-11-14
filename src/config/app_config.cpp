@@ -16,7 +16,7 @@ static constexpr int DEFAULT_WIDTH = 1600;
 static constexpr int DEFAULT_HEIGHT = 900;
 
 static constexpr int SMALL_UI_WIDTH = 500;
-static constexpr int SMALL_UI_HEIGHT = 500;
+static constexpr int SMALL_UI_HEIGHT = 415;
 
 // Config class constructor - initializes all const members
 config::config()
