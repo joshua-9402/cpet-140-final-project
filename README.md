@@ -42,6 +42,47 @@
 </div>
 
 
+---
+
+## **Table of Contents**
+
+<details open>
+<summary><i>Quick Navigation</i></summary>
+
+<br>
+
+**I. Documentation**
+- [Technical Overview](#technical-overview)
+  - [Project Highlights](#project-highlights)
+  - [Repository Structure](#repository-structure)
+- [Application Structure](#application-structure)
+  - [Module Responsibilities and Organization](#module-responsibilities-and-organization)
+  - [API / Interfaces](#api--interfaces)
+
+**II. Getting Started**
+- [Build & Run (Desktop)](#build--run-desktop)
+  - [Prerequisites (For Development Computer Only)](#prerequisites-for-development-computer-only)
+  - [Commands (building from repository's root)](#commands-building-from-repositorys-root)
+- [Build and Run (Mobile)](#build-and-run-mobile)
+- [Dependencies](#dependencies)
+
+**III. Quality & Contributions**
+- [Testing & Validation](#testing--validation)
+- [Contribution Guidelines](#contribution-guidelines)
+  - [Whitespace and Formatting](#whitespace-and-formatting)
+  - [Naming Conventions](#naming-conventions)
+  - [Commit Messages](#commit-messages)
+  - [Filing Issues](#filing-issues)
+  - [Filing Pull Requests](#filing-pull-requests)
+  - [Troubleshooting & Debugging Tips](#troubleshooting--debugging-tips)
+  - [Configuration](#configuration)
+  - [Known Limitations](#known-limitations)
+
+</details>
+
+---
+
+
 ## Technical Overview
 
 This project is a C++ application that demonstrates a payroll and monitoring system with a UI layer and SQLite-backed persistence. It is designed for desktop platforms (Windows, macOS, Linux) and can be adapted to mobile platforms (Android, iOS) with platform-specific toolchains.
