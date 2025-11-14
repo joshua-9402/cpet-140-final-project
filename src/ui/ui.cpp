@@ -89,19 +89,23 @@ static void loginUI() {
 static void accountUI() {
     // Load business logo only once on first call
     static HelloImGui::ImageAndSize businessLogo;
-    static bool logoLoadAttempted = false;
+    static HelloImGui::ImageAndSize userLogo;
 
-    if (!logoLoadAttempted) {
-        logoLoadAttempted = true;
-        businessLogo = HelloImGui::ImageAndSizeFromAsset("icons/business_logo.png");
-    }
-
+    if constexpr (true) {businessLogo = HelloImGui::ImageAndSizeFromAsset("icons/business_logo.png");}
     // Display user image, centered
     if (businessLogo.textureId != static_cast<ImTextureID>(0)) {
         constexpr float imageSize = 70.0f;
         const float imagePosX = (ImGui::GetWindowWidth() - imageSize) * 0.1f;
         ImGui::SetCursorPosX(imagePosX);
         ImGui::Image(businessLogo.textureId, ImVec2(imageSize, imageSize));
+    }
+
+    if constexpr (true) {userLogo = HelloImGui::ImageAndSizeFromAsset("icons/user_icon.png");}
+    // Display user image, centered
+    if (userLogo.textureId != static_cast<ImTextureID>(0)) {
+        constexpr float imageSize = 60.0f;
+        ImGui::SetCursorPos(ImVec2(170.0f, 15.0f));
+        ImGui::Image(userLogo.textureId, ImVec2(imageSize, imageSize));
     }
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
@@ -184,7 +188,7 @@ static void monitorUI() {
 }
 
 
-// Main two-column layout: left = selector, right = active panel (summary/payroll/monitor)
+// Main two-column layout: left = selector (with account), right = active panel (summary/payroll/monitor)
 static void mainUI() {
     if (!g_rightUI) g_rightUI = summaryUI; // default right panel
 
