@@ -47,7 +47,7 @@
 This project is a C++ application that demonstrates a payroll and monitoring system with a UI layer and SQLite-backed persistence. It is designed for desktop platforms (Windows, macOS, Linux) and can be adapted to mobile platforms (Android, iOS) with platform-specific toolchains.
 
 ### Project Highlights
-- Language: C++26
+- Language: C++23
 - Build system: CMake v4.0
 - UI: Hello ImGui (immediate-mode GUI) v1.19.3
 - Database: SQLite (single-file, local, embedded)
