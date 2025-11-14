@@ -168,3 +168,8 @@ bool closeDatabase(const std::string& p_dbName) {
     rc = sqlite3_close(db);
     return (rc == SQLITE_OK);
 }
+
+
+bool appendDatabase(const std::string& p_dbName, std::string& p_data) {
+    return true;
+}
