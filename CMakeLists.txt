@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0) # minimum CMake version
+cmake_minimum_required(VERSION 3.22) # minimum CMake version
 project(cpet_140_final_project) # project name
 set(CMAKE_CXX_STANDARD 23) # set C++ standard to C++23 (AppleClang doesn't support C++26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -56,6 +56,11 @@ hello_imgui_add_app(
         ASSETS_LOCATION "assets/"
 )
 
+# Add include directory for SQLite3 headers
+target_include_directories(payroll-and-monitoring-system PRIVATE
+    ${CMAKE_SOURCE_DIR}/dependencies/sqlite
+)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
     message(STATUS "Release build configured with -O3 optimization.")
@@ -63,7 +68,8 @@ endif()
 
 # GCC and Clang optimization flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -DNDEBUG")
+    # Note: Removed -march=native for better CI/CD compatibility
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto -DNDEBUG")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto")
 endif()
 

@@ -28,19 +28,19 @@ jobs:
 
           # macOS builds
           - {
-              name: "macOS Latest (x64)",
+              name: "macOS Latest (ARM64)",
               os: macos-latest,
-              arch: x64,
-              artifact: "payroll-and-monitoring-system-macos-x64",
+              arch: arm64,
+              artifact: "payroll-and-monitoring-system-macos-arm64",
               build_type: "Release",
               cc: "clang",
               cxx: "clang++"
             }
           - {
-              name: "macOS Latest (ARM64)",
-              os: macos-latest,
-              arch: arm64,
-              artifact: "payroll-and-monitoring-system-macos-arm64",
+              name: "macOS 13 (x64)",
+              os: macos-13,
+              arch: x64,
+              artifact: "payroll-and-monitoring-system-macos-x64",
               build_type: "Release",
               cc: "clang",
               cxx: "clang++"
@@ -99,17 +99,11 @@ jobs:
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -G Ninja
 
-    # Configure CMake for macOS ARM64
-    - name: Configure CMake (macOS ARM64)
-      if: runner.os == 'macOS' && matrix.config.arch == 'arm64'
+    # Configure CMake for macOS (native build)
+    - name: Configure CMake (macOS)
+      if: runner.os == 'macOS'
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -G Ninja -DCMAKE_OSX_ARCHITECTURES=arm64
-
-    # Configure CMake for macOS x64
-    - name: Configure CMake (macOS x64)
-      if: runner.os == 'macOS' && matrix.config.arch == 'x64'
-      run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -G Ninja -DCMAKE_OSX_ARCHITECTURES=x86_64
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -G Ninja
 
     # Build
     - name: Build
