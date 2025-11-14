@@ -59,6 +59,16 @@ void setTextCenter(const char* text){
 }
 
 
+void setButtonCenter(const char* text, const ImVec2& size){
+    const float windowWidth = ImGui::GetWindowSize().x;
+    const float buttonWidth = size.x;
+
+    // Move to center position
+    ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
+    ImGui::Button(text, size);
+}
+
+
 void setTextRight(const char* text){
     const float windowWidth = ImGui::GetWindowSize().x;
     const float textWidth = ImGui::CalcTextSize(text).x;
@@ -66,6 +76,19 @@ void setTextRight(const char* text){
     // Position the cursor so that text ends at the right edge
     ImGui::SetCursorPosX(windowWidth - textWidth - ImGui::GetStyle().WindowPadding.x);
     ImGui::Text("%s", text);
+}
+
+
+static void loadBusinessLogo(const float p_locationXPx) {
+    static HelloImGui::ImageAndSize businessLogo;
+
+    if constexpr (true) {businessLogo = HelloImGui::ImageAndSizeFromAsset("icons/business_logo.png");}
+    if (businessLogo.textureId != static_cast<ImTextureID>(0)) {
+        constexpr float imageSize = 70.0f;
+        const float imagePosX = (ImGui::GetWindowWidth() - imageSize) * p_locationXPx;
+        ImGui::SetCursorPosX(imagePosX);
+        ImGui::Image(businessLogo.textureId, ImVec2(imageSize, imageSize));
+    }
 }
 
 
@@ -77,46 +100,62 @@ static void failedUI() {
 
 
 static void loginUI() {
-    ImGui::Text("Login Page");
+    static char username[128] = "";
     static char password[128] = "";
+    constexpr int textboxPaddingX = 8;
+    constexpr int textboxPaddingY = 5;
+    constexpr float textboxWidth = 460.0f;
     static bool showError = false;
 
-    ImGui::InputText("Password", password, IM_ARRAYSIZE(password),
-                     ImGuiInputTextFlags_Password);
+    loadBusinessLogo(0.05f);
+    ImGui::SetCursorPos(ImVec2(18.0f, 90.0f));
+    ImGui::Text("Welcome, please log in to continue");
 
-    if (ImGui::Button("Log In")) {
+    ImGui::SetCursorPos(ImVec2(24.0f, 150.0f));
+    ImGui::Text("Username");
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(textboxPaddingX, textboxPaddingY)); // custom padding
+    ImGui::SetCursorPos(ImVec2(18.0f, 180.0f));
+    ImGui::SetNextItemWidth(textboxWidth); // width in pixels
+    ImGui::InputText("##username", username, IM_ARRAYSIZE(username));
+    ImGui::PopStyleVar();
+
+    ImGui::SetCursorPos(ImVec2(24.0f, 220.0f));
+    ImGui::Text("Password");
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(textboxPaddingX, textboxPaddingY)); // custom padding
+    ImGui::SetCursorPos(ImVec2(18.0f, 250.0f));
+    ImGui::SetNextItemWidth(textboxWidth); // width in pixels
+    ImGui::InputText("##password", password, IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
+    ImGui::PopStyleVar();
+
+    ImGui::SetCursorPos(ImVec2(25.0f, 310.0f));
+    if (setButtonCenter("Log In", fullWidthButtonSize(35)), ImGui::IsItemClicked()){
         constexpr int maxPasswordLength = 128;
         constexpr int minPasswordLength = 10;
-        if (const std::size_t len = std::strlen(password); len >= static_cast<std::size_t>(minPasswordLength) && len <= static_cast<std::size_t>(maxPasswordLength)) {
+        if (const std::size_t lengthPassword = std::strlen(password); lengthPassword >= static_cast<std::size_t>(minPasswordLength) && lengthPassword <= static_cast<std::size_t>(maxPasswordLength)) {
             showError = false;
             g_auth = true;
+            username[0] = '\0';
+            password[0] = '\0';
             HelloImGui::GetRunnerParams()->appShallExit = true;
         }
-        else {
-            showError = true;
-        }
+        else {showError = true;}
     }
 
     if (showError) {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "ERROR: Password must be between 10-128 characters");
+        ImGui::SetCursorPos(ImVec2(105.0f, 220.0f));
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "ERROR: Password is too short");
     }
 
-    if (ImGui::Button("Exit")) {HelloImGui::GetRunnerParams()->appShallExit = true;}
+    ImGui::SetCursorPos(ImVec2(25.0f, 360.0f));
+    if (setButtonCenter("Exit App", fullWidthButtonSize(35)), ImGui::IsItemClicked()) {HelloImGui::GetRunnerParams()->appShallExit = true;}
 }
 
 static void accountUI() {
     // Load business logo only once on first call
-    static HelloImGui::ImageAndSize businessLogo;
+    loadBusinessLogo(0.1f);
     static HelloImGui::ImageAndSize userLogo;
-
-    if constexpr (true) {businessLogo = HelloImGui::ImageAndSizeFromAsset("icons/business_logo.png");}
-    // Display user image, centered
-    if (businessLogo.textureId != static_cast<ImTextureID>(0)) {
-        constexpr float imageSize = 70.0f;
-        const float imagePosX = (ImGui::GetWindowWidth() - imageSize) * 0.1f;
-        ImGui::SetCursorPosX(imagePosX);
-        ImGui::Image(businessLogo.textureId, ImVec2(imageSize, imageSize));
-    }
 
     if constexpr (true) {userLogo = HelloImGui::ImageAndSizeFromAsset("icons/user_icon.png");}
     // Display user image, centered
