@@ -53,17 +53,27 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 ### Repository Structure
       cpet-140-final-project/
       ├── assets/
-      │   └── fonts/
-      │      └── OpenSans-Regular.ttf
+      │   ├── fonts/
+      │   │   └── OpenSans-Regular.ttf
+      │   └── icons/
+      │       ├── business_logo.png
+      │       └── user_icon.png
+      ├── assets (raw)/
+      │   └── concept.png
       ├── dependencies/
       │   └── sqlite3/
       │      ├── sqlite3.c
       │      └── sqlite3.h
       ├── doc/
+      │   ├── system_flowcart/
+      │   │   └── CpET 140 Final Project System Flowchart.svg
       │   ├── CpET 140 - Computer Programming 1 - Final Output.pdf
       │   └── hello_imgui_manual.pdf
       ├── src/
       │   ├── main.cpp
+      │   ├── config/
+      │   │   ├── app_config.cpp
+      │   │   └── app_config.h
       │   ├── handler/
       │   │   ├── db.cpp
       │   │   ├── db.h
@@ -77,11 +87,11 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │   │   ├── payroll.cpp
       │   │   └── payroll.h
       │   ├── security/
-      │   │  ├── auth.cpp
-      │   │  └── auth.h
+      │   │   ├── auth.cpp
+      │   │   └── auth.h
       │   └── ui/
-      │      ├── ui.cpp
-      │      └── ui.h
+      │       ├── ui.cpp
+      │       └── ui.h
       ├── .gitignore
       ├── CMakeLists.txt
       └── README.md
