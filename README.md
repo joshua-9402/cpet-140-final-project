@@ -56,6 +56,7 @@ I. Documentation
     - [Calling / Invoking Conventions](#calling--invoking-conventions)
 
 II. Getting Started
+  - [Automated Builds (CI/CD)](#automated-builds-cicd)
   - [Build & Run (Desktop)](#build--run-desktop)
     - [Prerequisites (For Development Computer Only)](#prerequisites-for-development-computer-only)
     - [Commands (building from repository's root)](#commands-building-from-repositorys-root)
@@ -334,7 +335,44 @@ This section documents how modules in the repository should be invoked, the mini
    - Read the header for the module you call and prefer the public API.
    - Check return codes and propagate errors to the caller/UI.
    - Avoid changing globals directly; use switch/setter functions where present.
-   - Keep UI code free of raw DB operations; call `db::` helpers instead.
+     - Keep UI code free of raw DB operations; call `db::` helpers instead.
+
+
+## Automated Builds (CI/CD)
+
+This project includes automated builds via GitHub Actions that compile the application for multiple platforms whenever code is pushed.
+
+### Supported Build Platforms
+
+The CI/CD pipeline automatically builds for:
+- **Ubuntu Linux** (x64)
+- **macOS** (Intel x64)
+- **macOS** (Apple Silicon ARM64)
+- **Windows** (x64)
+
+### Downloading Pre-built Binaries
+
+#### From GitHub Actions
+1. Navigate to the **Actions** tab in the repository
+2. Click on the latest successful workflow run
+3. Scroll to the **Artifacts** section
+4. Download the artifact for your platform:
+   - `payroll-and-monitoring-system-linux-x64.tar.gz`
+   - `payroll-and-monitoring-system-macos-x64.tar.gz`
+   - `payroll-and-monitoring-system-macos-arm64.tar.gz`
+   - `payroll-and-monitoring-system-windows-x64.zip`
+
+#### From Releases (Tagged Versions)
+When a version tag is created (e.g., `v1.0.0`), all platform builds are automatically attached to a GitHub Release.
+
+### Triggering a Manual Build
+You can manually trigger a build:
+1. Go to **Actions** tab
+2. Select **Multi-Platform Build**
+3. Click **Run workflow**
+4. Choose the branch and confirm
+
+For detailed CI/CD documentation, see [.github/BUILD.md](.github/BUILD.md).
 
 
 ## Build & Run (Desktop)
