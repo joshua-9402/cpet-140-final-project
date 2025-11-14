@@ -46,10 +46,6 @@
 
 ## Table of Contents
 
-<details open>
-<summary><i>Quick Navigation</i></summary>
-
-
 I. Documentation
   - [Technical Overview](#technical-overview)
     - [Project Highlights](#project-highlights)
@@ -75,9 +71,6 @@ III. Quality & Contributions
     - [Filing Issues](#filing-issues)
     - [Filing Pull Requests](#filing-pull-requests)
     - [Troubleshooting & Debugging Tips](#troubleshooting--debugging-tips)
-  
-
-</details>
 
 ---
 
