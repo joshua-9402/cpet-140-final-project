@@ -170,6 +170,6 @@ bool closeDatabase(const std::string& p_dbName) {
 }
 
 
-bool appendDatabase(const std::string& p_dbName, std::string& p_data) {
+bool appendToDatabase(const std::string& p_dbName, std::string& p_data) {
     return true;
 }

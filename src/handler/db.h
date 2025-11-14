@@ -21,7 +21,7 @@ bool appendFileText(const std::string& p_filename, const std::string& p_newText,
 bool createDatabase(const std::string& p_dbName);
 bool openDatabase(const std::string& p_dbName);
 bool closeDatabase(const std::string& p_dbName);
-bool appendDatabase(const std::string& p_dbName, std::string& p_data);
+bool appendToDatabase(const std::string& p_dbName, std::string& p_data);
 
 #endif // DB_H
 
