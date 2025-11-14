@@ -49,6 +49,7 @@
 <details open>
 <summary><i>Quick Navigation</i></summary>
 
+
 I. Documentation
   - [Technical Overview](#technical-overview)
     - [Project Highlights](#project-highlights)
