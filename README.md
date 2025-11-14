@@ -54,7 +54,7 @@
   - [Project Highlights](#project-highlights)
   - [Repository Structure](#repository-structure)
 - [Application Structure](#application-structure)
-  - [Module Responsibilities and Organization](#module-responsibilities-and-organization)
+  - [Module Responsibilities](#module-responsibilities)
   - [Interfaces](#interfaces)
 
 - II. Getting Started
