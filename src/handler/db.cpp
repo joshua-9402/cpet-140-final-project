@@ -84,7 +84,7 @@ std::string readFileText(const std::string& p_filename, const int p_lineFileText
 }
 
 
-bool appendFileText(const std::string& p_filename, const std::string& p_newText, const bool addNewline = true) {
+bool appendFileText(const std::string& p_filename, const std::string& p_newText, const bool addNewline) {
     std::ofstream outputFile(p_filename, std::ios::app);
 
     if (!outputFile.is_open()) return false;

@@ -1,24 +1,27 @@
-#ifndef CPET_140_FINAL_PROJECT_DB_H
-#define CPET_140_FINAL_PROJECT_DB_H
-
-/**
- * SQLite utility helpers.
- * - Availability check (no side effects)
- * - Lightweight database file creation (no schema creation)
+/*
+ * CpET 140 Final Project — Database module header
+ *
+ * Contributors: Joshua Literal
+ *
+ * Purpose
+ * - Declares persistence functions for database operations
  */
+
+#ifndef DB_H
+#define DB_H
 
 #include <string>
 
-class db {
-public:
-    static bool createFileText(const std::string& p_filename);
-    static std::string readFileText(const std::string& p_filename, const int p_lineFileText);
-    static bool appendFileText(const std::string& p_filename, const std::string& p_newText, const bool addNewline = true);
+// File operations
+bool createFileText(const std::string& p_filename);
+std::string readFileText(const std::string& p_filename, int p_lineFileText);
+bool appendFileText(const std::string& p_filename, const std::string& p_newText, bool addNewline = true);
 
-    static bool createDatabase(const std::string& p_dbName);
-    static bool openDatabase(const std::string& p_dbName);
-    static bool closeDatabase(const std::string& p_dbName);
-};
+// Database operations
+bool createDatabase(const std::string& p_dbName);
+bool openDatabase(const std::string& p_dbName);
+bool closeDatabase(const std::string& p_dbName);
+bool appendDatabase(const std::string& p_dbName, std::string& p_data);
 
+#endif // DB_H
 
-#endif //CPET_140_FINAL_PROJECT_DB_H
