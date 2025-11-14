@@ -56,6 +56,7 @@
 - [Application Structure](#application-structure)
   - [Module Responsibilities](#module-responsibilities)
   - [Interfaces](#interfaces)
+  - [Calling / Invoking Conventions](#calling--invoking-conventions)
 
 - II. Getting Started
 - [Build & Run (Desktop)](#build--run-desktop)
@@ -265,6 +266,12 @@ This section documents how modules in the repository should be invoked, the mini
        - Errors: SQL syntax, constraint violations; always inspect return
 
    - for `system::` functions (in `system.cpp`)
+     - `system::fetchTime(const PartDateTime part)`
+       - Inputs: `part` = enum selecting portion to return (examples: `Full`, `Date`, `Time`, `Year`, `Month`, `Day`)
+       - Outputs: returns `int` with the requested date or time part
+       - Errors: system clock access failure, invalid `part` value
+       - Note: keep function side\-effect free; callers handle timezone/locale conversions
+       
      - `system::createDirectory(const std::string &directoryName)`
        - Inputs: directory path
        - Outputs: returns boolean value (`true` on success, `false` on failure)
@@ -355,12 +362,13 @@ This section documents how modules in the repository should be invoked, the mini
 
 ## Build and Run (Mobile)
 
-- there is a separate <a href="https://github.com/joshua-9402/cpet-140-final-project-mobile"> repository </a> for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
+- There is a separate <a href="https://github.com/joshua-9402/cpet-140-final-project-mobile"> repository </a> for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
 
 
 ## Dependencies
 
 - sqlite3 (runtime + development headers)
+- argon2 (for password hashing, runtime + development headers)
 - Hello ImGui 
 - Optional:
   - libraries for platform windows/rendering (GLFW/SDL/DirectX/Metal)
@@ -384,7 +392,7 @@ The participation of everyone is needed to make this project a success. Please f
 > Notes:
 > - `UI.cpp`, `UI.h`, `db.cpp` and `db.h` are OFF LIMITS especially for `constructUI()` and `switchToUI()` functions (in `UI.cpp`).
 >   - For bugs, please file an issue instead.
->   - For enhancements, please discuss with the maintainers first or file an issue regarding the enhancement.
+>   - For enhancements, please discuss with the maintainer first or file an issue regarding the enhancement.
 >   - For adding new UIs, please file an issue first to discuss the addition.
 > - When contributing code, please ensure that your code adheres to the coding conventions outlined below.
 > - Any significant deviations from the coding conventions should be explained in the PR / commit description, or it will be rejected.
@@ -467,11 +475,11 @@ The participation of everyone is needed to make this project a success. Please f
 - Use clear, descriptive titles.
 - Provide detailed descriptions, including steps to reproduce, expected vs. actual behavior, and screenshot or the error logs.
 - Assign appropriate labels:
-  - bug - something is not working as expected
-  - documentation - improvements or additions to documentation
-  - enhancement - new feature or request
-  - help wanted - assistance needed
-  - question - request for information or clarification
+  - `bug` - something is not working as expected
+  - `documentation` - improvements or additions to documentation
+  - `enhancement` - new feature or request
+  - `help wanted` - assistance needed
+  - `question` - request for information or clarification
 - Reference related issues or PRs when applicable.
 
 
@@ -509,8 +517,6 @@ The participation of everyone is needed to make this project a success. Please f
   - Add a debug mode to log SQL statements and durations.
   - Reproduce issues with a temporary DB and add unit/regression tests once fixed.
   - Calling methods from `db.cpp` is `<db>::method` (e.g., `db::createDatabase(<path>, <error>)`)
-  - For `isSqliteAvailable()` method
-    - Returns either `true` or `false with error code`.
   - For `createDatabase()`
     - It will create a new database or open a database (if there is an existing database)
     - Returns either `true` or `false with error`
