@@ -57,7 +57,7 @@
   - [Repository Structure](#repository-structure)
 - [Application Structure](#application-structure)
   - [Module Responsibilities and Organization](#module-responsibilities-and-organization)
-  - [API / Interfaces](#api--interfaces)
+  - [Interfaces](#interfaces)
 
 **II. Getting Started**
 - [Build & Run (Desktop)](#build--run-desktop)
@@ -149,39 +149,194 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
     - Conventions: no logic, no direct DB schema work
 
 
-- `src/lib/UI.cpp` and `UI.h`
+- `src/config/app_config.cpp` and `app_config.h`
+    - Responsibilities: load/save app configuration (file paths, UI settings).
+    - Conventions: simple getters/setters, no UI or DB logic.
+
+
+- `src/ui/UI.cpp` and `UI.h`
     - Responsibilities: immediate-mode UI only — register UIs, load fonts, set HelloImGui params, invoke g_currentUI each frame.
     - Conventions: register UI handlers, keep UIs small, avoid long inline logic, ShowGui should simply call the current UI.
 
 
-- `src/lib/db.cpp` and `db.h`
+- `src/handler/db.cpp` and `db.h`
     - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
     - Conventions: keep DB helpers small, use RAII for connections, prefer prepared statements, and always check SQLite return codes.
 
 
+- `src/handler/auth.cpp` and `auth.h`
+    - Responsibilities: user authentication and authorization (login, logout, session management).
+    - Conventions: no UI or DB schema work — use `db::` helpers; prefer secure handling of credentials; small, testable lowerCamelCase functions; return explicit result types and add unit tests; avoid global state.
 
-- `src/lib/payroll.cpp` and `src/lib/payroll.h`
+
+- `src/handler/system.cpp` and `system.h`
+    - Responsibilities: system-level operations (file I/O, environment checks, logging).
+    - Conventions: no UI or DB schema work — use `db::` helpers; small, testable lowerCamelCase functions; return explicit result types and add unit tests; avoid global state.
+
+
+- `src/core/payroll.cpp` and `src/lib/payroll.h`
   - Responsibilities: payroll logic (records, rates, time entries, deductions, taxes), CRUD (Create, Read, Update, and Delete) and payroll runs; validate inputs and produce deterministic calculations. Delegate persistence to `db`.
   - Conventions: no UI or raw SQLite calls — use `db::` helpers; prefer RAII and integer/fixed\-point for money; small, testable lowerCamelCase functions; return explicit result types and add unit tests; avoid global state.
 
 
-- `src/lib/monitor.cpp` and `monitor.h`
+- `src/core/monitor.cpp` and `monitor.h`
   - Responsibilities: collect and expose domain-specific expense metrics (per-project expense totals, payroll/outflow summaries, invoice/payment status); aggregate and persist expense snapshots via `db::` helpers on demand; provide a synchronous, lightweight query API for the UI and `payroll` module; validate inputs and emit alerts/logs for threshold breaches.
   - Conventions: no system monitoring (CPU/memory) and no background threads/polling/timers here; delegate persistence to `db::` helpers
 
-### API / Interfaces
+### Interfaces
 - From `main.cpp`
     - `main()` function
         - starts the whole application
         - checking for dependencies and libraries
         - constructs UI
+
+- From `app_config.cpp`
+    - `g_appTitle;`
+    - `g_loginTitle;`
+    - `g_fontName;`
+    - `g_dbNamePayroll;`
+    - `g_dbNameTracker;`
+    - `g_txtNameUser;`
+    - `g_defaultWidth;`
+    - `g_defaultHeight;`
+    - `g_smallWidth;`
+    - `g_smallHeight;`
+
 - From `UI.cpp`
     - `constructUI()` function
         - sets up Hello ImGui
         - loads fonts
         - registers UIs
-- From `db.cpp`
 
+- From `db.cpp`
+    - `createFileText()` function
+        - creates a text file at the specified path with the given content
+    - `readFileText()` function
+        - reads the content of a text file at the specified path
+    - `appendFileText()` function
+        - appends content to a text file at the specified path
+    - `createDatabase()` function
+        - creates a new database
+    - `openDatabase()` function
+        - opens an existing database
+    - `closeDatabase()` function
+        - closes the database connection
+    - `appendToDatabase()` function
+        - appends data to the database
+
+- From `system.cpp`
+    - `fetchTime()` function
+        - fetches the current system time
+    - `createDirectory()` function
+        - creates a new directory at the specified path
+
+- From `auth.cpp`
+    - `authGateway()` function
+        - handles user authentication and authorization
+
+### Calling / Invoking Conventions
+This section documents how modules in the repository should be invoked, the minimal contracts (inputs/outputs), common error modes, and a few examples. The conventions are based on the current repository layout and naming conventions (globals start with `g`, local variables with `l`, etc.).
+
+1) General rules
+   - Prefer calling the well-scoped API functions from headers (e.g., `db::`, `system::`, `auth::`). Do not reach into internal implementation files unless there is no public API.
+   - Globals: read-only access is acceptable; modifications should be centralized (for example, set `g_currentUI` only via a UI switch function).
+   - Side effects should be explicit in the function name (e.g., `createDatabase()` creates/persists a database file; `appendFileText()` mutates a file).
+
+2) Methods, functions or global variable/s (with conventions)
+   - for `db::` functions (in `db.cpp`)
+     - `db::createDatabase(const std::string &p_dbName)`
+       - Inputs: `p_dbName` = path to DB file
+       - Outputs: returns boolean value (`true` on success, `false` on failure)
+       - Errors: file system permission errors, sqlite open/locking errors
+       - Side effects: creates the file and directories as needed
+
+     - `db::openDatabase(const std::string &p_dbName)`
+       - Inputs: `p_dbName` = path to DB file
+       - Outputs: returns boolean value (`true` on success, `false` on failure)
+       - Errors: missing file, incompatible schema, sqlite errors
+       - Caller responsibility: call `db::closeDatabase()` on the handle when done
+       
+     - `db::closeDatabase(const std::string& p_dbName)`
+       - Inputs: `p_dbName` = path to DB file
+       - Outputs: returns boolean value (`true` on success, `false` on failure)
+       - Errors: sqlite errors during close
+       - Side effects: releases DB handle/resources
+
+     - `db::appendToDatabase(const std::string& p_dbName, std::string& p_data)`
+       - Inputs: `p_dbName` = path to DB file, `p_data` = data to append
+       - Outputs: returns boolean value (`true` on success, `false` on failure)
+       - Errors: SQL syntax, constraint violations; always inspect return
+
+   - for `system::` functions (in `system.cpp`)
+     - `system::createDirectory(const std::string &directoryName)`
+       - Inputs: directory path
+       - Outputs: returns boolean value (`true` on success, `false` on failure)
+       - Errors: permission denied, invalid path, already exists
+       - Note: callers should check for existence before creating (to avoid errors)
+       
+   - for `auth::` functions (in `auth.cpp`)
+     - `auth::authGateway(const std::string &username, const std::string &password, const std::string &source)`
+       - Inputs: credentials and optional source tag
+       - Outputs: returns an auth result (bool or enum) and sets session/globals
+       - Errors: invalid credentials, DB errors
+       - Side effects: may set `g_auth` or a session token; prefer returning an explicit result instead of relying on globals
+
+   - for `ui::` functions (in `ui.cpp`)
+     - `constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_heightPx, const std::string& a_window)`
+       - Inputs: title, font path, window size (width and height), assets folder
+       - Outputs: registers UI handlers with HelloImGui and loads fonts/resources
+       - Errors: missing assets, font load errors — log and fall back to defaults
+     - `g_errorMessage` — global string to hold error messages for UI display
+
+3) Example call flows
+   - Startup (in `main.cpp`):
+     - call config load functions to populate `g_*` variables
+     - call `system::createDirectory()` for app data directory if needed
+     - call `db::createDatabase()` or `db::openDatabase()` to ensure persistence is available
+     - call `constructUI()` to initialize the UI system
+     - start the HelloImGui runner
+
+   - Login flow (high-level):
+     - Login UI calls `auth::authGateway(username, password, "loginUI")`
+     - On success: set `g_auth = true` (or return an auth token). `main.cpp` observes `g_auth` and calls `switchToUI(MainUI)`
+     - On logout: call `auth::logout()` (if present) which clears session and sets `g_auth = false`; then call `switchToUI(LoginUI)`
+
+4) Error and edge-case handling (recommended patterns)
+   - Always check and propagate error messages (use `outError` strings) rather than silently ignoring failures.
+   - For filesystem operations, handle the "already exists" case as success (unless replacing is intended).
+   - For DB operations: prefer prepared statements and validate inputs before executing.
+   - For UI asset loads: call `HelloImGui::SetAssetsFolder()` at startup to avoid brittle relative-path lookups.
+
+5) Minimal examples
+   - Call `system::createDirectory()` safely:
+
+           // pseudo-call (conceptual)
+           std::string path = "/path/to/appdata";
+           if (!system::createDirectory(path)) {
+               // handle failure: log and show a friendly UI error
+           }
+
+   - Login (conceptual):
+
+           // in login UI handler
+           std::string err;
+           auto ok = auth::authGateway(username, password, "loginUI");
+           if (ok) {
+               // ask main loop to switch UI (set flag or call switchToUI)
+           } else {
+               // show error
+           }
+
+6) Notes about globals used in the codebase
+   - `g_currentUI` — read-only from most files; only `ui.cpp` (or a dedicated switch function) should change it.
+   - `g_auth` — represents authentication state. Prefer exposing a small API (e.g., `auth::isAuthenticated()`) rather than reading the global directly.
+   - `g_smallWidth`, `g_smallHeight`, `g_defaultWidth`, `g_defaultHeight` — layout hints for UIs. UIs should use these as suggestions, not absolute constraints.
+
+7) Quick checklist for contributors when calling modules
+   - Read the header for the module you call and prefer the public API.
+   - Check return codes and propagate errors to the caller/UI.
+   - Avoid changing globals directly; use switch/setter functions where present.
+   - Keep UI code free of raw DB operations; call `db::` helpers instead.
 
 
 ## Build & Run (Desktop)
@@ -362,11 +517,3 @@ The participation of everyone is needed to make this project a success. Please f
   - For `createDatabase()`
     - It will create a new database or open a database (if there is an existing database)
     - Returns either `true` or `false with error`
-
-### Configuration
-- Configuration is intentionally minimal and file-based for portability.
-- Load configuration early in main.cpp and allow environment variables to override file values for CI/containers.
-
-### Known Limitations
-- Single-file SQLite limits multi-user concurrent writes; WAL helps but not a replacement for a server DB in multi-client scenarios.
-- UI is immediate-mode and desktop-focused; mobile UI experience requires a separate UI layer implementation.
