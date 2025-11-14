@@ -77,14 +77,32 @@ static void failedUI() {
 
 
 static void loginUI() {
-    ImGui::Text("Authorization Page");
+    ImGui::Text("Login Page");
+    static char password[128] = "";
+    static bool showError = false;
+
+    ImGui::InputText("Password", password, IM_ARRAYSIZE(password),
+                     ImGuiInputTextFlags_Password);
+
     if (ImGui::Button("Log In")) {
-        g_auth = true;
-        HelloImGui::GetRunnerParams()->appShallExit = true;
+        constexpr int maxPasswordLength = 128;
+        constexpr int minPasswordLength = 10;
+        if (const std::size_t len = std::strlen(password); len >= static_cast<std::size_t>(minPasswordLength) && len <= static_cast<std::size_t>(maxPasswordLength)) {
+            showError = false;
+            g_auth = true;
+            HelloImGui::GetRunnerParams()->appShallExit = true;
+        }
+        else {
+            showError = true;
+        }
     }
+
+    if (showError) {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "ERROR: Password must be between 10-128 characters");
+    }
+
     if (ImGui::Button("Exit")) {HelloImGui::GetRunnerParams()->appShallExit = true;}
 }
-
 
 static void accountUI() {
     // Load business logo only once on first call
