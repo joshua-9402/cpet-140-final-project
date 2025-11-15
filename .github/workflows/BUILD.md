@@ -6,10 +6,14 @@ This document describes all the GitHub Actions workflows available for building 
 
 - [Overview](#overview)
 - [Automated Builds](#automated-builds)
+- [Manual Linux Builds](#manual-linux-builds)
 - [Manual macOS Builds](#manual-macos-builds)
   - [macOS ARM64 (Apple Silicon)](#macos-arm64-apple-silicon)
   - [macOS Intel (Big Sur and newer)](#macos-intel-big-sur-and-newer)
   - [macOS Legacy (Catalina and older)](#macos-legacy-catalina-and-older)
+- [Manual Windows Builds](#manual-windows-builds)
+  - [Windows x64](#windows-x64-manual)
+  - [Windows ARM64](#windows-arm64-manual)
 - [Workflow Comparison](#workflow-comparison)
 - [How to Trigger Builds](#how-to-trigger-builds)
 - [Downloading Artifacts](#downloading-artifacts)
@@ -19,9 +23,10 @@ This document describes all the GitHub Actions workflows available for building 
 
 ## Overview
 
-This project provides multiple build workflows to support different platforms and macOS versions:
+This project provides multiple build workflows to support different platforms and architectures:
 
-- **Automated builds** - Run automatically on push (Linux, Windows x64)
+- **Automated builds** - Run automatically on push (Linux Ubuntu x64, Windows x64)
+- **Manual Linux builds** - Run on-demand for Debian-based distributions (Ubuntu, Debian) and architectures (x64, ARM64)
 - **Manual macOS builds** - Run on-demand for specific macOS targets (3 workflows)
 - **Manual Windows builds** - Run on-demand for Windows x64 and ARM64
 
@@ -53,6 +58,105 @@ Having separate workflows ensures optimal compatibility for each target.
 - Builds for Linux and Windows simultaneously
 - 30-day artifact retention
 - Optimized Release builds with LTO
+
+---
+
+## Manual Linux Builds
+
+**File:** `build-linux.yml`  
+**Documentation:** `README-linux.md`
+
+The manual Linux workflow allows you to build for **Debian-based Linux distributions** and **architectures**.
+
+### Supported Distributions
+
+**Official Distributions:**
+- **Ubuntu 22.04** - Latest LTS (Jammy Jellyfish)
+- **Ubuntu 20.04** - Previous LTS (Focal Fossa)
+- **Ubuntu Latest** - Rolling latest
+- **Debian 12** - Bookworm (Latest Stable)
+- **Debian 11** - Bullseye (Oldstable)
+- **Debian Latest** - Current Debian Stable
+
+**Compatible Derivatives:**
+- Linux Mint (based on Ubuntu)
+- Pop!_OS (based on Ubuntu)
+- elementary OS (based on Ubuntu)
+- Zorin OS (based on Ubuntu)
+- KDE neon (based on Ubuntu LTS)
+- Raspberry Pi OS (based on Debian)
+- MX Linux (based on Debian)
+- And many more Debian/Ubuntu derivatives
+
+### Supported Architectures
+
+- **x64** (AMD64/x86_64) - Intel/AMD processors
+- **ARM64** (aarch64) - ARM 64-bit processors (Raspberry Pi, ARM servers)
+
+### Total Combinations
+
+**6 distributions × 2 architectures = 12 possible builds**
+
+**Plus compatibility with dozens of Debian/Ubuntu derivatives!**
+
+### Configuration
+
+- **Build Method:** Container-based (Docker)
+- **Package Manager:** apt (Debian/Ubuntu standard)
+- **C++ Standard:** C++23
+- **Compiler:** GCC (version depends on distribution)
+- **Build System:** Ninja
+- **LTO:** Configurable (enabled by default)
+- **Retention:** 90 days
+
+### When to Use
+
+- Building for specific Debian-based distribution
+- Targeting ARM64 Linux devices (Raspberry Pi 4/5, ARM servers)
+- Need reproducible builds across Debian/Ubuntu versions
+- Testing compatibility with different Debian/Ubuntu versions
+- Distributing to Linux Mint, Pop!_OS, or other derivatives
+
+### Key Features
+
+- ✅ **Debian-based distributions only** - Ubuntu, Debian, and derivatives
+- ✅ **Multi-architecture** - x64 and ARM64
+- ✅ **Container-based** - Consistent build environment
+- ✅ **Configurable** - Release or Debug builds
+- ✅ **Optional LTO** - Link-Time Optimization
+- ✅ **90-day retention** - Long artifact storage
+- ✅ **Wide compatibility** - Works on most Debian/Ubuntu derivatives
+
+### How to Trigger
+
+1. Go to Actions → **"Build Linux (Manual)"**
+2. Click **"Run workflow"**
+3. Select:
+   - **Distribution** (Ubuntu 22.04, Debian 12, etc.)
+   - **Architecture** (x64 or arm64)
+   - **Build type** (Release or Debug)
+   - **Enable LTO** (Yes or No)
+4. Download the artifact when complete
+
+### Artifact Names
+
+```
+payroll-and-monitoring-system-ubuntu-22.04-x64-Release.tar.gz
+payroll-and-monitoring-system-debian-12-arm64-Release.tar.gz
+payroll-and-monitoring-system-ubuntu-20.04-x64-Debug.tar.gz
+```
+
+### Use Cases
+
+| Use Case | Recommended Build |
+|----------|------------------|
+| **General Linux users** | Ubuntu 22.04 x64 |
+| **Linux Mint users** | Ubuntu 22.04 x64 (Mint 21) or Ubuntu 20.04 x64 (Mint 20) |
+| **Pop!_OS users** | Ubuntu 22.04 x64 |
+| **Servers** | Debian 12 x64 or Ubuntu 22.04 x64 |
+| **Raspberry Pi 4/5** | Debian 12 arm64 or Ubuntu 22.04 arm64 |
+| **ARM servers (AWS Graviton)** | Ubuntu 22.04 arm64 or Debian 12 arm64 |
+| **Stable/conservative** | Debian 11 x64 |
 
 ---
 
@@ -282,26 +386,50 @@ git push origin master
 
 The workflow will automatically start building for Linux and Windows.
 
-### Manual macOS Builds
+### Manual Builds (macOS/Windows/Linux)
 
 #### From GitHub Website
 
 1. Go to your repository on GitHub
 2. Click the **Actions** tab
 3. On the left sidebar, select the workflow you want:
+   - **Build Linux (Manual)**
    - **Build macOS ARM64 (Manual)**
    - **Build macOS Intel (Manual)**
    - **Build macOS Legacy (Manual)**
    - **Build Windows x64 (Manual)**
+   - **Build Windows ARM64 (Manual)**
 4. Click the **"Run workflow"** button on the right
 5. Configure the build options:
    - **Branch:** Select the branch to build (usually `master`)
+   - **Distribution:** (Linux only) Choose Ubuntu, Fedora, Debian, or Arch
+   - **Architecture:** (Linux only) Choose x64 or arm64
    - **Build type:** Choose `Release` or `Debug`
    - **Enable Link-Time Optimization:** Check/uncheck (default varies by workflow)
-   - **Deployment target:** (Legacy workflow only) Choose 10.15, 10.14, or 10.13
+   - **Deployment target:** (macOS Legacy only) Choose 10.15, 10.14, or 10.13
 6. Click the green **"Run workflow"** button to start
 
 #### From GitHub CLI
+
+**Linux (Ubuntu 22.04 x64):**
+```bash
+gh workflow run "Build Linux (Manual)" \
+  --ref master \
+  -f distribution=ubuntu-22.04 \
+  -f architecture=x64 \
+  -f build_type=Release \
+  -f enable_lto=true
+```
+
+**Linux (Debian 12 ARM64 for Raspberry Pi):**
+```bash
+gh workflow run "Build Linux (Manual)" \
+  --ref master \
+  -f distribution=debian-12 \
+  -f architecture=arm64 \
+  -f build_type=Release \
+  -f enable_lto=true
+```
 
 **macOS ARM64:**
 ```bash
@@ -567,10 +695,12 @@ Should match the deployment target you selected.
 
 - **Workflow Files:** `.github/workflows/`
 - **Detailed Docs:** 
+  - `README-linux.md`
   - `README-macos-arm64.md`
   - `README-macos-intel.md`
   - `README-macos-legacy.md`
   - `README-windows-x64.md`
+  - `README-windows-arm64.md`
 - **Main README:** `../../README.md`
 - **CMakeLists.txt:** `../../CMakeLists.txt`
 
@@ -617,9 +747,12 @@ git push origin master
 | Intel Mac | Catalina 10.15 | **macOS Legacy** (target 10.15) |
 | Intel Mac | Mojave 10.14 | **macOS Legacy** (target 10.14) |
 | Intel Mac | High Sierra 10.13 | **macOS Legacy** (target 10.13) |
-| Linux | Any | **Multi-Platform** (automatic) |
+| Linux x64 | Want auto builds | **Multi-Platform** (automatic) |
+| Linux x64 | Want specific distro | **Linux (Manual)** - Choose distro |
+| Linux ARM64 | Raspberry Pi, ARM server | **Linux (Manual)** - Choose distro + arm64 |
 | Windows | Want auto builds | **Multi-Platform** (automatic) |
-| Windows | Want manual control | **Windows x64 (Manual)** |
+| Windows x64 | Want manual control | **Windows x64 (Manual)** |
+| Windows ARM64 | Surface Pro X, Snapdragon | **Windows ARM64 (Manual)** |
 
 ---
 
