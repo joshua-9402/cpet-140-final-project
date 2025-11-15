@@ -83,6 +83,11 @@ on:
           - 'x64'
           - 'arm64'
           - 'skip'
+      enable_wix:
+        description: 'Enable WiX (.msi) packaging (only enable if runner has WiX toolchain)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   prepare-version:
@@ -431,17 +436,52 @@ jobs:
       with:
         arch: ${{ matrix.arch == 'arm64' && 'amd64_arm64' || 'amd64' }}
 
+    - name: Prepare WiX icon and verify toolchain
+      if: inputs.windows != 'skip'
+      shell: pwsh
+      run: |
+        $icoPath = "${{ github.workspace }}\assets\icons\business_logo.ico"
+        $pngPath = "${{ github.workspace }}\assets\icons\business_logo.png"
+
+        Write-Host "Checking for WiX icon at: $icoPath"
+        if (-not (Test-Path $icoPath)) {
+          Write-Host "ICO not found. Attempting to generate from PNG: $pngPath"
+          if (Test-Path $pngPath) {
+            Write-Host "Installing ImageMagick to convert PNG -> ICO (if not already installed)"
+            choco install imagemagick --yes || Write-Host "ImageMagick install failed or is already installed"
+            # Use magick to convert; magick is available with ImageMagick v7
+            try {
+              magick convert "$pngPath" "$icoPath"
+            } catch {
+              try { magick "$pngPath" "$icoPath" } catch { Write-Host "ImageMagick conversion failed: $_" }
+            }
+            if (Test-Path $icoPath) { Write-Host "Successfully generated ICO: $icoPath" } else { Write-Host "Warning: failed to generate ICO. WiX may fail without an .ico" }
+          } else {
+            Write-Host "PNG icon not found at $pngPath; skipping ICO generation. WiX may fail without an .ico file."
+          }
+        } else {
+          Write-Host "ICO already exists: $icoPath"
+        }
+
+        # Verify WiX toolchain quickly
+        $candle = Get-Command candle.exe -ErrorAction SilentlyContinue
+        $light = Get-Command light.exe -ErrorAction SilentlyContinue
+        if ($candle -and $light) {
+          Write-Host "WiX toolchain detected: candle=$($candle.Path), light=$($light.Path)"
+        } else {
+          Write-Host "WiX toolchain missing (candle or light). WiX packaging will be skipped by later steps."
+        }
+
     - name: Configure and Build
       shell: pwsh
       run: |
-        # Use NSIS only for ARM64 (WiX has limited ARM64 support), both for x64
-        $generator = "${{ matrix.arch }}" -eq "arm64" ? "NSIS" : "NSIS;WIX"
+        # Configure with NSIS only - WiX will be invoked separately if enabled
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_INSTALL_PREFIX=. `
           -G Ninja `
           -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} `
-          -DCPACK_GENERATOR="$generator" `
+          -DCPACK_GENERATOR="NSIS" `
           ${{ matrix.arch == 'arm64' && '-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64' || '' }}
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
 
@@ -458,14 +498,53 @@ jobs:
     - name: Build installers via CPack (NSIS EXE + WiX MSI)
       shell: pwsh
       run: |
-        # Try building installers; may fail on ARM64 due to limited toolchain support
-        try {
-          cmake --build build --target package
-          Get-ChildItem build -Recurse -Filter *.exe | Select-Object -First 10 | ForEach-Object { $_.FullName }
-          Get-ChildItem build -Recurse -Filter *.msi | Select-Object -First 10 | ForEach-Object { $_.FullName }
-        } catch {
-          Write-Host "Warning: Installer generation may have failed. Fallback ZIP will still be available."
+        $global:ErrorActionPreference = 'Stop'
+        pushd build
+        Write-Host "==> Running NSIS packaging (required)"
+        & cpack -G NSIS -C Release
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "NSIS packaging failed with exit code $LASTEXITCODE. Aborting packaging step."
+          exit $LASTEXITCODE
         }
+        Write-Host "NSIS packaging succeeded"
+
+        Write-Host "==> Checking WiX toolchain and prerequisites"
+        $enableWix = ('${{ inputs.enable_wix }}' -eq 'true')
+        $hasCandle = (Get-Command candle.exe -ErrorAction SilentlyContinue) -ne $null
+        $hasLight = (Get-Command light.exe -ErrorAction SilentlyContinue) -ne $null
+        $wixIcon = "${{ github.workspace }}\assets\icons\business_logo.ico"
+        $hasIcon = Test-Path $wixIcon
+
+        if (-not $enableWix) {
+          Write-Host "WiX packaging disabled via workflow input enable_wix (currently: false). Skipping WiX packaging."
+        } elseif (-not $hasCandle -or -not $hasLight) {
+          Write-Host "WiX toolchain not available (candle or light missing). Skipping WiX packaging."
+        } elseif (-not $hasIcon) {
+          Write-Host "WiX icon not found at $wixIcon. Skipping WiX packaging to avoid WiX failures."
+        } else {
+          Write-Host "==> Attempting WiX packaging (optional)"
+          & cpack -G WIX -C Release
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Warning: WiX packaging failed with exit code $LASTEXITCODE — MSI will not be produced on this runner."
+          } else {
+            Write-Host "WiX packaging succeeded"
+          }
+
+          $wixLogPath = Join-Path -Path "_CPack_Packages/win64/WIX" -ChildPath "wix.log"
+          if (Test-Path $wixLogPath) {
+            Write-Host "===== wix.log contents ====="
+            Get-Content $wixLogPath -Raw | Write-Host
+            # Ensure installers dir exists and copy the log so it can be uploaded
+            New-Item -ItemType Directory -Force -Path "../installers" | Out-Null
+            Copy-Item $wixLogPath "../installers/wix-${{ matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.log" -Force
+            Write-Host "Wix log copied to installers/wix-${{ matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.log"
+          } else {
+            Write-Host "WiX log not found at expected location: $wixLogPath"
+          }
+        }
+        popd
+        # Always succeed this step (WiX failures are non-fatal). NSIS failure above already exits non-zero.
+        exit 0
 
     - name: Collect Windows installers
       shell: pwsh
