@@ -169,7 +169,7 @@ if(APPLE)
     # Provide both .dmg (DragNDrop) and .pkg (productbuild)
     set(CPACK_GENERATOR "DragNDrop;productbuild")
 elseif(WIN32)
-    # Use NSIS (.exe) by default on Windows; WiX will be invoked explicitly from CI when supported
+    # Use NSIS (.exe) only on Windows
     set(CPACK_GENERATOR "NSIS")
 else()
     # On Linux, generator will be set from CI per family (DEB or RPM); fallback to TGZ
@@ -183,10 +183,6 @@ set(CPACK_NSIS_CONTACT "")
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
 set(CPACK_NSIS_MODIFY_PATH OFF)  # Don't modify system PATH
 
-# WiX (Windows .msi) - set a stable upgrade GUID
-# Generate your own GUID for production; this constant ensures upgrades work
-set(CPACK_WIX_UPGRADE_GUID "8D2B4E2A-9E4C-4F08-9F6F-6C9A8F5C2F11")
-
 # DEB/RPM settings (Linux)
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "")
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
@@ -196,18 +192,11 @@ set(CPACK_RPM_PACKAGE_GROUP "Applications/Utilities")
 # Windows product metadata (for installers)
 if(WIN32)
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "StructuraCost")
-    # WiX expects an .ico file for product icons. Only set CPACK_WIX_PRODUCT_ICON when a .ico exists.
-    if(EXISTS "${CMAKE_SOURCE_DIR}/assets/icons/business_logo.ico")
-        set(CPACK_WIX_PRODUCT_ICON "${CMAKE_SOURCE_DIR}/assets/icons/business_logo.ico")
-    else()
-        message(STATUS "WiX icon not set - no ${CMAKE_SOURCE_DIR}/assets/icons/business_logo.ico found. Skipping CPACK_WIX_PRODUCT_ICON to avoid WiX failures.")
-    endif()
+    # NSIS installed icon (executable) and installer shortcuts
     set(CPACK_NSIS_INSTALLED_ICON_NAME "structuracost.exe")
-    # Start Menu and Desktop shortcuts
     set(CPACK_PACKAGE_EXECUTABLES "structuracost;StructuraCost")
     set(CPACK_CREATE_DESKTOP_LINKS "structuracost")
     set(CPACK_NSIS_MENU_NAME "StructuraCost")
-    set(CPACK_WIX_PROGRAM_MENU_FOLDER "StructuraCost")
 endif()
 
 include(CPack)

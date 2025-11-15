@@ -28,11 +28,6 @@ on:
         required: true
         default: 0
         type: number
-      stage_iteration:
-        description: 'Stage Build Number (e.g., 1, 2, 3 for -beta.1, -beta.2, etc.)'
-        required: false
-        default: 0
-        type: number
       linux_debian:
         description: 'Linux Debian/Ubuntu'
         required: true
@@ -83,11 +78,6 @@ on:
           - 'x64'
           - 'arm64'
           - 'skip'
-      enable_wix:
-        description: 'Enable WiX (.msi) packaging (only enable if runner has WiX toolchain)'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   prepare-version:
@@ -106,7 +96,6 @@ jobs:
         X_NAME="${{ inputs.version_x }}"   # pre-alpha | alpha | beta | rc | stable
         Y="${{ inputs.version_y }}"
         Z="${{ inputs.version_z }}"
-        ITERATION="${{ inputs.stage_iteration }}"
 
         # Map stage name to numeric X and textual suffix/label
         case "$X_NAME" in
@@ -124,11 +113,6 @@ jobs:
             echo "Unknown stage '$X_NAME'" >&2; exit 1 ;;
         esac
 
-        # Append iteration number if provided (e.g., -beta.1, -pre-alpha.2)
-        # Only append for non-stable releases and when iteration is not empty
-        if [ -n "$ITERATION" ] && [ "$X_NAME" != "stable" ]; then
-          STAGE_SUFFIX="${STAGE_SUFFIX}.${ITERATION}"
-        fi
 
         VERSION_NUMERIC="v${W}.${X_NUM}.${Y}.${Z}"
         COMBINED_VERSION="${VERSION_NUMERIC}${STAGE_SUFFIX}"
@@ -425,57 +409,19 @@ jobs:
     - name: Install tools
       shell: pwsh
       run: |
-        choco install ninja nsis wixtoolset -y
+        choco install ninja nsis -y
         ninja --version
-        # Try to verify NSIS and WiX; non-fatal if not available (e.g., ARM64 compatibility issues)
         try { makensis /VERSION } catch { Write-Host "NSIS may not be available on this platform" }
-        try { candle.exe -? | Out-Null } catch { Write-Host "WiX may not be available on this platform" }
 
     - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: ${{ matrix.arch == 'arm64' && 'amd64_arm64' || 'amd64' }}
 
-    - name: Prepare WiX icon and verify toolchain
-      if: inputs.windows != 'skip'
-      shell: pwsh
-      run: |
-        $icoPath = "${{ github.workspace }}\assets\icons\business_logo.ico"
-        $pngPath = "${{ github.workspace }}\assets\icons\business_logo.png"
-
-        Write-Host "Checking for WiX icon at: $icoPath"
-        if (-not (Test-Path $icoPath)) {
-          Write-Host "ICO not found. Attempting to generate from PNG: $pngPath"
-          if (Test-Path $pngPath) {
-            Write-Host "Installing ImageMagick to convert PNG -> ICO (if not already installed)"
-            choco install imagemagick --yes || Write-Host "ImageMagick install failed or is already installed"
-            # Use magick to convert; magick is available with ImageMagick v7
-            try {
-              magick convert "$pngPath" "$icoPath"
-            } catch {
-              try { magick "$pngPath" "$icoPath" } catch { Write-Host "ImageMagick conversion failed: $_" }
-            }
-            if (Test-Path $icoPath) { Write-Host "Successfully generated ICO: $icoPath" } else { Write-Host "Warning: failed to generate ICO. WiX may fail without an .ico" }
-          } else {
-            Write-Host "PNG icon not found at $pngPath; skipping ICO generation. WiX may fail without an .ico file."
-          }
-        } else {
-          Write-Host "ICO already exists: $icoPath"
-        }
-
-        # Verify WiX toolchain quickly
-        $candle = Get-Command candle.exe -ErrorAction SilentlyContinue
-        $light = Get-Command light.exe -ErrorAction SilentlyContinue
-        if ($candle -and $light) {
-          Write-Host "WiX toolchain detected: candle=$($candle.Path), light=$($light.Path)"
-        } else {
-          Write-Host "WiX toolchain missing (candle or light). WiX packaging will be skipped by later steps."
-        }
-
     - name: Configure and Build
       shell: pwsh
       run: |
-        # Configure with NSIS only - WiX will be invoked separately if enabled
+        # Configure with NSIS only
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_INSTALL_PREFIX=. `
@@ -495,10 +441,9 @@ jobs:
         $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
         Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.zip"
 
-    - name: Build installers via CPack (NSIS EXE + WiX MSI)
+    - name: Build NSIS installer via CPack
       shell: pwsh
       run: |
-        $global:ErrorActionPreference = 'Stop'
         pushd build
         Write-Host "==> Running NSIS packaging (required)"
         & cpack -G NSIS -C Release
@@ -507,65 +452,19 @@ jobs:
           exit $LASTEXITCODE
         }
         Write-Host "NSIS packaging succeeded"
-
-        Write-Host "==> Checking WiX toolchain and prerequisites"
-        $enableWix = ('${{ inputs.enable_wix }}' -eq 'true')
-        $hasCandle = (Get-Command candle.exe -ErrorAction SilentlyContinue) -ne $null
-        $hasLight = (Get-Command light.exe -ErrorAction SilentlyContinue) -ne $null
-        $wixIcon = "${{ github.workspace }}\assets\icons\business_logo.ico"
-        $hasIcon = Test-Path $wixIcon
-
-        if (-not $enableWix) {
-          Write-Host "WiX packaging disabled via workflow input enable_wix (currently: false). Skipping WiX packaging."
-        } elseif (-not $hasCandle -or -not $hasLight) {
-          Write-Host "WiX toolchain not available (candle or light missing). Skipping WiX packaging."
-        } elseif (-not $hasIcon) {
-          Write-Host "WiX icon not found at $wixIcon. Skipping WiX packaging to avoid WiX failures."
-        } else {
-          Write-Host "==> Attempting WiX packaging (optional)"
-          & cpack -G WIX -C Release
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Warning: WiX packaging failed with exit code $LASTEXITCODE — MSI will not be produced on this runner."
-          } else {
-            Write-Host "WiX packaging succeeded"
-          }
-
-          $wixLogPath = Join-Path -Path "_CPack_Packages/win64/WIX" -ChildPath "wix.log"
-          if (Test-Path $wixLogPath) {
-            Write-Host "===== wix.log contents ====="
-            Get-Content $wixLogPath -Raw | Write-Host
-            # Ensure installers dir exists and copy the log so it can be uploaded
-            New-Item -ItemType Directory -Force -Path "../installers" | Out-Null
-            Copy-Item $wixLogPath "../installers/wix-${{ matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.log" -Force
-            Write-Host "Wix log copied to installers/wix-${{ matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.log"
-          } else {
-            Write-Host "WiX log not found at expected location: $wixLogPath"
-          }
-        }
         popd
-        # Always succeed this step (WiX failures are non-fatal). NSIS failure above already exits non-zero.
-        exit 0
 
     - name: Collect Windows installers
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path installers | Out-Null
         $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
-        # Collect NSIS exe if available
         $nsis = Get-ChildItem build -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "structuracost|Setup|Installer" } | Select-Object -First 1
-        if ($nsis) { 
+        if ($nsis) {
           Copy-Item $nsis.FullName "installers/structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.exe"
           Write-Host "NSIS installer created: structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.exe"
         } else {
           Write-Host "Warning: NSIS installer not found (may not be supported on ${{ matrix.arch }})"
-        }
-        # Collect WiX msi if available
-        $msi = Get-ChildItem build -Recurse -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($msi) { 
-          Copy-Item $msi.FullName "installers/structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.msi"
-          Write-Host "WiX installer created: structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.msi"
-        } else {
-          Write-Host "Warning: WiX installer not found (may not be supported on ${{ matrix.arch }})"
         }
 
     - name: Upload Windows installers
@@ -573,8 +472,7 @@ jobs:
       with:
         name: windows-${{ matrix.arch }}
         path: |
-          installers/*.exe
-          installers/*.msi
+          installers/*
         retention-days: 7
         if-no-files-found: warn
 
@@ -613,7 +511,7 @@ jobs:
         mkdir release-assets
         
         # Collect all installers
-        find artifacts -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.msi" -o -name "*.exe" \) -exec cp {} release-assets/ \;
+        find artifacts -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.exe" \) -exec cp {} release-assets/ \;
         
         # Collect all archives (from -archive artifacts)
         find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \;
@@ -625,7 +523,7 @@ jobs:
         ls -lh release-assets/*.tar.gz release-assets/*.zip 2>/dev/null || echo "Note: Some archive types may not be present"
         echo ""
         echo "=== Installer Files ==="
-        ls -lh release-assets/*.{deb,rpm,dmg,pkg,msi,exe} 2>/dev/null || echo "Note: Some installer types may not be present"
+        ls -lh release-assets/*.{deb,rpm,dmg,pkg,exe} 2>/dev/null || echo "Note: Some installer types may not be present"
 
     - name: Checkout repository for release template
       uses: actions/checkout@v4
