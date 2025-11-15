@@ -105,8 +105,9 @@ elseif(APPLE)
     # macOS: Use a temporary staging directory to avoid permission issues
     set(CPACK_PACKAGING_INSTALL_PREFIX "/tmp/_cpack_staging")
 elseif(WIN32)
-    # Windows: NSIS/WiX handle their own install paths, leave default
-    # Don't set CPACK_PACKAGING_INSTALL_PREFIX for Windows
+    # Windows: Set to relative path to avoid absolute install destination errors
+    # NSIS/WiX will use this as the install directory name
+    set(CMAKE_INSTALL_PREFIX "StructuraCost" CACHE PATH "Install prefix for Windows" FORCE)
 endif()
 
 if(APPLE)
@@ -148,7 +149,12 @@ endif()
 
 # Common metadata (omit license for now as requested)
 # set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE" CACHE FILEPATH "")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md" CACHE FILEPATH "")
+# Note: macOS DragNDrop/productbuild generators only accept .rtf, .rtfd, .html, .txt (not .md)
+if(APPLE)
+    set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.txt" CACHE FILEPATH "")
+else()
+    set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md" CACHE FILEPATH "")
+endif()
 
 # Per-platform DESTDIR handling
 # macOS and Linux use CPACK_SET_DESTDIR=ON to install into staging directory (avoids permission issues)
