@@ -160,6 +160,108 @@ payroll-and-monitoring-system-ubuntu-20.04-x64-Debug.tar.gz
 
 ---
 
+## Manual Linux Builds (Fedora/Red Hat Family)
+
+**File:** `build-linux-rpm.yml`  
+**Documentation:** `README-linux-rpm.md`
+
+The manual Linux RPM workflow allows you to build for **Fedora/Red Hat family distributions** and **architectures**.
+
+### Supported Distributions
+
+**Fedora (Bleeding Edge):**
+- **Fedora Latest** - Current release
+- **Fedora 39** - Specific version
+- **Fedora 38** - Previous version
+
+**AlmaLinux (RHEL-Compatible, Free):**
+- **AlmaLinux Latest** - Current release
+- **AlmaLinux 9** - Based on RHEL 9
+- **AlmaLinux 8** - Based on RHEL 8
+
+**Rocky Linux (RHEL-Compatible, Free):**
+- **Rocky Linux Latest** - Current release
+- **Rocky Linux 9** - Based on RHEL 9
+- **Rocky Linux 8** - Based on RHEL 8
+
+**Compatible Derivatives:**
+- Red Hat Enterprise Linux (RHEL) - Use AlmaLinux/Rocky builds
+- CentOS Stream
+- Oracle Linux
+- Nobara (Fedora-based)
+
+### Supported Architectures
+
+- **x64** (AMD64/x86_64) - Intel/AMD processors
+- **ARM64** (aarch64) - ARM 64-bit processors
+
+### Total Combinations
+
+**9 distributions × 2 architectures = 18 possible builds**
+
+**Plus compatibility with RHEL and other RPM-based derivatives!**
+
+### Configuration
+
+- **Build Method:** Container-based (Docker)
+- **Package Manager:** dnf (Red Hat standard)
+- **C++ Standard:** C++23
+- **Compiler:** GCC (version depends on distribution)
+- **Build System:** Ninja
+- **LTO:** Configurable (enabled by default)
+- **Retention:** 90 days
+
+### When to Use
+
+- Building for Fedora-based distributions
+- Targeting RHEL/AlmaLinux/Rocky Linux servers
+- Enterprise deployments requiring RHEL compatibility
+- Need long-term support (AlmaLinux/Rocky: 10 years)
+- Red Hat ecosystem development
+
+### Key Features
+
+- ✅ **Multi-distribution support** - Fedora, AlmaLinux, Rocky Linux
+- ✅ **RHEL-compatible** - AlmaLinux and Rocky are 1:1 RHEL clones
+- ✅ **Multi-architecture** - x64 and ARM64
+- ✅ **Container-based** - Consistent build environment
+- ✅ **Enterprise-grade** - 10-year support for AlmaLinux/Rocky
+- ✅ **Configurable** - Release or Debug builds
+- ✅ **Optional LTO** - Link-Time Optimization
+- ✅ **90-day retention** - Long artifact storage
+
+### How to Trigger
+
+1. Go to Actions → **"Linux (Fedora/Red Hat)"**
+2. Click **"Run workflow"**
+3. Select:
+   - **Distribution** (fedora-latest, almalinux-9, rockylinux-9, etc.)
+   - **Architecture** (x64 or arm64)
+   - **Build type** (Release or Debug)
+   - **Enable LTO** (Yes or No)
+4. Download the artifact when complete
+
+### Artifact Names
+
+```
+payroll-and-monitoring-system-fedora-latest-x64-Release.tar.gz
+payroll-and-monitoring-system-almalinux-9-arm64-Release.tar.gz
+payroll-and-monitoring-system-rockylinux-9-x64-Debug.tar.gz
+```
+
+### Use Cases
+
+| Use Case | Recommended Build |
+|----------|------------------|
+| **Fedora desktop users** | Fedora Latest x64 |
+| **Enterprise servers** | AlmaLinux 9 x64 or Rocky Linux 9 x64 |
+| **RHEL replacement** | AlmaLinux 9 x64 or Rocky Linux 9 x64 |
+| **Latest features** | Fedora Latest x64 |
+| **ARM servers** | AlmaLinux 9 arm64 or Rocky Linux 9 arm64 |
+| **Long-term support** | AlmaLinux 9 x64 (10 years) or Rocky Linux 9 x64 (10 years) |
+
+---
+
 ## Manual macOS Builds
 
 All macOS workflows are **manual-trigger only** - they run when you explicitly trigger them from the GitHub Actions tab.
@@ -695,7 +797,8 @@ Should match the deployment target you selected.
 
 - **Workflow Files:** `.github/workflows/`
 - **Detailed Docs:** 
-  - `README-linux.md`
+  - `README-linux.md` (Debian/Ubuntu)
+  - `README-linux-rpm.md` (Fedora/Red Hat)
   - `README-macos-arm64.md`
   - `README-macos-intel.md`
   - `README-macos-legacy.md`
