@@ -561,6 +561,10 @@ jobs:
         # Add main release template content
         cat repo/.github/RELEASE_TEMPLATE.md >> release-notes.md
         echo "" >> release-notes.md
+        echo "---" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "📋 **For detailed changelog, see:** [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ needs.prepare-version.outputs.combined_version }}/CHANGELOG.md)" >> release-notes.md
+        echo "" >> release-notes.md
         echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.prepare-version.outputs.combined_version }}" >> release-notes.md
 
     - name: Create Release
