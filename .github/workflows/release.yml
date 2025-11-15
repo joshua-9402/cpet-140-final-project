@@ -434,12 +434,14 @@ jobs:
     - name: Configure and Build
       shell: pwsh
       run: |
+        # Use NSIS only for ARM64 (WiX has limited ARM64 support), both for x64
+        $generator = "${{ matrix.arch }}" -eq "arm64" ? "NSIS" : "NSIS;WIX"
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_INSTALL_PREFIX=. `
           -G Ninja `
           -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} `
-          -DCPACK_GENERATOR="NSIS;WIX" `
+          -DCPACK_GENERATOR="$generator" `
           ${{ matrix.arch == 'arm64' && '-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64' || '' }}
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
 
