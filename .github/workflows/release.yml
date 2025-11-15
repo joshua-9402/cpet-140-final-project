@@ -436,6 +436,7 @@ jobs:
       run: |
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_INSTALL_PREFIX=. `
           -G Ninja `
           -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} `
           -DCPACK_GENERATOR="NSIS;WIX" `
