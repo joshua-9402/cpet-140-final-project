@@ -55,7 +55,11 @@ sudo zypper install freetype2 Mesa-libGL libX11-6 libXrandr2 libXinerama1 libXcu
 ```
 
 ### macOS
-No additional dependencies required.
+You need to execute this in the terminal before launching the app as macOS shows this error because the app is not code-signed.
+macOS Gatekeeper blocks unsigned apps downloaded from the internet by setting a "quarantine" attribute.
+```bash
+xattr -cr <location-of-the-.app>
+```
 
 ### Windows
 No additional dependencies required.
