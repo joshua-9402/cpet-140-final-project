@@ -268,48 +268,32 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ inputs.version }}
-        name: Release ${{ inputs.version }}
+        name: ${{ inputs.version }}
         draft: false
         prerelease: ${{ inputs.prerelease }}
         generate_release_notes: true
         body: |
-          ## 🎉 Release ${{ inputs.version }}
+          ## What's Changed
           
-          ### Payroll and Monitoring System
+          This release includes optimized builds for multiple platforms and architectures.
           
-          **Build Date:** ${{ github.event.repository.updated_at }}
-          **Commit:** ${{ github.sha }}
+          ## Supported Platforms
           
-          ### 📦 Available Builds
+          ### Linux
+          - **Debian/Ubuntu**: Ubuntu 22.04, 20.04, Debian 12 (x64, ARM64)
+          - **Red Hat/Fedora**: Fedora Latest, AlmaLinux 9, Rocky Linux 9 (x64, ARM64)
+          - **SUSE**: openSUSE Tumbleweed, Leap 15.6 (x64, ARM64)
           
-          #### Linux (Debian/Ubuntu Family)
-          - Ubuntu 22.04 (x64, ARM64)
-          - Ubuntu 20.04 (x64, ARM64)
-          - Debian 12 (x64, ARM64)
-          
-          #### Linux (Fedora/Red Hat Family)
-          - Fedora Latest (x64, ARM64)
-          - AlmaLinux 9 (x64, ARM64)
-          - Rocky Linux 9 (x64, ARM64)
-          
-          #### Linux (SUSE Family)
-          - openSUSE Tumbleweed (x64, ARM64)
-          - openSUSE Leap 15.6 (x64, ARM64)
-          
-          #### macOS
+          ### macOS
           - Apple Silicon (ARM64) - macOS 14.0+
           - Intel (x64) - macOS 11.0+
           
-          #### Windows
-          - Windows x64
-          - Windows ARM64
+          ### Windows
+          - x64 and ARM64
           
-          ### 🔧 Build Configuration
-          - **Build Type:** Release
-          - **LTO:** Enabled
-          - **Optimizations:** Maximum (-O3, /O2)
+          ## Installation
           
-          ### 📝 Installation
+          Download the appropriate archive for your platform and extract it.
           
           **Linux/macOS:**
           ```bash
@@ -323,8 +307,12 @@ jobs:
           .\payroll-and-monitoring-system.exe
           ```
           
-          ### 📚 Documentation
-          See the repository README for full documentation and usage instructions.
+          ## Build Information
+          - Build Type: Release
+          - Optimizations: Enabled (LTO)
+          - Compiler Flags: -O3 (Linux/macOS), /O2 (Windows)
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ inputs.version }}
         files: release-assets/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
