@@ -264,6 +264,20 @@ jobs:
         find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \;
         ls -lh release-assets/
 
+    - name: Checkout repository for release template
+      uses: actions/checkout@v4
+      with:
+        path: repo
+
+    - name: Prepare release notes
+      run: |
+        # Read the release template
+        cat repo/.github/RELEASE_TEMPLATE.md > release-notes.md
+        
+        # Add Full Changelog link
+        echo "" >> release-notes.md
+        echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ inputs.version }}" >> release-notes.md
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
@@ -272,47 +286,7 @@ jobs:
         draft: false
         prerelease: ${{ inputs.prerelease }}
         generate_release_notes: true
-        body: |
-          ## What's Changed
-          
-          This release includes optimized builds for multiple platforms and architectures.
-          
-          ## Supported Platforms
-          
-          ### Linux
-          - **Debian/Ubuntu**: Ubuntu 22.04, 20.04, Debian 12 (x64, ARM64)
-          - **Red Hat/Fedora**: Fedora Latest, AlmaLinux 9, Rocky Linux 9 (x64, ARM64)
-          - **SUSE**: openSUSE Tumbleweed, Leap 15.6 (x64, ARM64)
-          
-          ### macOS
-          - Apple Silicon (ARM64) - macOS 14.0+
-          - Intel (x64) - macOS 11.0+
-          
-          ### Windows
-          - x64 and ARM64
-          
-          ## Installation
-          
-          Download the appropriate archive for your platform and extract it.
-          
-          **Linux/macOS:**
-          ```bash
-          tar -xzf payroll-and-monitoring-system-*.tar.gz
-          ./payroll-and-monitoring-system
-          ```
-          
-          **Windows:**
-          ```powershell
-          Expand-Archive payroll-and-monitoring-system-*.zip
-          .\payroll-and-monitoring-system.exe
-          ```
-          
-          ## Build Information
-          - Build Type: Release
-          - Optimizations: Enabled (LTO)
-          - Compiler Flags: -O3 (Linux/macOS), /O2 (Windows)
-          
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ inputs.version }}
+        body_path: release-notes.md
         files: release-assets/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
