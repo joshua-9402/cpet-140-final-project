@@ -799,6 +799,7 @@ Should match the deployment target you selected.
 - **Detailed Docs:** 
   - `README-linux.md` (Debian/Ubuntu)
   - `README-linux-rpm.md` (Fedora/Red Hat)
+  - `README-linux-suse.md` (SUSE Family)
   - `README-macos-arm64.md`
   - `README-macos-intel.md`
   - `README-macos-legacy.md`

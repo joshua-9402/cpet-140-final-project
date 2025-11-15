@@ -1,0 +1,188 @@
+name: Linux (SUSE Family)
+
+on:
+  workflow_dispatch:
+    inputs:
+      distribution:
+        description: 'Linux Distribution'
+        required: true
+        default: 'opensuse-tumbleweed'
+        type: choice
+        options:
+          - opensuse-tumbleweed
+          - opensuse-leap-15.6
+          - opensuse-leap-15.5
+          - opensuse-leap-15.4
+      architecture:
+        description: 'Target Architecture'
+        required: true
+        default: 'x64'
+        type: choice
+        options:
+          - x64
+          - arm64
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Release
+          - Debug
+      enable_lto:
+        description: 'Enable Link-Time Optimization'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build-linux-suse:
+    name: ${{ inputs.distribution }} (${{ inputs.architecture }})
+    runs-on: ${{ inputs.architecture == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
+    container:
+      image: ${{ 
+        inputs.distribution == 'opensuse-tumbleweed' && 'opensuse/tumbleweed:latest' || 
+        inputs.distribution == 'opensuse-leap-15.6' && 'opensuse/leap:15.6' || 
+        inputs.distribution == 'opensuse-leap-15.5' && 'opensuse/leap:15.5' ||
+        'opensuse/leap:15.4'
+      }}
+
+    steps:
+    - name: System information
+      run: |
+        echo "=== System Info ==="
+        uname -a
+        echo ""
+        echo "=== Distribution Info ==="
+        if [ -f /etc/os-release ]; then
+          cat /etc/os-release
+        fi
+        echo ""
+        echo "=== CPU Info ==="
+        cat /proc/cpuinfo | grep "model name" | head -1 || echo "ARM CPU"
+        echo ""
+        echo "=== Architecture ==="
+        uname -m
+        echo ""
+        echo "=== Memory ==="
+        free -h
+
+    - name: Install dependencies (SUSE-based distributions)
+      run: |
+        zypper refresh
+        zypper install -y \
+          gcc \
+          gcc-c++ \
+          git \
+          cmake \
+          ninja \
+          libXrandr-devel \
+          libXinerama-devel \
+          libXcursor-devel \
+          libXi-devel \
+          Mesa-libGL-devel \
+          glu-devel \
+          freetype2-devel \
+          fontconfig-devel \
+          pkg-config
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Verify tools
+      run: |
+        echo "=== Verifying build tools ==="
+        cmake --version
+        ninja --version
+        gcc --version
+        g++ --version
+
+    - name: Configure CMake
+      run: |
+        echo "=== Configuring CMake ==="
+        if [ "${{ inputs.enable_lto }}" = "true" ]; then
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+            -G Ninja
+        else
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+            -G Ninja \
+            -DNO_LTO=ON
+        fi
+
+    - name: Build
+      run: |
+        echo "=== Building application ==="
+        cmake --build build --config ${{ inputs.build_type }} -j $(nproc)
+
+    - name: Verify build output
+      run: |
+        echo "=== Checking build output ==="
+        ls -lh build/
+        if [ -f "build/payroll-and-monitoring-system" ]; then
+          echo "✅ Executable found"
+          ls -lh build/payroll-and-monitoring-system
+          file build/payroll-and-monitoring-system
+          ldd build/payroll-and-monitoring-system || echo "Static build or libraries not found"
+        else
+          echo "❌ Build output not found!"
+          exit 1
+        fi
+
+    - name: Package artifacts
+      run: |
+        echo "=== Packaging application ==="
+        mkdir -p artifact
+        
+        # Copy executable
+        cp build/payroll-and-monitoring-system artifact/
+        
+        # Copy assets
+        if [ -d "assets" ]; then
+          cp -r assets artifact/
+        fi
+        
+        # Create archive with distribution and architecture in name
+        DIST_NAME=$(echo "${{ inputs.distribution }}" | sed 's/:/-/g' | sed 's/\//-/g')
+        ARCHIVE_NAME="payroll-and-monitoring-system-${DIST_NAME}-${{ inputs.architecture }}-${{ inputs.build_type }}.tar.gz"
+        
+        cd artifact
+        tar -czf ../${ARCHIVE_NAME} *
+        cd ..
+        
+        echo "=== Archive created ==="
+        ls -lh ${ARCHIVE_NAME}
+        
+        # Save archive name for upload step
+        echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: payroll-and-monitoring-system-${{ inputs.distribution }}-${{ inputs.architecture }}-${{ inputs.build_type }}
+        path: ${{ env.ARCHIVE_NAME }}
+        retention-days: 90
+        compression-level: 0
+
+    - name: Build summary
+      run: |
+        cat << EOF >> $GITHUB_STEP_SUMMARY
+        ### ✅ Build Completed Successfully
+        
+        **Distribution:** ${{ inputs.distribution }}
+        **Architecture:** ${{ inputs.architecture }}
+        **Build Type:** ${{ inputs.build_type }}
+        **LTO Enabled:** ${{ inputs.enable_lto }}
+        **Compiler:** GCC $(gcc --version | head -1)
+        
+        **Artifact:** ${ARCHIVE_NAME}
+        
+        Download the artifact from the workflow run page.
+        
+        **Note:** This binary is built for ${{ inputs.distribution }} on ${{ inputs.architecture }}.
+        It may work on other SUSE-based distributions but testing is recommended.
+        EOF
+
