@@ -19,6 +19,8 @@
  */
 
 #include <string>
+#include <cstring>
+#include <algorithm>
 #include "hello_imgui/hello_imgui.h"
 #include "ui.h"
 #include "../handler/system.h"
@@ -41,7 +43,7 @@ const std::string g_position = "testPosition";
 
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s) {
-    std::ranges::transform(s, s.begin(), [](const unsigned char c){ return std::tolower(c); });
+    std::transform(s.begin(), s.end(), s.begin(), [](const unsigned char c){ return std::tolower(c); });
     return s;
 }
 
@@ -134,7 +136,7 @@ static void loginUI() {
     if (setButtonCenter("Log In", fullWidthButtonSize(35)), ImGui::IsItemClicked()){
         constexpr int maxPasswordLength = 128;
         constexpr int minPasswordLength = 10;
-        if (const std::size_t lengthPassword = std::strlen(password); lengthPassword >= static_cast<std::size_t>(minPasswordLength) && lengthPassword <= static_cast<std::size_t>(maxPasswordLength)) {
+        if (const std::size_t lengthPassword = strlen(password); lengthPassword >= static_cast<std::size_t>(minPasswordLength) && lengthPassword <= static_cast<std::size_t>(maxPasswordLength)) {
             showError = false;
             g_auth = true;
             username[0] = '\0';
