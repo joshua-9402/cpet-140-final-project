@@ -4,8 +4,8 @@
 bool g_auth = false;
 
 // Definitions of application configuration constants
-static constexpr std::string APP_TITLE = "APP TITLE";
-static constexpr std::string LOGIN_TITLE = "LOGIN";
+static constexpr auto APP_TITLE = "APP TITLE";
+static constexpr auto LOGIN_TITLE = "LOGIN";
 
 static const std::string FONT_NAME = "fonts/OpenSans-Regular.ttf";
 static const std::string DB_NAME_PAYROLL = "payroll.db";
