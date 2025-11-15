@@ -5,7 +5,8 @@
 - feat: adds macOS bundle identifiers (com.structuracost.app) [49284a4](https://github.com/joshua-9402/cpet-140-final-project/commit/49284a476d2fcaef9ec57271a2151ca1b006ea6c)
 - feat: adds Windows desktop shortcuts and Start Menu entries for both NSIS and WiX installers [49284a4](https://github.com/joshua-9402/cpet-140-final-project/commit/49284a476d2fcaef9ec57271a2151ca1b006ea6c)
 - feat: adds platform-native metadata (bundle IDs, WiX UpgradeCode, package descriptions) [49284a4](https://github.com/joshua-9402/cpet-140-final-project/commit/49284a476d2fcaef9ec57271a2151ca1b006ea6c)
-- feat: add release classification labels [f68ee3e](https://github.com/joshua-9402/cpet-140-final-project/commit/f68ee3e09ccd8d9d6cf60a2c19b521fc9cb89f12)
+- feat: add release classification labels [4aded0e](https://github.com/joshua-9402/cpet-140-final-project/commit/4aded0e0ec97a22578681b2fa3eda2ed2423e2b8) [f68ee3e](https://github.com/joshua-9402/cpet-140-final-project/commit/f68ee3e09ccd8d9d6cf60a2c19b521fc9cb89f12)
+- add: addition of License file to the repository [3422d21](https://github.com/joshua-9402/cpet-140-final-project/commit/3422d210927231c1cc17bbbc29a413139843dce0)
 
 ## Supported Platforms
 
