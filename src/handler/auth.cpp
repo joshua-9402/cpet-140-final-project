@@ -22,6 +22,8 @@
 #include <string>
 #include "../ui/ui.h"
 #include "../config/app_config.h"
+
+
 const config appConfig; // Create an instance of the config
 
 
