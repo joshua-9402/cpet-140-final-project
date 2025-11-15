@@ -46,8 +46,18 @@ jobs:
         choco install ninja -y
         ninja --version
 
-    - name: Setup MSVC
-      uses: microsoft/setup-msbuild@v2
+    - name: Setup MSVC Developer Command Prompt
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Verify MSVC
+      shell: pwsh
+      run: |
+        Write-Host "=== Verifying MSVC compiler ==="
+        cl
+        Write-Host "`nCMake version:"
+        cmake --version
+        Write-Host "`nNinja version:"
+        ninja --version
 
     - name: Configure CMake
       shell: pwsh
@@ -56,15 +66,11 @@ jobs:
         if ("${{ inputs.enable_lto }}" -eq "true") {
           cmake -B build `
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
-            -G Ninja `
-            -DCMAKE_C_COMPILER=cl `
-            -DCMAKE_CXX_COMPILER=cl
+            -G Ninja
         } else {
           cmake -B build `
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
             -G Ninja `
-            -DCMAKE_C_COMPILER=cl `
-            -DCMAKE_CXX_COMPILER=cl `
             -DNO_LTO=ON
         }
 
