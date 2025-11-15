@@ -1,6 +1,8 @@
 ## What's Changed
 
-- change name from "payroll-and-monitoring-system" to "structuracost" in build files and documentations
+- change name from "payroll-and-monitoring-system" to "structuracost" in build files and documentations. See commit [`75a4bab`](https://github.com/joshua-9402/cpet-140-final-project/commit/75a4bab0f036a18081a3da60fd507748d9ccc84e)
+- remove support for legacy macOS versions. See commit [`8277da5`](https://github.com/joshua-9402/cpet-140-final-project/commit/8277da5d852244ce8b1bc5b2b6507f01b169e7d3)
+- change the asset naming scheme to include platform and architecture clearly. See commit [`8206b50`](https://github.com/joshua-9402/cpet-140-final-project/commit/8206b5068d02c7fa9c681b1eaf16be0c1d8c0cc4)
 
 ## Supported Platforms
 
