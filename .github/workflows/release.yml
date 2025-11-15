@@ -1,5 +1,4 @@
-name: Create Release Build
-
+name: Release
 on:
   workflow_dispatch:
     inputs:
@@ -100,13 +99,15 @@ jobs:
         mkdir -p artifact
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        cd artifact && tar -czf ../structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+        ARCH_NAME="${{ matrix.arch }}"
+        [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        cd artifact && tar -czf ../structuracost-linux-debian-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-debian-${{ matrix.distribution }}-${{ matrix.arch }}
-        path: structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        name: linux-debian-${{ matrix.arch }}
+        path: structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
         retention-days: 1
 
   # Linux Fedora/Red Hat builds
@@ -144,16 +145,16 @@ jobs:
         mkdir -p artifact
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        cd artifact && tar -czf ../structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+        ARCH_NAME="${{ matrix.arch }}"
+        [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        cd artifact && tar -czf ../structuracost-linux-rpm-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-rpm-${{ matrix.distribution }}-${{ matrix.arch }}
-        path: structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        name: linux-rpm-${{ matrix.arch }}
+        path: structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
         retention-days: 1
-
-  # Linux SUSE builds
   build-linux-suse:
     name: Linux SUSE (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
@@ -189,16 +190,16 @@ jobs:
         mkdir -p artifact
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        cd artifact && tar -czf ../structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+        ARCH_NAME="${{ matrix.arch }}"
+        [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        cd artifact && tar -czf ../structuracost-linux-suse-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: linux-suse-${{ matrix.distribution }}-${{ matrix.arch }}
-        path: structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        name: linux-suse-${{ matrix.arch }}
+        path: structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
         retention-days: 1
-
-  # macOS builds
   build-macos:
     name: macOS (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
@@ -229,13 +230,13 @@ jobs:
     - name: Package
       run: |
         cd build
-        tar -czf ../structuracost-macos-${{ matrix.target }}-Release.tar.gz structuracost.app
+        tar -czf ../structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.tar.gz structuracost.app
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: macos-${{ matrix.target }}
-        path: structuracost-macos-${{ matrix.target }}-Release.tar.gz
+        path: structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.tar.gz
         retention-days: 1
 
   # Windows builds
@@ -280,13 +281,14 @@ jobs:
         $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
         Copy-Item $exe.FullName artifact/
         if (Test-Path assets) { Copy-Item -Recurse assets artifact/ }
-        Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-${{ matrix.arch }}-Release.zip"
+        $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
+        Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-$archName-${{ inputs.version }}.zip"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-${{ matrix.arch }}
-        path: structuracost-windows-${{ matrix.arch }}-Release.zip
+        path: structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.zip
         retention-days: 1
 
   # Create GitHub Release
@@ -339,4 +341,3 @@ jobs:
         files: release-assets/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
