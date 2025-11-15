@@ -72,7 +72,9 @@ jobs:
           cmake \
           ninja \
           file \
-          glfw-devel \
+          libglfw-devel \
+          wayland-devel \
+          wayland-protocols-devel \
           libXrandr-devel \
           libXinerama-devel \
           libXcursor-devel \
@@ -81,7 +83,7 @@ jobs:
           glu-devel \
           freetype2-devel \
           fontconfig-devel \
-          pkg-config
+          pkgconfig
 
     - name: Checkout code
       uses: actions/checkout@v4
