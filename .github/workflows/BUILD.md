@@ -1,6 +1,28 @@
 # Build Workflows Documentation
 
-This document describes all the GitHub Actions workflows available for building the payroll-and-monitoring-system application.
+This document describes all the GitHub Actions workflows available for building the **StructuraCost** application.
+
+## Available Documentation
+
+This directory contains detailed documentation for each build workflow:
+
+### Platform-Specific Guides
+- **[README-linux.md](README-linux.md)** - Debian/Ubuntu Linux builds
+- **[README-linux-rpm.md](README-linux-rpm.md)** - Fedora/Red Hat/AlmaLinux/Rocky Linux builds
+- **[README-linux-suse.md](README-linux-suse.md)** - openSUSE/SUSE Linux builds
+- **[README-macos-arm64.md](README-macos-arm64.md)** - macOS builds for Apple Silicon (M1/M2/M3/M4)
+- **[README-macos-intel.md](README-macos-intel.md)** - macOS builds for Intel processors
+- **[README-windows-x86_64.md](README-windows-x86_64.md)** - Windows x64 builds
+- **[README-windows-arm64.md](README-windows-arm64.md)** - Windows ARM64 builds (Snapdragon)
+
+### Quick Links
+- **Linux Users:** Start with [README-linux.md](README-linux.md)
+- **macOS Users (Apple Silicon):** See [README-macos-arm64.md](README-macos-arm64.md)
+- **macOS Users (Intel):** See [README-macos-intel.md](README-macos-intel.md)
+- **Windows Users (x64):** See [README-windows-x86_64.md](README-windows-x86_64.md)
+- **Windows Users (ARM):** See [README-windows-arm64.md](README-windows-arm64.md)
+
+---
 
 ## Table of Contents
 
@@ -9,11 +31,10 @@ This document describes all the GitHub Actions workflows available for building 
 - [Manual Linux Builds](#manual-linux-builds)
 - [Manual macOS Builds](#manual-macos-builds)
   - [macOS ARM64 (Apple Silicon)](#macos-arm64-apple-silicon)
-  - [macOS Intel (Big Sur and newer)](#macos-intel-big-sur-and-newer)
-  - [macOS Legacy (Catalina and older)](#macos-legacy-catalina-and-older)
-- [Manual Windows Builds](#manual-windows-builds)
-  - [Windows x64](#windows-x64-manual)
-  - [Windows ARM64](#windows-arm64-manual)
+  - [macOS Intel](#macos-intel)
+- [Windows Builds](#windows-builds)
+  - [Windows x64 (Manual)](#windows-x64-manual)
+  - [Windows ARM64 (Manual)](#windows-arm64-manual)
 - [Workflow Comparison](#workflow-comparison)
 - [How to Trigger Builds](#how-to-trigger-builds)
 - [Downloading Artifacts](#downloading-artifacts)
@@ -27,17 +48,14 @@ This project provides multiple build workflows to support different platforms an
 
 - **Automated builds** - Run automatically on push (Linux Ubuntu x64, Windows x64)
 - **Manual Linux builds** - Run on-demand for Debian-based distributions (Ubuntu, Debian) and architectures (x64, ARM64)
-- **Manual macOS builds** - Run on-demand for specific macOS targets (3 workflows)
+- **Manual macOS builds** - Run on-demand for specific macOS targets (ARM64 and Intel)
 - **Manual Windows builds** - Run on-demand for Windows x64 and ARM64
 
 ### Why Multiple macOS Workflows?
 
 macOS has evolved significantly across versions and architectures:
-- **Apple Silicon (ARM64)** vs **Intel (x86_64)** require different architectures
-- **Newer macOS versions** support C++23 and modern features
-- **Older macOS versions** need C++20 and careful API selection
-
-Having separate workflows ensures optimal compatibility for each target.
+- **Apple Silicon (ARM64)** vs **Intel (x86_64)** require different architectures and runners
+- Different deployment targets ensure optimal compatibility for each hardware type
 
 ---
 
@@ -63,8 +81,10 @@ Having separate workflows ensures optimal compatibility for each target.
 
 ## Manual Linux Builds
 
+### Debian/Ubuntu Linux
+
 **File:** `build-linux.yml`  
-**Documentation:** `README-linux.md`
+**Documentation:** [README-linux.md](README-linux.md)
 
 The manual Linux workflow allows you to build for **Debian-based Linux distributions** and **architectures**.
 
@@ -140,11 +160,15 @@ The manual Linux workflow allows you to build for **Debian-based Linux distribut
 
 ### Artifact Names
 
+Format: `structuracost-linux-debian-{arch}-{version}.tar.gz`
+
+Examples:
 ```
-payroll-and-monitoring-system-ubuntu-22.04-x64-Release.tar.gz
-payroll-and-monitoring-system-debian-12-arm64-Release.tar.gz
-payroll-and-monitoring-system-ubuntu-20.04-x64-Debug.tar.gz
+structuracost-linux-debian-x86_64-v1.0.0.tar.gz
+structuracost-linux-debian-arm64-v1.0.0.tar.gz
 ```
+
+**Note:** Architecture uses `x86_64` instead of `x64` in the artifact name.
 
 ### Use Cases
 
@@ -163,7 +187,7 @@ payroll-and-monitoring-system-ubuntu-20.04-x64-Debug.tar.gz
 ## Manual Linux Builds (Fedora/Red Hat Family)
 
 **File:** `build-linux-rpm.yml`  
-**Documentation:** `README-linux-rpm.md`
+**Documentation:** [README-linux-rpm.md](README-linux-rpm.md)
 
 The manual Linux RPM workflow allows you to build for **Fedora/Red Hat family distributions** and **architectures**.
 
@@ -243,11 +267,15 @@ The manual Linux RPM workflow allows you to build for **Fedora/Red Hat family di
 
 ### Artifact Names
 
+Format: `structuracost-linux-rpm-{arch}-{version}.tar.gz`
+
+Examples:
 ```
-payroll-and-monitoring-system-fedora-latest-x64-Release.tar.gz
-payroll-and-monitoring-system-almalinux-9-arm64-Release.tar.gz
-payroll-and-monitoring-system-rockylinux-9-x64-Debug.tar.gz
+structuracost-linux-rpm-x86_64-v1.0.0.tar.gz
+structuracost-linux-rpm-arm64-v1.0.0.tar.gz
 ```
+
+**Note:** Architecture uses `x86_64` instead of `x64` in the artifact name.
 
 ### Use Cases
 
@@ -262,14 +290,110 @@ payroll-and-monitoring-system-rockylinux-9-x64-Debug.tar.gz
 
 ---
 
+## Manual Linux Builds (SUSE Family)
+
+**File:** `build-linux-suse.yml`  
+**Documentation:** [README-linux-suse.md](README-linux-suse.md)
+
+The manual Linux SUSE workflow allows you to build for **SUSE family distributions** and **architectures**.
+
+### Supported Distributions
+
+**openSUSE (Community):**
+- **openSUSE Tumbleweed** - Rolling release (bleeding edge)
+- **openSUSE Leap 15.6** - Latest stable release
+- **openSUSE Leap 15.5** - Previous stable release
+- **openSUSE Leap 15.4** - Older stable release
+
+**Compatible Derivatives:**
+- SUSE Linux Enterprise (SLE) - Use openSUSE Leap builds
+- GeckoLinux (based on openSUSE)
+- Aeon (immutable desktop)
+- MicroOS (immutable server)
+
+### Supported Architectures
+
+- **x64** (AMD64/x86_64) - Intel/AMD processors
+- **ARM64** (aarch64) - ARM 64-bit processors
+
+### Total Combinations
+
+**4 distributions × 2 architectures = 8 possible builds**
+
+**Plus compatibility with SUSE Linux Enterprise and derivatives!**
+
+### Configuration
+
+- **Build Method:** Container-based (Docker)
+- **Package Manager:** zypper (SUSE standard)
+- **C++ Standard:** C++23
+- **Compiler:** GCC (version depends on distribution)
+- **Build System:** Ninja
+- **LTO:** Configurable (enabled by default)
+- **Retention:** 90 days
+
+### When to Use
+
+- Building for openSUSE-based distributions
+- Targeting SUSE Linux Enterprise servers
+- Enterprise deployments requiring SUSE compatibility
+- Need rolling release (Tumbleweed) or stable (Leap)
+- SUSE ecosystem development
+
+### Key Features
+
+- ✅ **Multi-distribution support** - Tumbleweed and Leap versions
+- ✅ **SLE-compatible** - openSUSE Leap matches SLE versions
+- ✅ **Multi-architecture** - x64 and ARM64
+- ✅ **Container-based** - Consistent build environment
+- ✅ **Configurable** - Release or Debug builds
+- ✅ **Optional LTO** - Link-Time Optimization
+- ✅ **90-day retention** - Long artifact storage
+
+### How to Trigger
+
+1. Go to Actions → **"Linux (SUSE Family)"**
+2. Click **"Run workflow"**
+3. Select:
+   - **Distribution** (opensuse-tumbleweed, opensuse-leap-15.6, etc.)
+   - **Architecture** (x64 or arm64)
+   - **Build type** (Release or Debug)
+   - **Enable LTO** (Yes or No)
+4. Download the artifact when complete
+
+### Artifact Names
+
+Format: `structuracost-linux-suse-{arch}-{version}.tar.gz`
+
+Examples:
+```
+structuracost-linux-suse-x86_64-v1.0.0.tar.gz
+structuracost-linux-suse-arm64-v1.0.0.tar.gz
+```
+
+**Note:** Architecture uses `x86_64` instead of `x64` in the artifact name.
+
+### Use Cases
+
+| Use Case | Recommended Build |
+|----------|------------------|
+| **openSUSE desktop users** | openSUSE Tumbleweed x64 |
+| **Stable desktop** | openSUSE Leap 15.6 x64 |
+| **SUSE Enterprise servers** | openSUSE Leap 15.6 x64 (matches SLE) |
+| **Latest features** | openSUSE Tumbleweed x64 |
+| **ARM servers** | openSUSE Tumbleweed arm64 or Leap 15.6 arm64 |
+| **Conservative/stable** | openSUSE Leap 15.5 x64 |
+
+---
+
 ## Manual macOS Builds
 
 All macOS workflows are **manual-trigger only** - they run when you explicitly trigger them from the GitHub Actions tab.
 
 ### macOS ARM64 (Apple Silicon)
 
-**File:** `build-macos-arm64.yml`  
-**Documentation:** `README-macos-arm64.md`
+**File:** `build-macos.yml` (target: arm64)  
+**Documentation:** [README-macos-arm64.md](README-macos-arm64.md)
 
 **Target Hardware:**
 - Apple Silicon Macs (M1, M2, M3, M4)
@@ -280,9 +404,9 @@ All macOS workflows are **manual-trigger only** - they run when you explicitly t
 **Configuration:**
 - **Runner:** `macos-14` (macOS Sonoma on ARM64)
 - **Architecture:** ARM64 (native)
-- **C++ Standard:** C++23
+- **C++ Standard:** C++20
 - **Deployment Target:** 14.0
-- **LTO:** Enabled by default
+- **LTO:** Configurable (enabled by default)
 - **Optimizations:** `-O3 -flto -DNDEBUG`
 
 **When to Use:**
@@ -292,15 +416,17 @@ All macOS workflows are **manual-trigger only** - they run when you explicitly t
 
 **Artifact Name:**
 ```
-payroll-and-monitoring-system-macos-arm64-Release.tar.gz
+structuracost-macos-arm64-{version}.tar.gz
 ```
+
+Example: `structuracost-macos-arm64-v1.0.0.tar.gz`
 
 ---
 
-### macOS Intel (Big Sur and newer)
+### macOS Intel
 
-**File:** `build-macos-intel.yml`  
-**Documentation:** `README-macos-intel.md`
+**File:** `build-macos.yml` (target: intel)  
+**Documentation:** [README-macos-intel.md](README-macos-intel.md)
 
 **Target Hardware:**
 - Intel Macs (Core i3/i5/i7/i9)
@@ -312,65 +438,31 @@ payroll-and-monitoring-system-macos-arm64-Release.tar.gz
 **Configuration:**
 - **Runner:** `macos-13` (macOS Ventura on Intel x86_64)
 - **Architecture:** x86_64 (explicitly set)
-- **C++ Standard:** C++23
+- **C++ Standard:** C++20
 - **Deployment Target:** 11.0
-- **LTO:** Enabled by default
+- **LTO:** Configurable (enabled by default)
 - **Optimizations:** `-O3 -flto -DNDEBUG`
 
 **When to Use:**
 - You have an Intel Mac
 - Running macOS Big Sur 11.0 or newer
-- Want modern C++23 features and optimizations
+- Want modern optimizations and features
 
 **Artifact Name:**
 ```
-payroll-and-monitoring-system-macos-intel-Release.tar.gz
+structuracost-macos-intel-{version}.tar.gz
 ```
+
+Example: `structuracost-macos-intel-v1.0.0.tar.gz`
 
 ---
 
-### macOS Legacy (Catalina and older)
-
-**File:** `build-macos-legacy.yml`  
-**Documentation:** `README-macos-legacy.md`
-
-**Target Hardware:**
-- Older Intel Macs (2012-2019 era)
-
-**macOS Versions (Selectable):**
-- macOS Catalina 10.15 (recommended)
-- macOS Mojave 10.14
-- macOS High Sierra 10.13
-
-**Configuration:**
-- **Runner:** `macos-13` (macOS Ventura on Intel x86_64)
-- **Architecture:** x86_64 (explicitly set)
-- **C++ Standard:** C++20 (for legacy compatibility)
-- **Deployment Target:** 10.15, 10.14, or 10.13 (user selectable)
-- **LTO:** Disabled by default (better compatibility)
-- **Optimizations:** `-O3 -DNDEBUG` (no LTO)
-
-**When to Use:**
-- You have an Intel Mac running Catalina or older
-- Supporting users on older macOS versions
-- Need maximum backward compatibility
-
-**Key Differences:**
-- Uses **C++20** instead of C++23 (better support on old systems)
-- **LTO disabled** to avoid linker issues on older macOS
-- **Deployment target verification** with `otool`
-
-**Artifact Name:**
-```
-payroll-and-monitoring-system-macos-legacy-10.15-Release.tar.gz
-```
-
----
+## Windows Builds
 
 ### Windows x64 (Manual)
 
 **File:** `build-windows-x64.yml`  
-**Documentation:** `README-windows-x64.md`
+**Documentation:** [README-windows-x86_64.md](README-windows-x86_64.md)
 
 **Target Platform:**
 - Windows 10/11 (64-bit)
@@ -398,15 +490,17 @@ payroll-and-monitoring-system-macos-legacy-10.15-Release.tar.gz
 
 **Artifact Name:**
 ```
-payroll-and-monitoring-system-windows-x64-Release.zip
+structuracost-windows-x86_64-{version}.zip
 ```
+
+Example: `structuracost-windows-x86_64-v1.0.0.zip`
 
 ---
 
 ### Windows ARM64 (Manual)
 
 **File:** `build-windows-arm64.yml`  
-**Documentation:** `README-windows-arm64.md`
+**Documentation:** [README-windows-arm64.md](README-windows-arm64.md)
 
 **Target Platform:**
 - Windows 11/10 ARM64 (Snapdragon-based devices)
@@ -435,8 +529,10 @@ payroll-and-monitoring-system-windows-x64-Release.zip
 
 **Artifact Name:**
 ```
-payroll-and-monitoring-system-windows-arm64-Release.zip
+structuracost-windows-arm64-{version}.zip
 ```
+
+Example: `structuracost-windows-arm64-v1.0.0.zip`
 
 ---
 
@@ -446,9 +542,8 @@ payroll-and-monitoring-system-windows-arm64-Release.zip
 
 | Workflow         | Runner         | Target        | macOS Version | C++   | LTO  | Architecture |
 |------------------|----------------|---------------|---------------|-------|------|--------------|
-| **macOS ARM64**  | macos-14       | Apple Silicon | Sonoma 14.0+  | C++23 | ✅    | ARM64        |
-| **macOS Intel**  | macos-13       | Modern Intel  | Big Sur 11.0+ | C++23 | ✅    | x86_64       |
-| **macOS Legacy** | macos-13       | Old Intel     | Catalina      | C++20 | ✅    | x86_64       |
+| **macOS ARM64**  | macos-14       | Apple Silicon | Sonoma 14.0+  | C++20 | ✅    | ARM64        |
+| **macOS Intel**  | macos-13       | Modern Intel  | Big Sur 11.0+ | C++20 | ✅    | x86_64       |
 | **Windows x64**  | windows-latest | Windows 10/11 | N/A           | C++23 | ✅    | x64          |
 
 ### Architecture Decision Tree
@@ -462,17 +557,11 @@ What platform?
 ├─ Linux → Use: Multi-Platform Build (automated)
 │
 └─ macOS → What hardware?
-    ├─ Apple Silicon (M1/M2/M3)
-    │   └─ Use: macOS ARM64 workflow
+    ├─ Apple Silicon (M1/M2/M3/M4)
+    │   └─ Use: macOS ARM64 workflow (build-macos.yml with target: arm64)
     │
-    └─ Intel
-        └─ What macOS version?
-            ├─ Big Sur 11.0 or newer
-            │   └─ Use: macOS Intel workflow
-            │
-            └─ Catalina 10.15 or older
-                └─ Use: macOS Legacy workflow
-                    └─ Select deployment target (10.15/10.14/10.13)
+    └─ Intel (Big Sur 11.0 or newer)
+        └─ Use: macOS Intel workflow (build-macos.yml with target: intel)
 ```
 
 ---
@@ -496,19 +585,17 @@ The workflow will automatically start building for Linux and Windows.
 2. Click the **Actions** tab
 3. On the left sidebar, select the workflow you want:
    - **Build Linux (Manual)**
-   - **Build macOS ARM64 (Manual)**
-   - **Build macOS Intel (Manual)**
-   - **Build macOS Legacy (Manual)**
+   - **macOS** (select target: arm64 or intel)
    - **Build Windows x64 (Manual)**
    - **Build Windows ARM64 (Manual)**
 4. Click the **"Run workflow"** button on the right
 5. Configure the build options:
    - **Branch:** Select the branch to build (usually `master`)
+   - **Target:** (macOS only) Choose arm64 or intel
    - **Distribution:** (Linux only) Choose Ubuntu, Fedora, Debian, or Arch
    - **Architecture:** (Linux only) Choose x64 or arm64
    - **Build type:** Choose `Release` or `Debug`
    - **Enable Link-Time Optimization:** Check/uncheck (default varies by workflow)
-   - **Deployment target:** (macOS Legacy only) Choose 10.15, 10.14, or 10.13
 6. Click the green **"Run workflow"** button to start
 
 #### From GitHub CLI
@@ -535,28 +622,22 @@ gh workflow run "Build Linux (Manual)" \
 
 **macOS ARM64:**
 ```bash
-gh workflow run "Build macOS ARM64 (Manual)" \
+gh workflow run "macOS" \
   --ref master \
+  -f target=arm64 \
   -f build_type=Release \
   -f enable_lto=true
 ```
 
 **macOS Intel:**
 ```bash
-gh workflow run "Build macOS Intel (Manual)" \
+gh workflow run "macOS" \
   --ref master \
+  -f target=intel \
   -f build_type=Release \
   -f enable_lto=true
 ```
 
-**macOS Legacy (Catalina):**
-```bash
-gh workflow run "Build macOS Legacy (Manual)" \
-  --ref master \
-  -f build_type=Release \
-  -f enable_lto=false \
-  -f deployment_target=10.15
-```
 
 **Windows x64:**
 ```bash
@@ -576,8 +657,8 @@ gh workflow run "Build Windows x64 (Manual)" \
 2. Click on the latest successful workflow run
 3. Scroll to the **Artifacts** section at the bottom
 4. Download the artifacts you need:
-   - `payroll-and-monitoring-system-linux-x64.tar.gz`
-   - `payroll-and-monitoring-system-windows-x64.zip`
+   - `structuracost-linux-x64.tar.gz`
+   - `structuracost-windows-x64.zip`
 
 **Retention:** 30 days
 
@@ -588,10 +669,9 @@ gh workflow run "Build Windows x64 (Manual)" \
 3. Wait for the build to complete (green checkmark)
 4. Scroll to the **Artifacts** section at the bottom
 5. Download the artifact:
-   - ARM64: `payroll-and-monitoring-system-macos-arm64-Release.tar.gz`
-   - Intel: `payroll-and-monitoring-system-macos-intel-Release.tar.gz`
-   - Legacy: `payroll-and-monitoring-system-macos-legacy-10.15-Release.tar.gz`
-   - Windows: `payroll-and-monitoring-system-windows-x64-Release.zip`
+   - ARM64: `structuracost-macos-arm64-{version}.tar.gz`
+   - Intel: `structuracost-macos-intel-{version}.tar.gz`
+   - Windows: `structuracost-windows-x86_64-{version}.zip`
 
 **Retention:** 90 days
 
@@ -599,16 +679,16 @@ gh workflow run "Build Windows x64 (Manual)" \
 
 **Linux/macOS:**
 ```bash
-tar -xzf payroll-and-monitoring-system-*.tar.gz
-open payroll-and-monitoring-system.app  # macOS
-./payroll-and-monitoring-system          # Linux
+tar -xzf structuracost-*.tar.gz
+open structuracost.app  # macOS
+./structuracost          # Linux
 ```
 
 **Windows:**
 ```powershell
-Expand-Archive payroll-and-monitoring-system-windows-x64.zip
-cd payroll-and-monitoring-system-windows-x64
-.\payroll-and-monitoring-system.exe
+Expand-Archive structuracost-windows-x86_64.zip
+cd structuracost-windows-x86_64
+.\structuracost.exe
 ```
 
 ---
@@ -649,8 +729,8 @@ cd payroll-and-monitoring-system-windows-x64
 **Wrong Architecture:**
 ```bash
 # Verify architecture
-file payroll-and-monitoring-system.app/Contents/MacOS/payroll-and-monitoring-system
-lipo -info payroll-and-monitoring-system.app/Contents/MacOS/payroll-and-monitoring-system
+file structuracost.app/Contents/MacOS/structuracost
+lipo -info structuracost.app/Contents/MacOS/structuracost
 ```
 
 Should show:
@@ -660,7 +740,7 @@ Should show:
 **Wrong Deployment Target:**
 ```bash
 # Check minimum macOS version
-otool -l payroll-and-monitoring-system.app/Contents/MacOS/payroll-and-monitoring-system | grep -A 3 LC_VERSION_MIN_MACOSX
+otool -l structuracost.app/Contents/MacOS/structuracost | grep -A 3 LC_VERSION_MIN_MACOSX
 ```
 
 Should match the deployment target you selected.
@@ -701,13 +781,13 @@ Should match the deployment target you selected.
 
 **All Builds:**
 - `CMAKE_BUILD_TYPE` - Release or Debug
-- `CMAKE_CXX_STANDARD` - 23 (or 20 for legacy)
+- `CMAKE_CXX_STANDARD` - 20 (macOS) or 23 (Windows/Linux)
 - `CMAKE_CXX_STANDARD_REQUIRED` - ON
 - `CMAKE_CXX_EXTENSIONS` - OFF
 
 **macOS-Specific:**
-- `CMAKE_OSX_DEPLOYMENT_TARGET` - Minimum macOS version (11.0, 10.15, etc.)
-- `CMAKE_OSX_ARCHITECTURES` - x86_64 or arm64 (for Intel builds only)
+- `CMAKE_OSX_DEPLOYMENT_TARGET` - Minimum macOS version (14.0 for ARM64, 11.0 for Intel)
+- `CMAKE_OSX_ARCHITECTURES` - x86_64 (for Intel builds only, ARM64 is native)
 
 **Optimization Flags:**
 
@@ -775,21 +855,10 @@ Should match the deployment target you selected.
 3. **For macOS, choose appropriate workflow**
    - ARM64 for Apple Silicon users
    - Intel for modern Intel Macs
-   - Legacy for users on older macOS
 
 ### For Legacy macOS Support
 
-1. **Choose oldest macOS you actually need**
-   - Each older version adds testing burden
-   - 10.15 (Catalina) is usually a good minimum
-
-2. **Test on actual hardware**
-   - VMs are helpful but not perfect
-   - Real hardware catches edge cases
-
-3. **Keep LTO disabled**
-   - Unless you've tested it thoroughly
-   - Compatibility > Performance for legacy
+**Note:** Legacy macOS support (Catalina and older) has been removed. For users on older macOS versions, recommend upgrading to Big Sur 11.0 or newer.
 
 ---
 
@@ -797,14 +866,13 @@ Should match the deployment target you selected.
 
 - **Workflow Files:** `.github/workflows/`
 - **Detailed Docs:** 
-  - `README-linux.md` (Debian/Ubuntu)
-  - `README-linux-rpm.md` (Fedora/Red Hat)
-  - `README-linux-suse.md` (SUSE Family)
-  - `README-macos-arm64.md`
-  - `README-macos-intel.md`
-  - `README-macos-legacy.md`
-  - `README-windows-x64.md`
-  - `README-windows-arm64.md`
+  - [README-linux.md](README-linux.md) - Debian/Ubuntu
+  - [README-linux-rpm.md](README-linux-rpm.md) - Fedora/Red Hat
+  - [README-linux-suse.md](README-linux-suse.md) - SUSE Family
+  - [README-macos-arm64.md](README-macos-arm64.md) - macOS Apple Silicon
+  - [README-macos-intel.md](README-macos-intel.md) - macOS Intel
+  - [README-windows-x86_64.md](README-windows-x86_64.md) - Windows x64
+  - [README-windows-arm64.md](README-windows-arm64.md) - Windows ARM64
 - **Main README:** `../../README.md`
 - **CMakeLists.txt:** `../../CMakeLists.txt`
 
@@ -844,19 +912,16 @@ git push origin master
 
 ### Workflow Selection Guide
 
-| You Have | You Run | Use This Workflow |
-|----------|---------|-------------------|
-| M1/M2/M3 Mac | Sonoma 14.0+ | **macOS ARM64** |
-| Intel Mac | Big Sur 11.0+ | **macOS Intel** |
-| Intel Mac | Catalina 10.15 | **macOS Legacy** (target 10.15) |
-| Intel Mac | Mojave 10.14 | **macOS Legacy** (target 10.14) |
-| Intel Mac | High Sierra 10.13 | **macOS Legacy** (target 10.13) |
-| Linux x64 | Want auto builds | **Multi-Platform** (automatic) |
-| Linux x64 | Want specific distro | **Linux (Manual)** - Choose distro |
-| Linux ARM64 | Raspberry Pi, ARM server | **Linux (Manual)** - Choose distro + arm64 |
-| Windows | Want auto builds | **Multi-Platform** (automatic) |
-| Windows x64 | Want manual control | **Windows x64 (Manual)** |
-| Windows ARM64 | Surface Pro X, Snapdragon | **Windows ARM64 (Manual)** |
+| You Have      | You Run                   | Use This Workflow                           |
+|---------------|---------------------------|---------------------------------------------|
+| M1/M2/M3 Mac  | Sonoma 14.0+              | **macOS ARM64**                             |
+| Intel Mac     | Big Sur 11.0+             | **macOS Intel**                             |
+| Linux x64     | Want auto builds          | **Multi-Platform** (automatic)              |
+| Linux x64     | Want specific distro      | **Linux (Manual)** - Choose distro          |
+| Linux ARM64   | Raspberry Pi, ARM server  | **Linux (Manual)** - Choose distro + arm64  |
+| Windows       | Want auto builds          | **Multi-Platform** (automatic)              |
+| Windows x64   | Want manual control       | **Windows x64 (Manual)**                    |
+| Windows ARM64 | Surface Pro X, Snapdragon | **Windows ARM64 (Manual)**                  |
 
 ---
 

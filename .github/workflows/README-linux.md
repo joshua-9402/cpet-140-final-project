@@ -2,7 +2,7 @@
 
 ## Overview
 
-This workflow builds the payroll-and-monitoring-system for **Debian-based Linux distributions** across **x64 and ARM64 architectures**.
+This workflow builds the **structuracost** application for **Debian-based Linux distributions** across **x64 and ARM64 architectures**.
 
 ## Supported Configurations
 
@@ -219,7 +219,11 @@ After the workflow completes:
 
 1. Go to the workflow run page
 2. Scroll to **Artifacts** section
-3. Download: `payroll-and-monitoring-system-ubuntu-22.04-x64-Release.tar.gz`
+3. Download: `structuracost-linux-debian-x86_64-v1.0.0.tar.gz` (example)
+
+**Artifact Format:** `structuracost-linux-debian-{arch}-{version}.tar.gz`
+
+**Note:** Architecture uses `x86_64` instead of `x64` in the artifact name.
 
 **Retention:** 90 days
 
@@ -227,17 +231,17 @@ After the workflow completes:
 
 ```bash
 # Extract
-tar -xzf payroll-and-monitoring-system-ubuntu-22.04-x64-Release.tar.gz
+tar -xzf structuracost-linux-debian-x86_64-v1.0.0.tar.gz
 
 # Run
-./payroll-and-monitoring-system
+./structuracost
 ```
 
 ### Check Dependencies
 
 ```bash
 # See required libraries
-ldd payroll-and-monitoring-system
+ldd structuracost
 
 # Common dependencies:
 # - libfreetype.so.6
@@ -307,14 +311,14 @@ Typical build times:
 
 **Missing libraries:**
 ```bash
-ldd payroll-and-monitoring-system
+ldd structuracost
 # Look for "not found" entries
 # Install missing libraries via package manager
 ```
 
 **Wrong architecture:**
 ```bash
-file payroll-and-monitoring-system
+file structuracost
 # Should show:
 # x64: "ELF 64-bit LSB executable, x86-64"
 # ARM64: "ELF 64-bit LSB executable, aarch64"

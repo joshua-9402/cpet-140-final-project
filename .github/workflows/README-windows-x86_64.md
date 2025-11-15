@@ -2,7 +2,7 @@
 
 ## Overview
 
-This workflow builds the payroll-and-monitoring-system specifically for **Windows x64** (64-bit Windows).
+This workflow builds the **structuracost** application specifically for **Windows x64** (64-bit Windows).
 
 ## Key Features
 
@@ -30,10 +30,11 @@ This build works on:
 
 1. Go to your repository on GitHub
 2. Click the **Actions** tab
-3. Select **"Build Windows x64 (Manual)"** from the workflow list (left side)
+3. Select **"Windows"** from the workflow list (left side)
 4. Click the **"Run workflow"** button (right side)
 5. Configure options:
    - **Branch:** Choose the branch to build (usually `master` or `main`)
+   - **Architecture:** Choose `x64`
    - **Build type:** Choose `Release` (optimized) or `Debug` (with debug symbols)
    - **Enable Link-Time Optimization:** Check for maximum performance (recommended for Release)
 6. Click **"Run workflow"** (green button)
@@ -44,14 +45,16 @@ If you have GitHub CLI installed:
 
 ```bash
 # Release build with LTO
-gh workflow run "Build Windows x64 (Manual)" \
+gh workflow run "Windows" \
   --ref master \
+  -f architecture=x64 \
   -f build_type=Release \
   -f enable_lto=true
 
 # Debug build without LTO
-gh workflow run "Build Windows x64 (Manual)" \
+gh workflow run "Windows" \
   --ref master \
+  -f architecture=x64 \
   -f build_type=Debug \
   -f enable_lto=false
 ```

@@ -2,7 +2,24 @@
 
 ## Overview
 
-This workflow builds the payroll-and-monitoring-system specifically for **Windows ARM64** (ARM-based Windows devices).
+This workflow builds the **structuracost** application specifically for **Windows ARM64** (ARM-based Windows devices).
+
+## Supported Configurations
+
+### Windows Versions
+- **Windows 11 ARM64** - Latest Windows for ARM (recommended)
+- **Windows 10 ARM64** - Previous Windows for ARM
+
+### Architectures
+- **ARM64** (AArch64/ARM 64-bit)
+
+### Target Devices
+**Native ARM64 Windows devices:**
+- Microsoft Surface Pro X
+- Microsoft Surface Pro 9 (5G)
+- Lenovo ThinkPad X13s
+- Samsung Galaxy Book Go
+- Other Snapdragon-based Windows devices
 
 ## Key Features
 
@@ -19,19 +36,10 @@ This workflow builds the payroll-and-monitoring-system specifically for **Window
 ## Compatibility
 
 This build works on:
-- ✅ **Windows 11 ARM64** - Native performance (Surface Pro X, etc.)
+- ✅ **Windows 11 ARM64** - Native performance (recommended)
 - ✅ **Windows 10 ARM64** - Native performance
 - ✅ **Windows 11/10 x64** - Via emulation (slower, not recommended)
 - ❌ **Windows 32-bit** - Not supported
-
-## Target Devices
-
-**Native ARM64 Windows devices:**
-- Microsoft Surface Pro X
-- Microsoft Surface Pro 9 (5G)
-- Lenovo ThinkPad X13s
-- Samsung Galaxy Book Go
-- Other Snapdragon-based Windows devices
 
 ## How to Trigger a Build
 
@@ -39,10 +47,11 @@ This build works on:
 
 1. Go to your repository on GitHub
 2. Click the **Actions** tab
-3. Select **"Build Windows ARM64 (Manual)"** from the workflow list (left side)
+3. Select **"Windows"** from the workflow list (left side)
 4. Click the **"Run workflow"** button (right side)
 5. Configure options:
    - **Branch:** Choose the branch to build (usually `master` or `main`)
+   - **Architecture:** Choose `arm64`
    - **Build type:** Choose `Release` (optimized) or `Debug` (with debug symbols)
    - **Enable Link-Time Optimization:** Check for maximum performance (recommended for Release)
 6. Click **"Run workflow"** (green button)
@@ -53,14 +62,16 @@ If you have GitHub CLI installed:
 
 ```bash
 # Release build with LTO
-gh workflow run "Build Windows ARM64 (Manual)" \
+gh workflow run "Windows" \
   --ref master \
+  -f architecture=arm64 \
   -f build_type=Release \
   -f enable_lto=true
 
 # Debug build without LTO
-gh workflow run "Build Windows ARM64 (Manual)" \
+gh workflow run "Windows" \
   --ref master \
+  -f architecture=arm64 \
   -f build_type=Debug \
   -f enable_lto=false
 ```
@@ -110,19 +121,23 @@ After the workflow completes:
 
 1. Go to the workflow run page
 2. Scroll to **Artifacts** section at the bottom
-3. Download: `payroll-and-monitoring-system-windows-arm64-Release.zip`
+3. Download: `structuracost-windows-arm64-v1.0.0.zip` (example)
+
+**Artifact Format:** `structuracost-windows-arm64-{version}.zip`
+
+**Retention:** 90 days
 
 ### Extract and Run
 
 ```powershell
 # Extract the archive
-Expand-Archive payroll-and-monitoring-system-windows-arm64-Release.zip
+Expand-Archive structuracost-windows-arm64-v1.0.0.zip
 
 # Navigate to the folder
-cd payroll-and-monitoring-system-windows-arm64-Release
+cd structuracost-windows-arm64-v1.0.0
 
 # Run the application (on ARM64 Windows device)
-.\payroll-and-monitoring-system.exe
+.\structuracost.exe
 ```
 
 ### Verify Architecture
@@ -131,7 +146,7 @@ You can verify it's an ARM64 executable:
 
 ```powershell
 # Using dumpbin (if you have Visual Studio installed)
-dumpbin /headers payroll-and-monitoring-system.exe | findstr machine
+dumpbin /headers structuracost.exe | findstr machine
 # Should show: AA64 machine (ARM64)
 ```
 
@@ -277,7 +292,7 @@ If the app won't run on your ARM64 Windows device:
 
 1. **Verify it's ARM64:**
    ```powershell
-   dumpbin /headers payroll-and-monitoring-system.exe | findstr machine
+   dumpbin /headers structuracost.exe | findstr machine
    # Should show: AA64 machine (ARM64)
    ```
 
@@ -327,12 +342,16 @@ cmake -B build `
 
 The default is `amd64_arm64` (x64 host → ARM64 target). For other options:
 
+**Option 1: ARM64 host → ARM64 target** (if running on ARM64 runner)
 ```yaml
-# ARM64 host → ARM64 target (if running on ARM64 runner)
-arch: arm64
+with:
+  arch: arm64
+```
 
-# x86 host → ARM64 target
-arch: x86_arm64
+**Option 2: x86 host → ARM64 target**
+```yaml
+with:
+  arch: x86_arm64
 ```
 
 ## Performance Comparison
@@ -352,7 +371,7 @@ arch: x86_arm64
 
 ## File Locations
 
-- **Workflow:** `.github/workflows/build-windows-arm64.yml`
+- **Workflow:** `.github/workflows/build-windows.yml`
 - **Documentation:** `.github/workflows/README-windows-arm64.md`
 
 ## Best Practices
@@ -399,7 +418,7 @@ If you encounter issues:
 
 ---
 
-**Quick Start:** Actions → Build Windows ARM64 (Manual) → Run workflow → Download artifact
+**Quick Start:** Actions → Windows → Select arm64 → Run workflow → Download artifact
 
 **Remember:** This builds for ARM64 Windows devices (Surface Pro X, etc.). For regular Windows PCs, use the x64 workflow!
 

@@ -2,7 +2,23 @@
 
 ## Overview
 
-This workflow builds the payroll-and-monitoring-system specifically for **macOS Sonoma ARM64 (Apple Silicon)**.
+This workflow builds the **structuracost** application specifically for **macOS Sonoma ARM64 (Apple Silicon)**.
+
+## Supported Configurations
+
+### macOS Versions
+- **macOS Sonoma 14.0+** - Latest macOS for Apple Silicon
+
+### Architectures
+- **ARM64** (Apple Silicon - M1/M2/M3/M4)
+
+### Target Devices
+**Apple Silicon Macs:**
+- MacBook Air (M1, M2, M3)
+- MacBook Pro (M1/M2/M3 Pro/Max/Ultra)
+- Mac mini (M1, M2)
+- Mac Studio (M1/M2 Max/Ultra)
+- iMac (M1, M3)
 
 ## Key Features
 
@@ -13,16 +29,26 @@ This workflow builds the payroll-and-monitoring-system specifically for **macOS 
 - ✅ **Optional LTO** - Enable/disable Link-Time Optimization
 - ✅ **90-day retention** - Artifacts kept for 3 months
 
+## Compatibility
+
+This build works on:
+- ✅ **macOS Sonoma (14.0+)** - Apple Silicon Macs (recommended)
+- ✅ **macOS Ventura (13.0+)** - Apple Silicon Macs
+- ✅ **macOS Monterey (12.0+)** - Apple Silicon Macs
+- ✅ **macOS Big Sur (11.0+)** - Apple Silicon Macs
+- ❌ **Intel Macs** - Use the Intel workflow instead
+
 ## How to Trigger a Build
 
 ### From GitHub Website
 
 1. Go to your repository on GitHub
 2. Click the **Actions** tab
-3. Select **"Build macOS ARM64 (Manual)"** from the workflow list (left side)
+3. Select **"macOS"** from the workflow list (left side)
 4. Click the **"Run workflow"** button (right side)
 5. Configure options:
    - **Branch:** Choose the branch to build (usually `master` or `main`)
+   - **Target:** Choose `arm64` (Apple Silicon)
    - **Build type:** Choose `Release` (optimized) or `Debug` (with debug symbols)
    - **Enable Link-Time Optimization:** Check for maximum performance (recommended for Release)
 6. Click **"Run workflow"** (green button)
@@ -33,14 +59,16 @@ If you have GitHub CLI installed:
 
 ```bash
 # Release build with LTO
-gh workflow run "Build macOS ARM64 (Manual)" \
+gh workflow run "macOS" \
   --ref master \
+  -f target=arm64 \
   -f build_type=Release \
   -f enable_lto=true
 
 # Debug build without LTO
-gh workflow run "Build macOS ARM64 (Manual)" \
+gh workflow run "macOS" \
   --ref master \
+  -f target=arm64 \
   -f build_type=Debug \
   -f enable_lto=false
 ```
@@ -89,19 +117,23 @@ After the workflow completes:
 
 1. Go to the workflow run page
 2. Scroll to **Artifacts** section at the bottom
-3. Download: `payroll-and-monitoring-system-macos-arm64-Release.tar.gz` (or Debug)
+3. Download: `structuracost-macos-arm64-v1.0.0.tar.gz` (example)
+
+**Artifact Format:** `structuracost-macos-arm64-{version}.tar.gz`
+
+**Retention:** 90 days
 
 ### Extract and Run
 
 ```bash
 # Extract the archive
-tar -xzf payroll-and-monitoring-system-macos-arm64-Release.tar.gz
+tar -xzf structuracost-macos-arm64-v1.0.0.tar.gz
 
 # If it's an app bundle
-open payroll-and-monitoring-system.app
+open structuracost.app
 
 # If it's a standalone executable
-./payroll-and-monitoring-system
+./structuracost
 ```
 
 ## Build Time

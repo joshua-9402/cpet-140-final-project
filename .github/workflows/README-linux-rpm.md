@@ -2,7 +2,7 @@
 
 ## Overview
 
-This workflow builds the payroll-and-monitoring-system for **Fedora/Red Hat family distributions** across **x64 and ARM64 architectures**.
+This workflow builds the **structuracost** application for **Fedora/Red Hat family distributions** across **x64 and ARM64 architectures**.
 
 ## Supported Configurations
 

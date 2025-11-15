@@ -2,7 +2,7 @@
 
 ## Overview
 
-This workflow builds the payroll-and-monitoring-system for **SUSE family distributions** across **x64 and ARM64 architectures**.
+This workflow builds the **structuracost** application for **SUSE family distributions** across **x64 and ARM64 architectures**.
 
 ## Supported Configurations
 

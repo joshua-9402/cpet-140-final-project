@@ -2,7 +2,27 @@
 
 ## Overview
 
-This workflow builds the payroll-and-monitoring-system specifically for **macOS Big Sur (11.0+) on Intel x86_64** processors.
+This workflow builds the **structuracost** application specifically for **macOS Big Sur (11.0+) on Intel x86_64** processors.
+
+## Supported Configurations
+
+### macOS Versions
+- **macOS Sonoma (14.x)** - Intel Macs
+- **macOS Ventura (13.x)** - Intel Macs
+- **macOS Monterey (12.x)** - Intel Macs
+- **macOS Big Sur (11.x)** - Intel Macs (minimum)
+
+### Architectures
+- **x86_64** (Intel 64-bit)
+
+### Target Devices
+**Intel Macs:**
+- MacBook Air (2015-2020)
+- MacBook Pro (2015-2020)
+- Mac mini (2014-2020)
+- iMac (2015-2020)
+- iMac Pro (2017-2021)
+- Mac Pro (2013-2019)
 
 ## Key Features
 
@@ -29,10 +49,11 @@ This build works on:
 
 1. Go to your repository on GitHub
 2. Click the **Actions** tab
-3. Select **"Build macOS Intel (Manual)"** from the workflow list (left side)
+3. Select **"macOS"** from the workflow list (left side)
 4. Click the **"Run workflow"** button (right side)
 5. Configure options:
    - **Branch:** Choose the branch to build (usually `master` or `main`)
+   - **Target:** Choose `intel` (Intel x86_64)
    - **Build type:** Choose `Release` (optimized) or `Debug` (with debug symbols)
    - **Enable Link-Time Optimization:** Check for maximum performance (recommended for Release)
 6. Click **"Run workflow"** (green button)
@@ -43,14 +64,16 @@ If you have GitHub CLI installed:
 
 ```bash
 # Release build with LTO for Intel
-gh workflow run "Build macOS Intel (Manual)" \
+gh workflow run "macOS" \
   --ref master \
+  -f target=intel \
   -f build_type=Release \
   -f enable_lto=true
 
 # Debug build without LTO
-gh workflow run "Build macOS Intel (Manual)" \
+gh workflow run "macOS" \
   --ref master \
+  -f target=intel \
   -f build_type=Debug \
   -f enable_lto=false
 ```
@@ -100,19 +123,23 @@ After the workflow completes:
 
 1. Go to the workflow run page
 2. Scroll to **Artifacts** section at the bottom
-3. Download: `payroll-and-monitoring-system-macos-intel-Release.tar.gz` (or Debug)
+3. Download: `structuracost-macos-intel-v1.0.0.tar.gz` (example)
+
+**Artifact Format:** `structuracost-macos-intel-{version}.tar.gz`
+
+**Retention:** 90 days
 
 ### Extract and Run
 
 ```bash
 # Extract the archive
-tar -xzf payroll-and-monitoring-system-macos-intel-Release.tar.gz
+tar -xzf structuracost-macos-intel-v1.0.0.tar.gz
 
 # If it's an app bundle
-open payroll-and-monitoring-system.app
+open structuracost.app
 
 # If it's a standalone executable
-./payroll-and-monitoring-system
+./structuracost
 ```
 
 ### Verify Architecture
