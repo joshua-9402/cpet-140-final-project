@@ -45,17 +45,7 @@ jobs:
     name: ${{ inputs.distribution }} (${{ inputs.architecture }})
     runs-on: ${{ inputs.architecture == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     container:
-      image: ${{ 
-        inputs.distribution == 'fedora-latest' && 'fedora:latest' || 
-        inputs.distribution == 'fedora-39' && 'fedora:39' || 
-        inputs.distribution == 'fedora-38' && 'fedora:38' ||
-        inputs.distribution == 'almalinux-latest' && 'almalinux:latest' ||
-        inputs.distribution == 'almalinux-9' && 'almalinux:9' ||
-        inputs.distribution == 'almalinux-8' && 'almalinux:8' ||
-        inputs.distribution == 'rockylinux-latest' && 'rockylinux:latest' ||
-        inputs.distribution == 'rockylinux-9' && 'rockylinux:9' ||
-        'rockylinux:8'
-      }}
+      image: ${{ inputs.distribution == 'fedora-latest' && 'fedora:latest' || inputs.distribution == 'fedora-39' && 'fedora:39' || inputs.distribution == 'fedora-38' && 'fedora:38' || inputs.distribution == 'almalinux-latest' && 'almalinux:latest' || inputs.distribution == 'almalinux-9' && 'almalinux:9' || inputs.distribution == 'almalinux-8' && 'almalinux:8' || inputs.distribution == 'rockylinux-latest' && 'rockylinux:latest' || inputs.distribution == 'rockylinux-9' && 'rockylinux:9' || 'rockylinux:8' }}
 
     steps:
     - name: System information

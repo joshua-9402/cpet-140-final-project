@@ -40,12 +40,7 @@ jobs:
     name: ${{ inputs.distribution }} (${{ inputs.architecture }})
     runs-on: ${{ inputs.architecture == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     container:
-      image: ${{ 
-        inputs.distribution == 'opensuse-tumbleweed' && 'opensuse/tumbleweed:latest' || 
-        inputs.distribution == 'opensuse-leap-15.6' && 'opensuse/leap:15.6' || 
-        inputs.distribution == 'opensuse-leap-15.5' && 'opensuse/leap:15.5' ||
-        'opensuse/leap:15.4'
-      }}
+      image: ${{ inputs.distribution == 'opensuse-tumbleweed' && 'opensuse/tumbleweed:latest' || inputs.distribution == 'opensuse-leap-15.6' && 'opensuse/leap:15.6' || inputs.distribution == 'opensuse-leap-15.5' && 'opensuse/leap:15.5' || 'opensuse/leap:15.4' }}
 
     steps:
     - name: System information
