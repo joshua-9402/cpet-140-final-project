@@ -72,16 +72,13 @@ jobs:
           cmake \
           ninja \
           file \
-          libglfw-devel \
-          Mesa-libwayland-egl-devel \
-          wayland-protocols-devel \
-          pkg-config \
+          glfw-devel \
           libXrandr-devel \
           libXinerama-devel \
           libXcursor-devel \
           libXi-devel \
           Mesa-libGL-devel \
-          glu-devel \
+          Mesa-libGLU-devel \
           freetype2-devel \
           fontconfig-devel
 
@@ -101,13 +98,17 @@ jobs:
     - name: Configure CMake
       run: |
         echo "=== Configuring CMake ==="
+        # Disable Wayland support for GLFW to avoid missing Wayland headers on SUSE
+        export GLFW_USE_WAYLAND=0
         if [ "${{ inputs.enable_lto }}" = "true" ]; then
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+            -DGLFW_BUILD_WAYLAND=OFF \
             -G Ninja
         else
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+            -DGLFW_BUILD_WAYLAND=OFF \
             -G Ninja \
             -DNO_LTO=ON
         fi
