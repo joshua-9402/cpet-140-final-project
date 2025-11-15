@@ -72,7 +72,6 @@ jobs:
           cmake \
           ninja \
           file \
-          libglfw3 \
           libXrandr-devel \
           libXinerama-devel \
           libXcursor-devel \
@@ -98,17 +97,14 @@ jobs:
     - name: Configure CMake
       run: |
         echo "=== Configuring CMake ==="
-        # Disable Wayland support for GLFW to avoid missing Wayland headers on SUSE
-        export GLFW_USE_WAYLAND=0
+        # Let HelloImGui use its bundled GLFW
         if [ "${{ inputs.enable_lto }}" = "true" ]; then
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
-            -DGLFW_BUILD_WAYLAND=OFF \
             -G Ninja
         else
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
-            -DGLFW_BUILD_WAYLAND=OFF \
             -G Ninja \
             -DNO_LTO=ON
         fi

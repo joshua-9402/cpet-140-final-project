@@ -116,7 +116,7 @@ jobs:
     - name: Install dependencies
       run: |
         zypper refresh
-        zypper install -y gcc gcc-c++ git cmake ninja file libglfw3 \
+        zypper install -y gcc gcc-c++ git cmake ninja file \
           libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
           Mesa-libGL-devel libGLU1 freetype2-devel fontconfig-devel
 
@@ -127,9 +127,8 @@ jobs:
 
     - name: Configure and Build
       run: |
-        # Disable Wayland support for GLFW
-        export GLFW_USE_WAYLAND=0
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -DGLFW_BUILD_WAYLAND=OFF -G Ninja
+        # Let HelloImGui use its bundled GLFW instead of system GLFW
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
         cmake --build build --config Release -j $(nproc)
 
     - name: Package
