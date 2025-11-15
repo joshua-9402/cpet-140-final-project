@@ -11,7 +11,6 @@ on:
         options:
           - arm64
           - intel
-          - legacy
       build_type:
         description: 'Build type'
         required: true
@@ -29,7 +28,7 @@ on:
 jobs:
   build-macos:
     name: macOS (${{ inputs.target }})
-    runs-on: ${{ inputs.target == 'arm64' && 'macos-14' || inputs.target == 'intel' && 'macos-13' || 'macos-12' }}
+    runs-on: ${{ inputs.target == 'arm64' && 'macos-14' || inputs.target == 'intel' && 'macos-13' }}
 
     steps:
     - name: Checkout code
@@ -65,10 +64,6 @@ jobs:
           DEPLOYMENT_TARGET="14.0"
         elif [ "${{ inputs.target }}" = "intel" ]; then
           DEPLOYMENT_TARGET="11.0"
-        else
-          DEPLOYMENT_TARGET="10.13"
-          # Force x86_64 for legacy builds
-          export CMAKE_OSX_ARCHITECTURES="x86_64"
         fi
         
         if [ "${{ inputs.enable_lto }}" = "true" ]; then
@@ -148,8 +143,6 @@ jobs:
           TARGET_DESC="Apple Silicon (M1/M2/M3/M4) - macOS 14.0+"
         elif [ "$TARGET_NAME" = "intel" ]; then
           TARGET_DESC="Intel (x64) - macOS 11.0+"
-        else
-          TARGET_DESC="Legacy Intel (x64) - macOS 10.13+"
         fi
         
         cat << EOF >> $GITHUB_STEP_SUMMARY
@@ -164,4 +157,3 @@ jobs:
         
         Download the artifact from the workflow run page.
         EOF
-
