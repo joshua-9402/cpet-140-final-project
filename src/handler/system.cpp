@@ -1,6 +1,15 @@
 #include "system.h"
 #include <chrono>
-#include <sys/stat.h> // For mkdir()
+
+// Platform-specific includes for directory creation
+#ifdef _WIN32
+    #include <direct.h>  // For _mkdir on Windows
+    #include <sys/stat.h>  // For _stat on Windows
+    #define MKDIR(path) _mkdir(path)
+#else
+    #include <sys/stat.h>  // For mkdir on Unix/Linux/macOS
+    #define MKDIR(path) mkdir(path, 0777)
+#endif
 
 int system::fetchTime(const PartDateTime part) {
     // Get current time
@@ -24,7 +33,23 @@ int system::fetchTime(const PartDateTime part) {
 bool createDirectory(const std::string& p_directoryName) {
     const char* folderName = p_directoryName.c_str();
 
-    if (constexpr mode_t permissions = 0777; mkdir(folderName, permissions) == 0) {return true;}
+    // Use platform-specific mkdir
+    if (MKDIR(folderName) == 0) {
+        return true;
+    }
+
+    // Check if directory already exists (this is okay)
+    #ifdef _WIN32
+        struct _stat info;
+        if (_stat(folderName, &info) == 0 && (info.st_mode & _S_IFDIR)) {
+            return true;  // Directory already exists
+        }
+    #else
+        struct stat info{};
+        if (stat(folderName, &info) == 0 && S_ISDIR(info.st_mode)) {
+            return true;  // Directory already exists
+        }
+    #endif
 
     return false;
 }
