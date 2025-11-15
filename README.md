@@ -346,21 +346,15 @@ This project includes both automated and manual builds via GitHub Actions.
 
 For macOS, we provide **three manual-trigger workflows** to support different hardware and OS versions:
 
-| Workflow | Target Hardware | macOS Versions | C++ Std | Use Case |
-|----------|----------------|----------------|---------|----------|
-| **Build macOS ARM64** | Apple Silicon (M1/M2/M3) | Sonoma 14.0+ | C++23 | Modern Apple Silicon Macs |
-| **Build macOS Intel** | Modern Intel Macs | Big Sur 11.0+ | C++23 | Modern Intel Macs |
-| **Build macOS Legacy** | Older Intel Macs | Catalina 10.15, Mojave 10.14, High Sierra 10.13 | C++20 | Legacy Intel Macs |
+| Workflow                 | Target Hardware          | macOS Versions                                  | C++ Std  | Use Case                  |
+|--------------------------|--------------------------|-------------------------------------------------|----------|---------------------------|
+| **Build macOS ARM64**    | Apple Silicon (M1/M2/M3) | Sonoma 14.0+                                    | C++23    | Modern Apple Silicon Macs |
+| **Build macOS Intel**    | Modern Intel Macs        | Big Sur 11.0+                                   | C++23    | Modern Intel Macs         |
+| **Build macOS Legacy**   | Older Intel Macs         | Catalina 10.15, Mojave 10.14, High Sierra 10.13 | C++20    | Legacy Intel Macs         |
 
 **To trigger:** Go to Actions → Select workflow → Run workflow
 
 See `.github/workflows/README-*.md` for detailed instructions on each workflow.
-
-### Automated Build Platforms
-
-The multi-platform CI/CD pipeline automatically builds for:
-- **Ubuntu Linux** (x64)
-- **Windows** (x64)
 
 ### Downloading Pre-built Binaries
 
@@ -389,7 +383,7 @@ For detailed CI/CD documentation, see [.github/BUILD.md](.github/BUILD.md).
 ## Build & Run (Desktop)
 
 ### Prerequisites (For Development Computer Only)
-- C++23 or later (the compiler must support C++23 or later)
+- C++20 or later
 > - It should be at C++26 but Apple Clang partially support C++26 
 - CMake 3.22 or later
 - sqlite3 3.50.4
