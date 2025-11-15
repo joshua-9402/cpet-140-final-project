@@ -1,0 +1,168 @@
+name: Build Windows ARM64 (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Release
+          - Debug
+      enable_lto:
+        description: 'Enable Link-Time Optimization'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build-windows-arm64:
+    name: Windows ARM64
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: System information
+      shell: pwsh
+      run: |
+        Write-Host "=== System Info ==="
+        Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsArchitecture
+        Write-Host "`n=== CPU Info ==="
+        Get-WmiObject Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors
+        Write-Host "`n=== Available Memory ==="
+        $memory = Get-WmiObject Win32_OperatingSystem
+        Write-Host "Total RAM: $([math]::Round($memory.TotalVisibleMemorySize/1MB, 2)) GB"
+        Write-Host "`n=== Target Architecture: ARM64 ==="
+
+    - name: Install Ninja
+      shell: pwsh
+      run: |
+        Write-Host "=== Installing Ninja build system ==="
+        choco install ninja -y
+        ninja --version
+
+    - name: Setup MSVC for ARM64
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: amd64_arm64
+
+    - name: Verify MSVC ARM64 Cross-Compiler
+      shell: pwsh
+      run: |
+        Write-Host "=== Verifying MSVC ARM64 cross-compiler ==="
+        cl
+        Write-Host "`nCMake version:"
+        cmake --version
+        Write-Host "`nNinja version:"
+        ninja --version
+
+    - name: Configure CMake
+      shell: pwsh
+      run: |
+        Write-Host "=== Configuring CMake for ARM64 ==="
+        if ("${{ inputs.enable_lto }}" -eq "true") {
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
+            -G Ninja `
+            -DCMAKE_SYSTEM_NAME=Windows `
+            -DCMAKE_SYSTEM_PROCESSOR=ARM64
+        } else {
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} `
+            -G Ninja `
+            -DCMAKE_SYSTEM_NAME=Windows `
+            -DCMAKE_SYSTEM_PROCESSOR=ARM64 `
+            -DNO_LTO=ON
+        }
+
+    - name: Build
+      shell: pwsh
+      run: |
+        Write-Host "=== Building application for ARM64 ==="
+        $cores = (Get-WmiObject Win32_Processor).NumberOfLogicalProcessors
+        cmake --build build --config ${{ inputs.build_type }} -j $cores
+
+    - name: Verify build output
+      shell: pwsh
+      run: |
+        Write-Host "=== Checking build output ==="
+        Get-ChildItem -Recurse build | Where-Object {$_.Name -like "*payroll*"} | Select-Object FullName, Length
+        
+        $exe = Get-ChildItem -Recurse build -Filter "payroll-and-monitoring-system.exe" | Select-Object -First 1
+        
+        if ($exe) {
+          Write-Host "`n✅ Executable found: $($exe.FullName)"
+          Write-Host "Size: $([math]::Round($exe.Length/1MB, 2)) MB"
+          
+          # Verify it's ARM64
+          $fileInfo = & dumpbin /headers $exe.FullName | Select-String "machine"
+          Write-Host "`n=== Architecture Verification ==="
+          Write-Host $fileInfo
+          Write-Host "(Should show: AA64 machine (ARM64))"
+        } else {
+          Write-Host "`n❌ Build output not found!"
+          exit 1
+        }
+
+    - name: Package artifacts
+      shell: pwsh
+      run: |
+        Write-Host "=== Packaging application ==="
+        New-Item -ItemType Directory -Force -Path artifact
+        
+        # Find and copy executable
+        $exe = Get-ChildItem -Recurse build -Filter "payroll-and-monitoring-system.exe" | Select-Object -First 1
+        
+        if ($exe) {
+          Copy-Item $exe.FullName artifact/
+          Write-Host "Copied executable: $($exe.Name)"
+        } else {
+          Write-Error "Executable not found!"
+          exit 1
+        }
+        
+        # Copy assets
+        if (Test-Path assets) {
+          Copy-Item -Recurse assets artifact/
+          Write-Host "Copied assets folder"
+        }
+        
+        # Create archive
+        $archiveName = "payroll-and-monitoring-system-windows-arm64-${{ inputs.build_type }}.zip"
+        Compress-Archive -Path artifact/* -DestinationPath $archiveName -CompressionLevel Optimal
+        
+        Write-Host "`n=== Archive created ==="
+        Get-Item $archiveName | Select-Object Name, Length
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: payroll-and-monitoring-system-windows-arm64-${{ inputs.build_type }}
+        path: payroll-and-monitoring-system-windows-arm64-${{ inputs.build_type }}.zip
+        retention-days: 90
+        compression-level: 0
+
+    - name: Build summary
+      shell: pwsh
+      run: |
+        $summary = "### ✅ Build Completed Successfully`n`n"
+        $summary += "Platform: Windows ARM64`n"
+        $summary += "Build Type: ${{ inputs.build_type }}`n"
+        $summary += "LTO Enabled: ${{ inputs.enable_lto }}`n"
+        $summary += "Compiler: MSVC (Microsoft Visual C++) ARM64 Cross-Compiler`n"
+        $summary += "Architecture: ARM64 (64-bit)`n`n"
+        $summary += "Artifact: payroll-and-monitoring-system-windows-arm64-${{ inputs.build_type }}.zip`n`n"
+        $summary += "Download the artifact from the workflow run page.`n`n"
+        $summary += "**Note:** This is an ARM64 build. It will run on:`n"
+        $summary += "- Windows 11 ARM64 devices (Surface Pro X, etc.)`n"
+        $summary += "- Windows 10 ARM64 devices`n"
+        $summary += "- x64 Windows via emulation (slower)`n"
+        
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $summary
+

@@ -21,9 +21,9 @@ This document describes all the GitHub Actions workflows available for building 
 
 This project provides multiple build workflows to support different platforms and macOS versions:
 
-- **Automated builds** - Run automatically on push (Linux, Windows)
+- **Automated builds** - Run automatically on push (Linux, Windows x64)
 - **Manual macOS builds** - Run on-demand for specific macOS targets (3 workflows)
-- **Manual Windows build** - Run on-demand for Windows x64
+- **Manual Windows builds** - Run on-demand for Windows x64 and ARM64
 
 ### Why Multiple macOS Workflows?
 
@@ -193,6 +193,43 @@ payroll-and-monitoring-system-macos-legacy-10.15-Release.tar.gz
 **Artifact Name:**
 ```
 payroll-and-monitoring-system-windows-x64-Release.zip
+```
+
+---
+
+### Windows ARM64 (Manual)
+
+**File:** `build-windows-arm64.yml`  
+**Documentation:** `README-windows-arm64.md`
+
+**Target Platform:**
+- Windows 11/10 ARM64 (Snapdragon-based devices)
+
+**Configuration:**
+- **Runner:** `windows-latest` (Windows Server 2022 x64)
+- **Build Architecture:** x64 (cross-compilation)
+- **Target Architecture:** ARM64
+- **C++ Standard:** C++23
+- **Compiler:** MSVC ARM64 cross-compiler
+- **LTO (LTCG):** Enabled by default
+- **Optimizations:** `/O2 /GL /LTCG`
+
+**When to Use:**
+- Building for ARM64 Windows devices (Surface Pro X, etc.)
+- Users have Snapdragon-based Windows PCs
+- Want native ARM64 performance
+
+**Key Features:**
+- Manual trigger only (build on demand)
+- Cross-compiled from x64 to ARM64
+- Configurable build type (Release/Debug)
+- Optional LTCG (Link-Time Code Generation)
+- Architecture verification with `dumpbin`
+- 90-day artifact retention
+
+**Artifact Name:**
+```
+payroll-and-monitoring-system-windows-arm64-Release.zip
 ```
 
 ---
