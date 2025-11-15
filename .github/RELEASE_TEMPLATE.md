@@ -33,7 +33,7 @@ All builds require standard system libraries:
 ```bash
 # Debian/Ubuntu
 sudo apt-get install libfreetype6 libgl1 libx11-6 libxrandr2 libxinerama1 libxcursor1 libxi6
-```
+
 
 # Fedora/Red Hat
 sudo dnf install freetype mesa-libGL libX11 libXrandr libXinerama libXcursor libXi
