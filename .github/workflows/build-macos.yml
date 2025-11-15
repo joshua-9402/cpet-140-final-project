@@ -1,8 +1,17 @@
-name: macOS for Apple Silicon
+name: macOS
 
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: 'macOS Target'
+        required: true
+        default: 'arm64'
+        type: choice
+        options:
+          - arm64
+          - intel
+          - legacy
       build_type:
         description: 'Build type'
         required: true
@@ -18,9 +27,9 @@ on:
         type: boolean
 
 jobs:
-  build-macos-arm64:
-    name: macOS Sonoma ARM64
-    runs-on: macos-14  # macOS Sonoma 14.x on Apple Silicon
+  build-macos:
+    name: macOS (${{ inputs.target }})
+    runs-on: ${{ inputs.target == 'arm64' && 'macos-14' || inputs.target == 'intel' && 'macos-13' || 'macos-12' }}
 
     steps:
     - name: Checkout code
@@ -50,16 +59,30 @@ jobs:
     - name: Configure CMake
       run: |
         echo "=== Configuring CMake ==="
+        
+        # Set deployment target based on selection
+        if [ "${{ inputs.target }}" = "arm64" ]; then
+          DEPLOYMENT_TARGET="14.0"
+        elif [ "${{ inputs.target }}" = "intel" ]; then
+          DEPLOYMENT_TARGET="11.0"
+        else
+          DEPLOYMENT_TARGET="10.13"
+          # Force x86_64 for legacy builds
+          export CMAKE_OSX_ARCHITECTURES="x86_64"
+        fi
+        
         if [ "${{ inputs.enable_lto }}" = "true" ]; then
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
             -G Ninja \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=$DEPLOYMENT_TARGET \
+            ${CMAKE_OSX_ARCHITECTURES:+-DCMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCHITECTURES}
         else
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
             -G Ninja \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=$DEPLOYMENT_TARGET \
+            ${CMAKE_OSX_ARCHITECTURES:+-DCMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCHITECTURES} \
             -DNO_LTO=ON
         fi
 
@@ -75,6 +98,7 @@ jobs:
         if [ -d "build/payroll-and-monitoring-system.app" ]; then
           echo "✅ App bundle created"
           ls -lh build/payroll-and-monitoring-system.app/Contents/MacOS/
+          file build/payroll-and-monitoring-system.app/Contents/MacOS/payroll-and-monitoring-system
         elif [ -f "build/payroll-and-monitoring-system" ]; then
           echo "✅ Executable created"
           ls -lh build/payroll-and-monitoring-system
@@ -93,44 +117,51 @@ jobs:
         if [ -d "build/payroll-and-monitoring-system.app" ]; then
           echo "Packaging .app bundle"
           cp -r build/payroll-and-monitoring-system.app artifact/
-          # Create DMG-ready structure
-          mkdir -p artifact/Applications
-          ln -s /Applications artifact/Applications
         else
           echo "Packaging standalone executable"
           cp build/payroll-and-monitoring-system artifact/
-        fi
-        
-        # Copy assets
-        if [ -d "assets" ]; then
-          cp -r assets artifact/
+          # Copy assets if they exist
+          if [ -d "assets" ]; then
+            cp -r assets artifact/
+          fi
         fi
         
         # Create archive
         cd artifact
-        tar -czf ../payroll-and-monitoring-system-macos-arm64-${{ inputs.build_type }}.tar.gz *
+        tar -czf ../payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz *
         cd ..
         
         echo "=== Archive created ==="
-        ls -lh payroll-and-monitoring-system-macos-arm64-${{ inputs.build_type }}.tar.gz
+        ls -lh payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: payroll-and-monitoring-system-macos-arm64-${{ inputs.build_type }}
-        path: payroll-and-monitoring-system-macos-arm64-${{ inputs.build_type }}.tar.gz
+        name: payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}
+        path: payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
         retention-days: 90
-        compression-level: 0
 
     - name: Build summary
       run: |
-        echo "### ✅ Build Completed Successfully" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Platform:** macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
-        echo "**Build Type:** ${{ inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
-        echo "**LTO Enabled:** ${{ inputs.enable_lto }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Artifact:** payroll-and-monitoring-system-macos-arm64-${{ inputs.build_type }}.tar.gz" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Download the artifact from the workflow run page." >> $GITHUB_STEP_SUMMARY
+        TARGET_NAME="${{ inputs.target }}"
+        if [ "$TARGET_NAME" = "arm64" ]; then
+          TARGET_DESC="Apple Silicon (M1/M2/M3/M4) - macOS 14.0+"
+        elif [ "$TARGET_NAME" = "intel" ]; then
+          TARGET_DESC="Intel (x64) - macOS 11.0+"
+        else
+          TARGET_DESC="Legacy Intel (x64) - macOS 10.13+"
+        fi
+        
+        cat << EOF >> $GITHUB_STEP_SUMMARY
+        ### ✅ Build Completed Successfully
+        
+        **Target:** $TARGET_DESC
+        **Build Type:** ${{ inputs.build_type }}
+        **LTO Enabled:** ${{ inputs.enable_lto }}
+        **Compiler:** $(clang++ --version | head -1)
+        
+        **Artifact:** payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
+        
+        Download the artifact from the workflow run page.
+        EOF
 
