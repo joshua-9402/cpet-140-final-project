@@ -1,0 +1,327 @@
+name: Create Release Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  # Linux Debian/Ubuntu builds
+  build-linux-debian:
+    name: Linux Debian/Ubuntu (${{ matrix.distribution }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        distribution: [ubuntu-22.04, ubuntu-20.04, debian-12]
+        arch: [x64, arm64]
+    container:
+      image: ${{ matrix.distribution == 'debian-12' && 'debian:12' || format('ubuntu:{0}', matrix.distribution == 'ubuntu-22.04' && '22.04' || '20.04') }}
+
+    steps:
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y build-essential git cmake ninja-build file libglfw3-dev \
+          libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev \
+          libglu1-mesa-dev libfreetype6-dev libfontconfig1-dev pkg-config
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure and Build
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
+        cmake --build build --config Release -j $(nproc)
+
+    - name: Package
+      run: |
+        mkdir -p artifact
+        cp build/payroll-and-monitoring-system artifact/
+        [ -d "assets" ] && cp -r assets artifact/
+        cd artifact && tar -czf ../payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-debian-${{ matrix.distribution }}-${{ matrix.arch }}
+        path: payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        retention-days: 1
+
+  # Linux Fedora/Red Hat builds
+  build-linux-rpm:
+    name: Linux RPM (${{ matrix.distribution }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        distribution: [fedora-latest, almalinux-9, rockylinux-9]
+        arch: [x64, arm64]
+    container:
+      image: ${{ matrix.distribution == 'fedora-latest' && 'fedora:latest' || matrix.distribution == 'almalinux-9' && 'almalinux:9' || 'rockylinux:9' }}
+
+    steps:
+    - name: Install dependencies
+      run: |
+        dnf install -y gcc gcc-c++ git cmake ninja-build file glfw-devel \
+          libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
+          mesa-libGL-devel mesa-libGLU-devel freetype-devel fontconfig-devel pkg-config
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure and Build
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
+        cmake --build build --config Release -j $(nproc)
+
+    - name: Package
+      run: |
+        mkdir -p artifact
+        cp build/payroll-and-monitoring-system artifact/
+        [ -d "assets" ] && cp -r assets artifact/
+        cd artifact && tar -czf ../payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-rpm-${{ matrix.distribution }}-${{ matrix.arch }}
+        path: payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        retention-days: 1
+
+  # Linux SUSE builds
+  build-linux-suse:
+    name: Linux SUSE (${{ matrix.distribution }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        distribution: [opensuse-tumbleweed, opensuse-leap-15.6]
+        arch: [x64, arm64]
+    container:
+      image: ${{ matrix.distribution == 'opensuse-tumbleweed' && 'opensuse/tumbleweed:latest' || 'opensuse/leap:15.6' }}
+
+    steps:
+    - name: Install dependencies
+      run: |
+        zypper refresh
+        zypper install -y gcc gcc-c++ git cmake ninja file glfw-devel \
+          libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
+          Mesa-libGL-devel glu-devel freetype2-devel fontconfig-devel pkg-config
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure and Build
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
+        cmake --build build --config Release -j $(nproc)
+
+    - name: Package
+      run: |
+        mkdir -p artifact
+        cp build/payroll-and-monitoring-system artifact/
+        [ -d "assets" ] && cp -r assets artifact/
+        cd artifact && tar -czf ../payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-suse-${{ matrix.distribution }}-${{ matrix.arch }}
+        path: payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        retention-days: 1
+
+  # macOS builds
+  build-macos:
+    name: macOS (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - target: arm64
+            runner: macos-14
+            deployment: "14.0"
+          - target: intel
+            runner: macos-13
+            deployment: "11.0"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        brew install cmake ninja freetype
+
+    - name: Configure and Build
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
+          ${{ matrix.target == 'intel' && '-DCMAKE_OSX_ARCHITECTURES=x86_64' || '' }} \
+          -G Ninja
+        cmake --build build --config Release -j $(sysctl -n hw.ncpu)
+
+    - name: Package
+      run: |
+        cd build
+        tar -czf ../payroll-and-monitoring-system-macos-${{ matrix.target }}-Release.tar.gz payroll-and-monitoring-system.app
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-${{ matrix.target }}
+        path: payroll-and-monitoring-system-macos-${{ matrix.target }}-Release.tar.gz
+        retention-days: 1
+
+  # Windows builds
+  build-windows:
+    name: Windows (${{ matrix.arch }})
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install Ninja
+      shell: pwsh
+      run: |
+        choco install ninja -y
+        ninja --version
+
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: ${{ matrix.arch == 'arm64' && 'amd64_arm64' || 'amd64' }}
+
+    - name: Configure and Build
+      shell: pwsh
+      run: |
+        cmake -B build `
+          -DCMAKE_BUILD_TYPE=Release `
+          -G Ninja `
+          ${{ matrix.arch == 'arm64' && '-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64' || '' }}
+        cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+
+    - name: Package
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path artifact
+        $exe = Get-ChildItem -Recurse build -Filter "payroll-and-monitoring-system.exe" | Select-Object -First 1
+        Copy-Item $exe.FullName artifact/
+        if (Test-Path assets) { Copy-Item -Recurse assets artifact/ }
+        Compress-Archive -Path artifact/* -DestinationPath "payroll-and-monitoring-system-windows-${{ matrix.arch }}-Release.zip"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-${{ matrix.arch }}
+        path: payroll-and-monitoring-system-windows-${{ matrix.arch }}-Release.zip
+        retention-days: 1
+
+  # Create GitHub Release
+  create-release:
+    name: Create Release
+    needs: [build-linux-debian, build-linux-rpm, build-linux-suse, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Display structure
+      run: ls -R artifacts
+
+    - name: Prepare release assets
+      run: |
+        mkdir release-assets
+        find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \;
+        ls -lh release-assets/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ inputs.version }}
+        name: Release ${{ inputs.version }}
+        draft: false
+        prerelease: ${{ inputs.prerelease }}
+        generate_release_notes: true
+        body: |
+          ## 🎉 Release ${{ inputs.version }}
+          
+          ### Payroll and Monitoring System
+          
+          **Build Date:** ${{ github.event.repository.updated_at }}
+          **Commit:** ${{ github.sha }}
+          
+          ### 📦 Available Builds
+          
+          #### Linux (Debian/Ubuntu Family)
+          - Ubuntu 22.04 (x64, ARM64)
+          - Ubuntu 20.04 (x64, ARM64)
+          - Debian 12 (x64, ARM64)
+          
+          #### Linux (Fedora/Red Hat Family)
+          - Fedora Latest (x64, ARM64)
+          - AlmaLinux 9 (x64, ARM64)
+          - Rocky Linux 9 (x64, ARM64)
+          
+          #### Linux (SUSE Family)
+          - openSUSE Tumbleweed (x64, ARM64)
+          - openSUSE Leap 15.6 (x64, ARM64)
+          
+          #### macOS
+          - Apple Silicon (ARM64) - macOS 14.0+
+          - Intel (x64) - macOS 11.0+
+          
+          #### Windows
+          - Windows x64
+          - Windows ARM64
+          
+          ### 🔧 Build Configuration
+          - **Build Type:** Release
+          - **LTO:** Enabled
+          - **Optimizations:** Maximum (-O3, /O2)
+          
+          ### 📝 Installation
+          
+          **Linux/macOS:**
+          ```bash
+          tar -xzf payroll-and-monitoring-system-*.tar.gz
+          ./payroll-and-monitoring-system
+          ```
+          
+          **Windows:**
+          ```powershell
+          Expand-Archive payroll-and-monitoring-system-*.zip
+          .\payroll-and-monitoring-system.exe
+          ```
+          
+          ### 📚 Documentation
+          See the repository README for full documentation and usage instructions.
+        files: release-assets/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
