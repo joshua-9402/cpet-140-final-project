@@ -28,28 +28,13 @@ on:
         required: true
         default: 0
         type: number
-      linux_debian:
-        description: 'Linux Debian/Ubuntu'
-        required: true
-        default: 'both'
-        type: choice
-        options:
-          - 'both'
-          - 'x64'
-          - 'arm64'
-          - 'skip'
-      linux_rpm:
-        description: 'Linux Fedora/Red Hat'
-        required: true
-        default: 'both'
-        type: choice
-        options:
-          - 'both'
-          - 'x64'
-          - 'arm64'
-          - 'skip'
-      linux_suse:
-        description: 'Linux SUSE'
+      stage_iteration:
+        description: 'Stage Build Number (e.g., 1, 2, 3 for -beta.1, -beta.2, etc.)'
+        required: false
+        default: 0
+        type: number
+      linux:
+        description: 'Linux'
         required: true
         default: 'both'
         type: choice
@@ -96,6 +81,7 @@ jobs:
         X_NAME="${{ inputs.version_x }}"   # pre-alpha | alpha | beta | rc | stable
         Y="${{ inputs.version_y }}"
         Z="${{ inputs.version_z }}"
+        ITERATION="${{ inputs.stage_iteration }}"
 
         # Map stage name to numeric X and textual suffix/label
         case "$X_NAME" in
@@ -113,6 +99,11 @@ jobs:
             echo "Unknown stage '$X_NAME'" >&2; exit 1 ;;
         esac
 
+        # Append iteration number if provided (e.g., -beta.1, -pre-alpha.2)
+        # Only append for non-stable releases and when iteration > 0
+        if [ "$ITERATION" -gt 0 ] && [ "$X_NAME" != "stable" ]; then
+          STAGE_SUFFIX="${STAGE_SUFFIX}.${ITERATION}"
+        fi
 
         VERSION_NUMERIC="v${W}.${X_NUM}.${Y}.${Z}"
         COMBINED_VERSION="${VERSION_NUMERIC}${STAGE_SUFFIX}"
@@ -125,10 +116,10 @@ jobs:
     name: Linux Debian/Ubuntu (${{ matrix.arch }})
     needs: prepare-version
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.linux_debian != 'skip'
+    if: inputs.linux != 'skip'
     strategy:
       matrix:
-        arch: ${{ fromJSON(inputs.linux_debian == 'both' && '["x64", "arm64"]' || inputs.linux_debian == 'x64' && '["x64"]' || '["arm64"]') }}
+        arch: ${{ fromJSON(inputs.linux == 'both' && '["x64", "arm64"]' || inputs.linux == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: ubuntu:22.04
 
@@ -193,10 +184,10 @@ jobs:
     name: Linux RPM (${{ matrix.arch }})
     needs: prepare-version
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.linux_rpm != 'skip'
+    if: inputs.linux != 'skip'
     strategy:
       matrix:
-        arch: ${{ fromJSON(inputs.linux_rpm == 'both' && '["x64", "arm64"]' || inputs.linux_rpm == 'x64' && '["x64"]' || '["arm64"]') }}
+        arch: ${{ fromJSON(inputs.linux == 'both' && '["x64", "arm64"]' || inputs.linux == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: fedora:latest
 
@@ -260,10 +251,10 @@ jobs:
     name: Linux SUSE (${{ matrix.arch }})
     needs: prepare-version
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.linux_suse != 'skip'
+    if: inputs.linux != 'skip'
     strategy:
       matrix:
-        arch: ${{ fromJSON(inputs.linux_suse == 'both' && '["x64", "arm64"]' || inputs.linux_suse == 'x64' && '["x64"]' || '["arm64"]') }}
+        arch: ${{ fromJSON(inputs.linux == 'both' && '["x64", "arm64"]' || inputs.linux == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: opensuse/tumbleweed:latest
 
