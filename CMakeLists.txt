@@ -104,11 +104,9 @@ if(UNIX AND NOT APPLE)
 elseif(APPLE)
     # macOS: Use a temporary staging directory to avoid permission issues
     set(CPACK_PACKAGING_INSTALL_PREFIX "/tmp/_cpack_staging")
-elseif(WIN32)
-    # Windows: Set to relative path to avoid absolute install destination errors
-    # NSIS/WiX will use this as the install directory name
-    set(CMAKE_INSTALL_PREFIX "StructuraCost" CACHE PATH "Install prefix for Windows" FORCE)
 endif()
+# Note: Windows doesn't set CMAKE_INSTALL_PREFIX or CPACK_PACKAGING_INSTALL_PREFIX
+# NSIS/WiX installers handle their own default paths (e.g., C:\Program Files\StructuraCost)
 
 if(APPLE)
     # Install the .app bundle directly
@@ -178,6 +176,7 @@ set(CPACK_NSIS_DISPLAY_NAME "StructuraCost")
 set(CPACK_NSIS_PACKAGE_NAME "StructuraCost")
 set(CPACK_NSIS_CONTACT "")
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+set(CPACK_NSIS_MODIFY_PATH OFF)  # Don't modify system PATH
 
 # WiX (Windows .msi) - set a stable upgrade GUID
 # Generate your own GUID for production; this constant ensures upgrades work
