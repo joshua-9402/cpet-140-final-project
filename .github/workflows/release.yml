@@ -27,11 +27,10 @@ jobs:
   build-linux-debian:
     name: Linux Debian/Ubuntu (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.architectures == 'both' || inputs.architectures == matrix.arch
     strategy:
       matrix:
         distribution: [ubuntu-22.04]
-        arch: [x64, arm64]
+        arch: ${{ fromJSON(inputs.architectures == 'both' && '["x64", "arm64"]' || inputs.architectures == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: ubuntu:22.04
 
@@ -72,11 +71,10 @@ jobs:
   build-linux-rpm:
     name: Linux RPM (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.architectures == 'both' || inputs.architectures == matrix.arch
     strategy:
       matrix:
         distribution: [fedora-latest]
-        arch: [x64, arm64]
+        arch: ${{ fromJSON(inputs.architectures == 'both' && '["x64", "arm64"]' || inputs.architectures == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: fedora:latest
 
@@ -116,11 +114,10 @@ jobs:
   build-linux-suse:
     name: Linux SUSE (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.architectures == 'both' || inputs.architectures == matrix.arch
     strategy:
       matrix:
         distribution: [opensuse-tumbleweed]
-        arch: [x64, arm64]
+        arch: ${{ fromJSON(inputs.architectures == 'both' && '["x64", "arm64"]' || inputs.architectures == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: opensuse/tumbleweed:latest
 
@@ -161,16 +158,9 @@ jobs:
   build-macos:
     name: macOS (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
-    if: inputs.architectures == 'both' || (inputs.architectures == 'arm64' && matrix.target == 'arm64') || (inputs.architectures == 'x64' && matrix.target == 'intel')
     strategy:
       matrix:
-        include:
-          - target: arm64
-            runner: macos-14
-            deployment: "14.0"
-          - target: intel
-            runner: macos-13
-            deployment: "11.0"
+        include: ${{ fromJSON(inputs.architectures == 'both' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"},{"target":"intel","runner":"macos-13","deployment":"11.0"}]' || inputs.architectures == 'arm64' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"}]' || '[{"target":"intel","runner":"macos-13","deployment":"11.0"}]') }}
 
     steps:
     - name: Checkout code
@@ -207,10 +197,9 @@ jobs:
   build-windows:
     name: Windows (${{ matrix.arch }})
     runs-on: windows-latest
-    if: inputs.architectures == 'both' || inputs.architectures == matrix.arch
     strategy:
       matrix:
-        arch: [x64, arm64]
+        arch: ${{ fromJSON(inputs.architectures == 'both' && '["x64", "arm64"]' || inputs.architectures == 'x64' && '["x64"]' || '["arm64"]') }}
 
     steps:
     - name: Checkout code
