@@ -1,6 +1,6 @@
 ## What's Changed
 
-- 
+- add: add support for hashing passwords with sodium
 
 ## Supported Platforms
 
