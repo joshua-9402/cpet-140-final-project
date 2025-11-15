@@ -63,14 +63,12 @@ on:
           - 'skip'
 
 jobs:
-  # Linux Debian/Ubuntu builds
   build-linux-debian:
-    name: Linux Debian/Ubuntu (${{ matrix.distribution }}-${{ matrix.arch }})
+    name: Linux Debian/Ubuntu (${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     if: inputs.linux_debian != 'skip'
     strategy:
       matrix:
-        distribution: [ubuntu-22.04]
         arch: ${{ fromJSON(inputs.linux_debian == 'both' && '["x64", "arm64"]' || inputs.linux_debian == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: ubuntu:22.04
@@ -82,7 +80,7 @@ jobs:
         apt-get install -y build-essential git cmake ninja-build file libglfw3-dev \
           libwayland-dev wayland-protocols \
           libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev \
-          libglu1-mesa-dev libfreetype6-dev libfontconfig1-dev pkg-config
+          libglu1-mesa-dev libfreetype6-dev libfontconfig1-dev pkg-config fakeroot
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -91,33 +89,47 @@ jobs:
 
     - name: Configure and Build
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
         cmake --build build --config Release -j $(nproc)
 
-    - name: Package
+    - name: Package (TGZ fallback)
       run: |
         mkdir -p artifact
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        ARCH_NAME="${{ matrix.arch }}"
-        [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
         cd artifact && tar -czf ../structuracost-linux-debian-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
 
-    - name: Upload artifact
+    - name: Build DEB installer via CPack
+      run: |
+        cmake -B build -DCPACK_GENERATOR=DEB -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake --build build --target package
+        ls -1 build | grep -E '\.deb$' || true
+
+    - name: Collect Debian installer
+      run: |
+        mkdir -p installers
+        find build -maxdepth 1 -type f -name "*.deb" -exec cp {} installers/ \; || true
+        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        if ls installers/*.deb 1> /dev/null 2>&1; then
+          for f in installers/*.deb; do mv "$f" installers/structuracost-linux-debian-${ARCH_NAME}-${{ inputs.version }}.deb; done
+        fi
+
+    - name: Upload Debian artifacts
       uses: actions/upload-artifact@v4
       with:
         name: linux-debian-${{ matrix.arch }}
-        path: structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
-        retention-days: 1
+        path: |
+          structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
+          installers/structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.deb
+        retention-days: 7
 
-  # Linux Fedora/Red Hat builds
   build-linux-rpm:
-    name: Linux RPM (${{ matrix.distribution }}-${{ matrix.arch }})
+    name: Linux RPM (${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     if: inputs.linux_rpm != 'skip'
     strategy:
       matrix:
-        distribution: [fedora-latest]
         arch: ${{ fromJSON(inputs.linux_rpm == 'both' && '["x64", "arm64"]' || inputs.linux_rpm == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: fedora:latest
@@ -128,7 +140,7 @@ jobs:
         dnf install -y gcc gcc-c++ git cmake ninja-build file glfw-devel \
           wayland-devel wayland-protocols-devel \
           libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
-          mesa-libGL-devel mesa-libGLU-devel freetype-devel fontconfig-devel pkg-config
+          mesa-libGL-devel mesa-libGLU-devel freetype-devel fontconfig-devel pkg-config rpm-build
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -137,31 +149,47 @@ jobs:
 
     - name: Configure and Build
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
         cmake --build build --config Release -j $(nproc)
 
-    - name: Package
+    - name: Package (TGZ fallback)
       run: |
         mkdir -p artifact
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        ARCH_NAME="${{ matrix.arch }}"
-        [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
         cd artifact && tar -czf ../structuracost-linux-rpm-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
 
-    - name: Upload artifact
+    - name: Build RPM installer via CPack
+      run: |
+        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake --build build --target package
+        ls -1 build | grep -E '\.rpm$' || true
+
+    - name: Collect RPM installer
+      run: |
+        mkdir -p installers
+        find build -maxdepth 1 -type f -name "*.rpm" -exec cp {} installers/ \; || true
+        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        if ls installers/*.rpm 1> /dev/null 2>&1; then
+          for f in installers/*.rpm; do mv "$f" installers/structuracost-linux-rpm-${ARCH_NAME}-${{ inputs.version }}.rpm; done
+        fi
+
+    - name: Upload RPM artifacts
       uses: actions/upload-artifact@v4
       with:
         name: linux-rpm-${{ matrix.arch }}
-        path: structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
-        retention-days: 1
+        path: |
+          structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
+          installers/structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.rpm
+        retention-days: 7
+
   build-linux-suse:
-    name: Linux SUSE (${{ matrix.distribution }}-${{ matrix.arch }})
+    name: Linux SUSE (${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     if: inputs.linux_suse != 'skip'
     strategy:
       matrix:
-        distribution: [opensuse-tumbleweed]
         arch: ${{ fromJSON(inputs.linux_suse == 'both' && '["x64", "arm64"]' || inputs.linux_suse == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: opensuse/tumbleweed:latest
@@ -172,7 +200,7 @@ jobs:
         zypper refresh
         zypper install -y gcc gcc-c++ git cmake ninja file \
           libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
-          Mesa-libGL-devel libGLU1 freetype2-devel fontconfig-devel
+          Mesa-libGL-devel libGLU1 freetype2-devel fontconfig-devel rpm-build
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -181,25 +209,41 @@ jobs:
 
     - name: Configure and Build
       run: |
-        # Let HelloImGui use its bundled GLFW instead of system GLFW
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
         cmake --build build --config Release -j $(nproc)
 
-    - name: Package
+    - name: Package (TGZ fallback)
       run: |
         mkdir -p artifact
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        ARCH_NAME="${{ matrix.arch }}"
-        [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
         cd artifact && tar -czf ../structuracost-linux-suse-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
 
-    - name: Upload artifact
+    - name: Build RPM installer via CPack (SUSE)
+      run: |
+        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake --build build --target package
+        ls -1 build | grep -E '\.rpm$' || true
+
+    - name: Collect SUSE RPM installer
+      run: |
+        mkdir -p installers
+        find build -maxdepth 1 -type f -name "*.rpm" -exec cp {} installers/ \; || true
+        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
+        if ls installers/*.rpm 1> /dev/null 2>&1; then
+          for f in installers/*.rpm; do mv "$f" installers/structuracost-linux-suse-${ARCH_NAME}-${{ inputs.version }}.rpm; done
+        fi
+
+    - name: Upload SUSE artifacts
       uses: actions/upload-artifact@v4
       with:
         name: linux-suse-${{ matrix.arch }}
-        path: structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
-        retention-days: 1
+        path: |
+          structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
+          installers/structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.rpm
+        retention-days: 7
+
   build-macos:
     name: macOS (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
@@ -224,22 +268,43 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
           ${{ matrix.target == 'intel' && '-DCMAKE_OSX_ARCHITECTURES=x86_64' || '' }} \
+          -DCPACK_PACKAGE_VERSION=${{ inputs.version }} \
+          -DCPACK_GENERATOR="DragNDrop;productbuild" \
           -G Ninja
         cmake --build build --config Release -j $(sysctl -n hw.ncpu)
 
-    - name: Package
+    - name: Make TGZ package (fallback)
       run: |
         cd build
         tar -czf ../structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.tar.gz structuracost.app
 
-    - name: Upload artifact
+    - name: Build installers via CPack (DMG + PKG)
+      run: |
+        cmake --build build --target package
+        ls -1 build | grep -E '\.(dmg|pkg)$' || true
+
+    - name: Collect macOS installers
+      run: |
+        mkdir -p installers
+        find build -maxdepth 1 -type f -name "*.dmg" -exec cp {} installers/ \; || true
+        find build -maxdepth 1 -type f -name "*.pkg" -exec cp {} installers/ \; || true
+        if ls installers/*.dmg 1> /dev/null 2>&1; then
+          mv installers/*.dmg installers/structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.dmg
+        fi
+        if ls installers/*.pkg 1> /dev/null 2>&1; then
+          mv installers/*.pkg installers/structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.pkg
+        fi
+
+    - name: Upload macOS artifacts
       uses: actions/upload-artifact@v4
       with:
         name: macos-${{ matrix.target }}
-        path: structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.tar.gz
-        retention-days: 1
+        path: |
+          structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.tar.gz
+          installers/structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.dmg
+          installers/structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.pkg
+        retention-days: 7
 
-  # Windows builds
   build-windows:
     name: Windows (${{ matrix.arch }})
     runs-on: windows-latest
@@ -254,11 +319,13 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install Ninja
+    - name: Install tools
       shell: pwsh
       run: |
-        choco install ninja -y
+        choco install ninja nsis wixtoolset -y
         ninja --version
+        makensis /VERSION
+        candle.exe -? | Out-Null
 
     - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
@@ -271,27 +338,48 @@ jobs:
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
           -G Ninja `
+          -DCPACK_PACKAGE_VERSION=${{ inputs.version }} `
+          -DCPACK_GENERATOR="NSIS;WIX" `
           ${{ matrix.arch == 'arm64' && '-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64' || '' }}
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
 
-    - name: Package
+    - name: Make ZIP package (fallback)
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path artifact
+        New-Item -ItemType Directory -Force -Path artifact | Out-Null
         $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
         Copy-Item $exe.FullName artifact/
         if (Test-Path assets) { Copy-Item -Recurse assets artifact/ }
         $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
         Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-$archName-${{ inputs.version }}.zip"
 
-    - name: Upload artifact
+    - name: Build installers via CPack (NSIS EXE + WiX MSI)
+      shell: pwsh
+      run: |
+        cmake --build build --target package
+        Get-ChildItem build -Recurse -Filter *.exe | Select-Object -First 10 | ForEach-Object { $_.FullName }
+        Get-ChildItem build -Recurse -Filter *.msi | Select-Object -First 10 | ForEach-Object { $_.FullName }
+
+    - name: Collect Windows installers
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path installers | Out-Null
+        $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
+        $nsis = Get-ChildItem build -Recurse -Filter "*.exe" | Where-Object { $_.Name -match "structuracost|Setup|Installer" } | Select-Object -First 1
+        if ($nsis) { Copy-Item $nsis.FullName "installers/structuracost-windows-$archName-${{ inputs.version }}.exe" }
+        $msi = Get-ChildItem build -Recurse -Filter "*.msi" | Select-Object -First 1
+        if ($msi) { Copy-Item $msi.FullName "installers/structuracost-windows-$archName-${{ inputs.version }}.msi" }
+
+    - name: Upload Windows artifacts
       uses: actions/upload-artifact@v4
       with:
         name: windows-${{ matrix.arch }}
-        path: structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.zip
-        retention-days: 1
+        path: |
+          structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.zip
+          installers/structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.exe
+          installers/structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.msi
+        retention-days: 7
 
-  # Create GitHub Release
   create-release:
     name: Create Release
     needs: [build-linux-debian, build-linux-rpm, build-linux-suse, build-macos, build-windows]
@@ -312,7 +400,7 @@ jobs:
     - name: Prepare release assets
       run: |
         mkdir release-assets
-        find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \;
+        find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.msi" -o -name "*.exe" \) -exec cp {} release-assets/ \;
         ls -lh release-assets/
 
     - name: Checkout repository for release template
@@ -322,10 +410,7 @@ jobs:
 
     - name: Prepare release notes
       run: |
-        # Read the release template
         cat repo/.github/RELEASE_TEMPLATE.md > release-notes.md
-        
-        # Add Full Changelog link
         echo "" >> release-notes.md
         echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ inputs.version }}" >> release-notes.md
 
