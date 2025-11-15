@@ -97,17 +97,20 @@ endif()
 # Install rules for packaging
 # -------------------------------
 # Default install prefix when creating installers (can be overridden)
-# Note: Only set for Linux; macOS and Windows installers handle their own paths
 if(UNIX AND NOT APPLE)
+    # Linux: Use /opt/structuracost as install prefix
     set(APP_INSTALL_PREFIX "/opt/structuracost" CACHE PATH "Install prefix used inside installers")
     set(CPACK_PACKAGING_INSTALL_PREFIX "${APP_INSTALL_PREFIX}")
 elseif(APPLE)
-    # For macOS, use a relative prefix to avoid permission issues during packaging
-    set(CPACK_PACKAGING_INSTALL_PREFIX "/")
+    # macOS: Use a temporary staging directory to avoid permission issues
+    set(CPACK_PACKAGING_INSTALL_PREFIX "/tmp/_cpack_staging")
+elseif(WIN32)
+    # Windows: NSIS/WiX handle their own install paths, leave default
+    # Don't set CPACK_PACKAGING_INSTALL_PREFIX for Windows
 endif()
 
 if(APPLE)
-    # Install the .app bundle at the root of the package (DMG)
+    # Install the .app bundle directly
     install(TARGETS structuracost BUNDLE DESTINATION .)
     # Ensure assets are present inside the bundle Resources
     install(DIRECTORY assets/ DESTINATION "structuracost.app/Contents/Resources/assets")
@@ -148,9 +151,9 @@ endif()
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md" CACHE FILEPATH "")
 
 # Per-platform DESTDIR handling
-# Windows and macOS need CPACK_SET_DESTDIR=OFF to use relative install paths
-# Linux needs it ON to respect CPACK_PACKAGING_INSTALL_PREFIX
-if(WIN32 OR APPLE)
+# macOS and Linux use CPACK_SET_DESTDIR=ON to install into staging directory (avoids permission issues)
+# Windows uses OFF because NSIS/WiX expect relative paths and handle install location themselves
+if(WIN32)
     set(CPACK_SET_DESTDIR OFF)
 else()
     set(CPACK_SET_DESTDIR ON)
