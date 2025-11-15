@@ -8,9 +8,9 @@ static constexpr std::string APP_TITLE = "APP TITLE";
 static constexpr std::string LOGIN_TITLE = "LOGIN";
 
 static const std::string FONT_NAME = "fonts/OpenSans-Regular.ttf";
-static constexpr std::string DB_NAME_PAYROLL = "payroll.db";
-static constexpr std::string DB_NAME_TRACKER = "tracker.db";
-static constexpr std::string TXT_NAME_USER = "user.txt";
+static const std::string DB_NAME_PAYROLL = "payroll.db";
+static const std::string DB_NAME_TRACKER = "tracker.db";
+static const std::string TXT_NAME_USER = "user.txt";
 
 static constexpr int DEFAULT_WIDTH = 1600;
 static constexpr int DEFAULT_HEIGHT = 900;
