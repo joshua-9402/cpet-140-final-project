@@ -22,6 +22,7 @@ on:
         type: choice
         options:
           - x64
+          - arm64
       build_type:
         description: 'Build type'
         required: true
@@ -39,7 +40,7 @@ on:
 jobs:
   build-linux:
     name: ${{ inputs.distribution }} (${{ inputs.architecture }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.architecture == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     container:
       image: ${{ inputs.distribution == 'debian-latest' && 'debian:latest' || inputs.distribution == 'debian-12' && 'debian:12' || inputs.distribution == 'debian-11' && 'debian:11' || format('ubuntu:{0}', inputs.distribution == 'ubuntu-latest' && 'latest' || inputs.distribution == 'ubuntu-22.04' && '22.04' || '20.04') }}
 

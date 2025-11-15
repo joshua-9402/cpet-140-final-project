@@ -17,11 +17,11 @@ jobs:
   # Linux Debian/Ubuntu builds
   build-linux-debian:
     name: Linux Debian/Ubuntu (${{ matrix.distribution }}-${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     strategy:
       matrix:
         distribution: [ubuntu-22.04, ubuntu-20.04, debian-12]
-        arch: [x64]
+        arch: [x64, arm64]
     container:
       image: ${{ matrix.distribution == 'debian-12' && 'debian:12' || format('ubuntu:{0}', matrix.distribution == 'ubuntu-22.04' && '22.04' || '20.04') }}
 
@@ -61,11 +61,11 @@ jobs:
   # Linux Fedora/Red Hat builds
   build-linux-rpm:
     name: Linux RPM (${{ matrix.distribution }}-${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     strategy:
       matrix:
         distribution: [fedora-latest, almalinux-9, rockylinux-9]
-        arch: [x64]
+        arch: [x64, arm64]
     container:
       image: ${{ matrix.distribution == 'fedora-latest' && 'fedora:latest' || matrix.distribution == 'almalinux-9' && 'almalinux:9' || 'rockylinux:9' }}
 
@@ -104,11 +104,11 @@ jobs:
   # Linux SUSE builds
   build-linux-suse:
     name: Linux SUSE (${{ matrix.distribution }}-${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     strategy:
       matrix:
         distribution: [opensuse-tumbleweed, opensuse-leap-15.6]
-        arch: [x64]
+        arch: [x64, arm64]
     container:
       image: ${{ matrix.distribution == 'opensuse-tumbleweed' && 'opensuse/tumbleweed:latest' || 'opensuse/leap:15.6' }}
 
@@ -281,19 +281,19 @@ jobs:
           
           ### 📦 Available Builds
           
-          #### Linux (Debian/Ubuntu Family) - x64
-          - Ubuntu 22.04
-          - Ubuntu 20.04
-          - Debian 12
+          #### Linux (Debian/Ubuntu Family)
+          - Ubuntu 22.04 (x64, ARM64)
+          - Ubuntu 20.04 (x64, ARM64)
+          - Debian 12 (x64, ARM64)
           
-          #### Linux (Fedora/Red Hat Family) - x64
-          - Fedora Latest
-          - AlmaLinux 9
-          - Rocky Linux 9
+          #### Linux (Fedora/Red Hat Family)
+          - Fedora Latest (x64, ARM64)
+          - AlmaLinux 9 (x64, ARM64)
+          - Rocky Linux 9 (x64, ARM64)
           
-          #### Linux (SUSE Family) - x64
-          - openSUSE Tumbleweed
-          - openSUSE Leap 15.6
+          #### Linux (SUSE Family)
+          - openSUSE Tumbleweed (x64, ARM64)
+          - openSUSE Leap 15.6 (x64, ARM64)
           
           #### macOS
           - Apple Silicon (ARM64) - macOS 14.0+
@@ -307,10 +307,6 @@ jobs:
           - **Build Type:** Release
           - **LTO:** Enabled
           - **Optimizations:** Maximum (-O3, /O2)
-          
-          ### ⚠️ Note on ARM64 Linux
-          ARM64 Linux builds are not included in releases due to GitHub Actions limitations.
-          To build for ARM64 Linux, please build locally on an ARM64 system.
           
           ### 📝 Installation
           
