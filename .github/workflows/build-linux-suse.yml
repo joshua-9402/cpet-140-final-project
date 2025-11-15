@@ -73,7 +73,7 @@ jobs:
           ninja \
           file \
           libglfw-devel \
-          wayland-devel \
+          Mesa-libwayland-egl-devel \
           wayland-protocols-devel \
           pkg-config \
           libXrandr-devel \
