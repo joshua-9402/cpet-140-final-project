@@ -432,14 +432,13 @@ jobs:
   create-release:
     name: Create Release
     needs: [build-linux-debian, build-linux-rpm, build-linux-suse, build-macos, build-windows]
-    if: ${{
+    if: |
       always() &&
       needs.build-linux-debian.result != 'failure' && needs.build-linux-debian.result != 'cancelled' &&
       needs.build-linux-rpm.result != 'failure' && needs.build-linux-rpm.result != 'cancelled' &&
       needs.build-linux-suse.result != 'failure' && needs.build-linux-suse.result != 'cancelled' &&
       needs.build-macos.result != 'failure' && needs.build-macos.result != 'cancelled' &&
       needs.build-windows.result != 'failure' && needs.build-windows.result != 'cancelled'
-    }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
