@@ -116,7 +116,7 @@ jobs:
     - name: Install dependencies
       run: |
         zypper refresh
-        zypper install -y gcc gcc-c++ git cmake ninja file glfw3-devel \
+        zypper install -y gcc gcc-c++ git cmake ninja file libglfw3 \
           libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
           Mesa-libGL-devel libGLU1 freetype2-devel fontconfig-devel
 

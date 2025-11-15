@@ -72,7 +72,7 @@ jobs:
           cmake \
           ninja \
           file \
-          glfw3-devel \
+          libglfw3 \
           libXrandr-devel \
           libXinerama-devel \
           libXcursor-devel \
