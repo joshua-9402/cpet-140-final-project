@@ -362,7 +362,7 @@ This section documents how modules in the repository should be invoked, the mini
 
 - For platform-specific configurations and legacy support, we provide **five manual-trigger workflows**:
 
-##### Windows Builds
+#### Windows Builds
 
 Windows README files:
 - [README-windows-x86_64.md](.github/workflows/README-windows-x86_64.md)
@@ -375,7 +375,7 @@ Windows README files:
 | **Windows** | Computer with Windows 11 | x86_64       | Windows 11             | C++20   | `structuracost-windows-x86_64-${version}` |
 | **Windows** | Computer with Windows 11 | ARM64        | Windows 11 for ARM     | C++20   | `structuracost-windows-arm64-${version}`  |
 
-##### macOS Builds
+#### macOS Builds
 
 macOS README files:
    - [README-macos-arm64.md](.github/workflows/README-macos-arm64.md)
@@ -386,7 +386,7 @@ macOS README files:
 | **macOS** | Apple Silicon (M1/M2/M3) | ARM64        | macOS Sequoia 15.0    | C++20   |            |
 | **macOS** | Intel Macs               | x86_64       | macOS Ventura 13.0    | C++20   |            |
 
-##### Linux Builds
+#### Linux Builds
 
 Linux README files:
    - [README-linux.md](.github/workflows/README-linux.md)
@@ -420,7 +420,7 @@ Linux README files:
 
 #### Downloading Pre-built Binaries
 
-##### From GitHub Actions (Automated Builds)
+#### From GitHub Actions (Automated Builds)
 
 For the latest builds from the `master` branch:
 
@@ -434,7 +434,7 @@ For the latest builds from the `master` branch:
 
 **Note:** Artifacts expire after 90 days. For permanent builds, use releases (see below).
 
-##### From Manual Builds
+#### From Manual Builds
 
 For platform-specific or legacy builds:
 
@@ -455,7 +455,7 @@ For platform-specific or legacy builds:
     - `structuracost-windows-x64.zip` (Windows x64)
 7. Extract and run the executable
 
-##### From Releases (Tagged Versions) — Recommended
+#### From Releases (Tagged Versions) — Recommended
 
 For stable, versioned releases with all platforms built automatically:
 
