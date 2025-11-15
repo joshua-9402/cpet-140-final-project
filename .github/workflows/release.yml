@@ -98,15 +98,15 @@ jobs:
     - name: Package
       run: |
         mkdir -p artifact
-        cp build/payroll-and-monitoring-system artifact/
+        cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        cd artifact && tar -czf ../payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+        cd artifact && tar -czf ../structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: linux-debian-${{ matrix.distribution }}-${{ matrix.arch }}
-        path: payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        path: structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
         retention-days: 1
 
   # Linux Fedora/Red Hat builds
@@ -142,15 +142,15 @@ jobs:
     - name: Package
       run: |
         mkdir -p artifact
-        cp build/payroll-and-monitoring-system artifact/
+        cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        cd artifact && tar -czf ../payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+        cd artifact && tar -czf ../structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: linux-rpm-${{ matrix.distribution }}-${{ matrix.arch }}
-        path: payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        path: structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
         retention-days: 1
 
   # Linux SUSE builds
@@ -187,15 +187,15 @@ jobs:
     - name: Package
       run: |
         mkdir -p artifact
-        cp build/payroll-and-monitoring-system artifact/
+        cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
-        cd artifact && tar -czf ../payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
+        cd artifact && tar -czf ../structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz * && cd ..
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: linux-suse-${{ matrix.distribution }}-${{ matrix.arch }}
-        path: payroll-and-monitoring-system-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
+        path: structuracost-${{ matrix.distribution }}-${{ matrix.arch }}-Release.tar.gz
         retention-days: 1
 
   # macOS builds
@@ -229,13 +229,13 @@ jobs:
     - name: Package
       run: |
         cd build
-        tar -czf ../payroll-and-monitoring-system-macos-${{ matrix.target }}-Release.tar.gz payroll-and-monitoring-system.app
+        tar -czf ../structuracost-macos-${{ matrix.target }}-Release.tar.gz structuracost.app
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: macos-${{ matrix.target }}
-        path: payroll-and-monitoring-system-macos-${{ matrix.target }}-Release.tar.gz
+        path: structuracost-macos-${{ matrix.target }}-Release.tar.gz
         retention-days: 1
 
   # Windows builds
@@ -277,16 +277,16 @@ jobs:
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path artifact
-        $exe = Get-ChildItem -Recurse build -Filter "payroll-and-monitoring-system.exe" | Select-Object -First 1
+        $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
         Copy-Item $exe.FullName artifact/
         if (Test-Path assets) { Copy-Item -Recurse assets artifact/ }
-        Compress-Archive -Path artifact/* -DestinationPath "payroll-and-monitoring-system-windows-${{ matrix.arch }}-Release.zip"
+        Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-${{ matrix.arch }}-Release.zip"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-${{ matrix.arch }}
-        path: payroll-and-monitoring-system-windows-${{ matrix.arch }}-Release.zip
+        path: structuracost-windows-${{ matrix.arch }}-Release.zip
         retention-days: 1
 
   # Create GitHub Release

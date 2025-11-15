@@ -1,8 +1,6 @@
 ## What's Changed
 
-This the first pre-release of the Payroll and Monitoring System application, StructuraCost.
-
-This release bundles optimized, prebuilt artifacts for desktop platforms: native C/C++ binaries (x64 and ARM64) for Linux / macOS / Windows
+- change name from "payroll-and-monitoring-system" to "structuracost" in build files and documentations
 
 ## Supported Platforms
 
@@ -24,14 +22,14 @@ Download the appropriate archive for your platform and extract it.
 
 **Linux/macOS:**
 ```bash
-tar -xzf payroll-and-monitoring-system-*.tar.gz
-./payroll-and-monitoring-system
+tar -xzf structuracost-*.tar.gz
+./structuracost
 ```
 
 **Windows:**
 ```powershell
-Expand-Archive payroll-and-monitoring-system-*.zip
-.\payroll-and-monitoring-system.exe
+Expand-Archive structuracost-*.zip
+.\structuracost.exe
 ```
 
 ## Build Information

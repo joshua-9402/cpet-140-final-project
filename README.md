@@ -363,8 +363,8 @@ See `.github/workflows/README-*.md` for detailed instructions on each workflow.
 2. Click on the latest successful workflow run
 3. Scroll to the **Artifacts** section
 4. Download the artifact for your platform:
-   - `payroll-and-monitoring-system-linux-x64.tar.gz`
-   - `payroll-and-monitoring-system-windows-x64.zip`
+   - `structuracost-linux-x64.tar.gz`
+   - `structuracost-windows-x64.zip`
 
 #### From Manual macOS Builds
 1. Navigate to the **Actions** tab
@@ -394,7 +394,7 @@ For detailed CI/CD documentation, see [.github/BUILD.md](.github/BUILD.md).
 
         cmake -S . -B build_release -DCMAKE_BUILD_TYPE=Release
         cmake --build build_release
-        open build_release/payroll-and-monitoring-system.app
+        open build_release/structuracost.app
 
 
 ## Build and Run (Mobile)

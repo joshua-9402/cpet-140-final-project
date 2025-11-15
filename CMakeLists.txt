@@ -23,7 +23,7 @@ FetchContent_MakeAvailable(hello_imgui)
 
 # Add your app
 hello_imgui_add_app(
-        payroll-and-monitoring-system
+        structuracost
 
         # dependency
         dependencies/sqlite/sqlite3.c
@@ -66,7 +66,7 @@ hello_imgui_add_app(
 )
 
 # Add include directory for SQLite3 headers
-target_include_directories(payroll-and-monitoring-system PRIVATE
+target_include_directories(structuracost PRIVATE
     ${CMAKE_SOURCE_DIR}/dependencies/sqlite
 )
 
