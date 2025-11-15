@@ -147,14 +147,10 @@ if(NOT CPACK_PACKAGE_VERSION)
     set(CPACK_PACKAGE_VERSION "v0.0.0")
 endif()
 
-# Common metadata (omit license for now as requested)
-# set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE" CACHE FILEPATH "")
+# Common metadata
 # Note: macOS DragNDrop/productbuild generators only accept .rtf, .rtfd, .html, .txt (not .md)
-if(APPLE)
-    set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.txt" CACHE FILEPATH "")
-else()
-    set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md" CACHE FILEPATH "")
-endif()
+# Using LICENSE.txt for all platforms as it's in plain text format
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt" CACHE FILEPATH "")
 
 # Per-platform DESTDIR handling
 # macOS and Linux use CPACK_SET_DESTDIR=ON to install into staging directory (avoids permission issues)
