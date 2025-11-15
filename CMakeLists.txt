@@ -7,8 +7,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Fetch Hello ImGui (automatic download)
 include(FetchContent)
 
-# Use bundled FreeType to avoid version conflicts with system libraries
-set(HELLOIMGUI_USE_FREETYPE_BUNDLE ON CACHE BOOL "Use HelloImGui's bundled FreeType" FORCE)
+# Disable FreeType to avoid version conflicts with system libraries
+# HelloImGui will fall back to stb_truetype for font rendering
+set(IMGUI_ENABLE_FREETYPE OFF CACHE BOOL "Disable FreeType" FORCE)
 
 FetchContent_Declare(
         hello_imgui
