@@ -25,18 +25,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(hello_imgui)
 
-# Prefer a local libsodium copy under dependencies/libsodium (no automatic downloads)
-if(EXISTS "${CMAKE_SOURCE_DIR}/dependencies/libsodium/CMakeLists.txt")
-    message(STATUS "Using local libsodium from ${CMAKE_SOURCE_DIR}/dependencies/libsodium")
-    add_subdirectory("${CMAKE_SOURCE_DIR}/dependencies/libsodium" EXCLUDE_FROM_ALL)
-else()
-    # Try to find a system-installed libsodium (no downloads)
-    find_package(sodium CONFIG QUIET)
-    if(NOT (TARGET Sodium::sodium OR TARGET sodium::sodium OR sodium_FOUND OR SODIUM_FOUND))
-        message(FATAL_ERROR "libsodium not found. Automatic downloads are disabled.\nPlease either:\n  * place a libsodium checkout under dependencies/libsodium, or\n  * install libsodium system-wide (e.g. brew install libsodium on macOS), or\n  * configure CMake with -DSODIUM_LIB=/path/to/libsodium.dylib -DSODIUM_INCLUDE=/path/to/includes")
-    endif()
-endif()
-
 # Add your app
 hello_imgui_add_app(
         structuracost
@@ -83,7 +71,7 @@ hello_imgui_add_app(
 
 # Add include directory for SQLite3 headers
 target_include_directories(structuracost PRIVATE
-    ${CMAKE_SOURCE_DIR}/dependencies/sqlite
+        ${CMAKE_SOURCE_DIR}/dependencies/sqlite
 )
 
 # Link libsodium to the app if available (handle common target names), otherwise add includes
