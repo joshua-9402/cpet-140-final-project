@@ -1,0 +1,167 @@
+name: Build macOS Legacy (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Release
+          - Debug
+      enable_lto:
+        description: 'Enable Link-Time Optimization'
+        required: false
+        default: false
+        type: boolean
+      deployment_target:
+        description: 'Minimum macOS version'
+        required: true
+        default: '10.15'
+        type: choice
+        options:
+          - '10.15'  # Catalina
+          - '10.14'  # Mojave
+          - '10.13'  # High Sierra
+
+jobs:
+  build-macos-legacy:
+    name: macOS Legacy Intel (Catalina and older)
+    runs-on: macos-13  # macOS 13.x on Intel x86_64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: System information
+      run: |
+        echo "=== System Info ==="
+        sw_vers
+        uname -m
+        echo "=== CPU Info ==="
+        sysctl -n machdep.cpu.brand_string
+        echo "=== Available cores ==="
+        sysctl -n hw.ncpu
+        echo "=== Target deployment version: macOS ${{ inputs.deployment_target }} ==="
+
+    - name: Install dependencies
+      run: |
+        echo "=== Installing dependencies with Homebrew ==="
+        brew install cmake ninja freetype
+        echo "=== Verifying installations ==="
+        cmake --version
+        ninja --version
+        clang++ --version
+
+    - name: Configure CMake
+      run: |
+        echo "=== Configuring CMake for macOS ${{ inputs.deployment_target }} ==="
+        if [ "${{ inputs.enable_lto }}" = "true" ]; then
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+            -G Ninja \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ inputs.deployment_target }} \
+            -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+            -DCMAKE_CXX_STANDARD=20
+        else
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+            -G Ninja \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ inputs.deployment_target }} \
+            -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+            -DCMAKE_CXX_STANDARD=20 \
+            -DNO_LTO=ON
+        fi
+
+    - name: Build
+      run: |
+        echo "=== Building application ==="
+        cmake --build build --config ${{ inputs.build_type }} -j $(sysctl -n hw.ncpu)
+
+    - name: Verify build output
+      run: |
+        echo "=== Checking build output ==="
+        ls -lh build/
+        if [ -d "build/payroll-and-monitoring-system.app" ]; then
+          echo "✅ App bundle created"
+          ls -lh build/payroll-and-monitoring-system.app/Contents/MacOS/
+          echo "=== Verifying architecture ==="
+          file build/payroll-and-monitoring-system.app/Contents/MacOS/payroll-and-monitoring-system
+          lipo -info build/payroll-and-monitoring-system.app/Contents/MacOS/payroll-and-monitoring-system
+          echo "=== Verifying deployment target ==="
+          otool -l build/payroll-and-monitoring-system.app/Contents/MacOS/payroll-and-monitoring-system | grep -A 3 LC_VERSION_MIN_MACOSX || echo "Using newer load command"
+        elif [ -f "build/payroll-and-monitoring-system" ]; then
+          echo "✅ Executable created"
+          ls -lh build/payroll-and-monitoring-system
+          echo "=== Verifying architecture ==="
+          file build/payroll-and-monitoring-system
+          lipo -info build/payroll-and-monitoring-system
+          echo "=== Verifying deployment target ==="
+          otool -l build/payroll-and-monitoring-system | grep -A 3 LC_VERSION_MIN_MACOSX || echo "Using newer load command"
+        else
+          echo "❌ Build output not found!"
+          exit 1
+        fi
+
+    - name: Package artifacts
+      run: |
+        echo "=== Packaging application ==="
+        mkdir -p artifact
+        
+        # Check for app bundle first
+        if [ -d "build/payroll-and-monitoring-system.app" ]; then
+          echo "Packaging .app bundle"
+          cp -r build/payroll-and-monitoring-system.app artifact/
+          # Create DMG-ready structure
+          mkdir -p artifact/Applications
+          ln -s /Applications artifact/Applications
+        else
+          echo "Packaging standalone executable"
+          cp build/payroll-and-monitoring-system artifact/
+        fi
+        
+        # Copy assets
+        if [ -d "assets" ]; then
+          cp -r assets artifact/
+        fi
+        
+        # Create archive with deployment target in name
+        cd artifact
+        tar -czf ../payroll-and-monitoring-system-macos-legacy-${{ inputs.deployment_target }}-${{ inputs.build_type }}.tar.gz *
+        cd ..
+        
+        echo "=== Archive created ==="
+        ls -lh payroll-and-monitoring-system-macos-legacy-${{ inputs.deployment_target }}-${{ inputs.build_type }}.tar.gz
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: payroll-and-monitoring-system-macos-legacy-${{ inputs.deployment_target }}-${{ inputs.build_type }}
+        path: payroll-and-monitoring-system-macos-legacy-${{ inputs.deployment_target }}-${{ inputs.build_type }}.tar.gz
+        retention-days: 90
+        compression-level: 0
+
+    - name: Build summary
+      run: |
+        echo "### ✅ Build Completed Successfully" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Platform:** macOS Intel (x86_64)" >> $GITHUB_STEP_SUMMARY
+        echo "**Build Type:** ${{ inputs.build_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "**LTO Enabled:** ${{ inputs.enable_lto }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Deployment Target:** macOS ${{ inputs.deployment_target }}" >> $GITHUB_STEP_SUMMARY
+        echo "**C++ Standard:** C++20 (for better legacy compatibility)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        case "${{ inputs.deployment_target }}" in
+          "10.15") echo "**Compatible with:** macOS Catalina (10.15) and newer" ;;
+          "10.14") echo "**Compatible with:** macOS Mojave (10.14) and newer" ;;
+          "10.13") echo "**Compatible with:** macOS High Sierra (10.13) and newer" ;;
+        esac >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Artifact:** payroll-and-monitoring-system-macos-legacy-${{ inputs.deployment_target }}-${{ inputs.build_type }}.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Download the artifact from the workflow run page." >> $GITHUB_STEP_SUMMARY
+
