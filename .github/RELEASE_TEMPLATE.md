@@ -1,5 +1,7 @@
 ## What's Changed
 
+This the first pre-release of the Payroll and Monitoring System application, StructuraCost.
+
 This release bundles optimized, prebuilt artifacts for desktop platforms: native C/C++ binaries (x64 and ARM64) for Linux / macOS / Windows
 
 ## Supported Platforms
