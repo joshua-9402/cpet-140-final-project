@@ -11,6 +11,10 @@ include(FetchContent)
 # This ensures HelloImGui has a compatible FreeType version regardless of system version
 set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED ON CACHE BOOL "Download FreeType if needed" FORCE)
 
+# Download and build GLFW automatically if not found (especially for SUSE)
+# This ensures HelloImGui can build even when system GLFW packages are unavailable
+set(HELLOIMGUI_DOWNLOAD_GLFW_IF_NEEDED ON CACHE BOOL "Download GLFW if needed" FORCE)
+
 FetchContent_Declare(
         hello_imgui
         GIT_REPOSITORY https://github.com/pthom/hello_imgui.git
