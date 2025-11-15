@@ -97,8 +97,11 @@ endif()
 # Install rules for packaging
 # -------------------------------
 # Default install prefix when creating installers (can be overridden)
-set(APP_INSTALL_PREFIX "/opt/structuracost" CACHE PATH "Install prefix used inside installers")
-set(CPACK_PACKAGING_INSTALL_PREFIX "${APP_INSTALL_PREFIX}")
+# Note: Only set for Linux; macOS and Windows installers handle their own paths
+if(UNIX AND NOT APPLE)
+    set(APP_INSTALL_PREFIX "/opt/structuracost" CACHE PATH "Install prefix used inside installers")
+    set(CPACK_PACKAGING_INSTALL_PREFIX "${APP_INSTALL_PREFIX}")
+endif()
 
 if(APPLE)
     # Install the .app bundle at the root of the package (DMG)
