@@ -75,6 +75,7 @@ jobs:
           git \
           cmake \
           ninja-build \
+          file \
           glfw-devel \
           libXrandr-devel \
           libXinerama-devel \
