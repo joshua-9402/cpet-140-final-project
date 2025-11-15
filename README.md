@@ -56,9 +56,15 @@ I. Documentation
     - [Calling / Invoking Conventions](#calling--invoking-conventions)
 
 II. Getting Started
-  - [Automated Builds (CI/CD)](#automated-builds-cicd)
   - [Build & Run (Desktop)](#build--run-desktop)
     - [Prerequisites (For Development Computer Only)](#prerequisites-for-development-computer-only)
+    - [Automated Builds (CI/CD)](#automated-builds-cicd)
+      - [Manual Build](#manual-build)
+      - [Windows Builds](#windows-builds)
+      - [macOS Builds](#macos-builds)
+      - [Linux Builds](#linux-builds)
+      - [Release Builds (All Platforms)](#release-builds-all-platforms)
+      - [Downloading Pre-built Binaries](#downloading-pre-built-binaries)
     - [Commands (building from repository's root)](#commands-building-from-repositorys-root)
   - [Build and Run (Mobile)](#build-and-run-mobile)
   - [Dependencies](#dependencies)
@@ -338,48 +344,6 @@ This section documents how modules in the repository should be invoked, the mini
      - Keep UI code free of raw DB operations; call `db::` helpers instead.
 
 
-## Automated Builds (CI/CD)
-
-This project includes both automated and manual builds via GitHub Actions.
-
-### Manual Build Workflows (macOS)
-
-For macOS, we provide **three manual-trigger workflows** to support different hardware and OS versions:
-
-| Workflow                 | Target Hardware          | macOS Versions                                  | C++ Std  | Use Case                  |
-|--------------------------|--------------------------|-------------------------------------------------|----------|---------------------------|
-| **Build macOS ARM64**    | Apple Silicon (M1/M2/M3) | Sonoma 14.0+                                    | C++23    | Modern Apple Silicon Macs |
-| **Build macOS Intel**    | Modern Intel Macs        | Big Sur 11.0+                                   | C++23    | Modern Intel Macs         |
-| **Build macOS Legacy**   | Older Intel Macs         | Catalina 10.15, Mojave 10.14, High Sierra 10.13 | C++20    | Legacy Intel Macs         |
-
-**To trigger:** Go to Actions → Select workflow → Run workflow
-
-See `.github/workflows/README-*.md` for detailed instructions on each workflow.
-
-### Downloading Pre-built Binaries
-
-#### From GitHub Actions (Automated Builds)
-1. Navigate to the **Actions** tab in the repository
-2. Click on the latest successful workflow run
-3. Scroll to the **Artifacts** section
-4. Download the artifact for your platform:
-   - `structuracost-linux-x64.tar.gz`
-   - `structuracost-windows-x64.zip`
-
-#### From Manual macOS Builds
-1. Navigate to the **Actions** tab
-2. Select the appropriate macOS workflow (ARM64, Intel, or Legacy)
-3. Click **Run workflow** and configure your build
-4. Wait for the build to complete
-5. Download the artifact from the workflow run page
-
-#### From Releases (Tagged Versions)
-When a version tag is created (e.g., `v1.0.0`), platform builds may be automatically attached to a GitHub Release.
-
-
-For detailed CI/CD documentation, see [.github/BUILD.md](.github/BUILD.md).
-
-
 ## Build & Run (Desktop)
 
 ### Prerequisites (For Development Computer Only)
@@ -389,12 +353,123 @@ For detailed CI/CD documentation, see [.github/BUILD.md](.github/BUILD.md).
 - sqlite3 3.50.4
 - Hello ImGui
 
-### Commands (building from repository's root)
-- Configure, build and run in RELEASE:
+### Automated Builds (CI/CD)
 
-        cmake -S . -B build_release -DCMAKE_BUILD_TYPE=Release
-        cmake --build build_release
-        open build_release/structuracost.app
+- This project uses GitHub Actions for continuous integration and provides both automated and manual build workflows across multiple platforms.
+- For detailed CI/CD documentation, build configuration, and troubleshooting, see [BUILD.md](.github/BUILD.md).
+
+#### Manual Build
+
+- For platform-specific configurations and legacy support, we provide **five manual-trigger workflows**:
+
+##### Windows Builds
+
+Windows README files:
+- [README-windows-x86_64.md](.github/workflows/README-windows-x86_64.md)
+- [README-windows-arm64.md](.github/workflows/README-windows-arm64.md)
+
+| Workflow    | Target Hardware          | Architecture | Target Windows Version | C++ Std | Asset Name                                |
+|-------------|--------------------------|--------------|------------------------|---------|-------------------------------------------|
+| **Windows** | Computer with Windows 10 | x86_64       | Windows 10             | C++20   | `structuracost-windows-x86_64-${version}` |
+| **Windows** | Computer with Windows 10 | ARM64        | Windows 10 for ARM     | C++20   | `structuracost-windows-arm64-${version}`  |
+| **Windows** | Computer with Windows 11 | x86_64       | Windows 11             | C++20   | `structuracost-windows-x86_64-${version}` |
+| **Windows** | Computer with Windows 11 | ARM64        | Windows 11 for ARM     | C++20   | `structuracost-windows-arm64-${version}`  |
+
+##### macOS Builds
+
+macOS README files:
+   - [README-macos-arm64.md](.github/workflows/README-macos-arm64.md)
+   - [README-macos-x86_64.md](.github/workflows/README-macos-x86_64.md)
+
+| Workflow  | Target Hardware          | Architecture | Target macOS Versions | C++ Std | Asset Name |
+|-----------|--------------------------|--------------|-----------------------|---------|------------|
+| **macOS** | Apple Silicon (M1/M2/M3) | ARM64        | macOS Sequoia 15.0    | C++20   |            |
+| **macOS** | Intel Macs               | x86_64       | macOS Ventura 13.0    | C++20   |            |
+
+##### Linux Builds
+
+Linux README files:
+   - [README-linux.md](.github/workflows/README-linux.md)
+   - [README-linux-rpm.md](.github/workflows/README-linux-rpm.md)
+   - [README-linux-suse.md](.github/workflows/README-linux-suse.md)
+
+| Workflow                    | Target Hardware     | Architecture | Target Linux Versions | C++ Std | Asset Name |
+|-----------------------------|---------------------|--------------|-----------------------|---------|------------|
+| **Linux (Debian/Ubuntu)**   | x86_64 Computers    | x86_64       | Ubuntu 20.04          | C++20   |            |
+| **Linux (Debian/Ubuntu)**   | ARM64 Computers     | ARM64        | Ubuntu 20.04 (ARM64)  | C++20   |            |
+| **Linux (Fedora/Red Hat)**  | x86_64 Computers    | x86_64       | Fedora Latest         | C++20   |            |
+| **Linux (Fedora/Red Hat)**  | ARM64 Computers     | ARM64        | Fedora Latest (ARM64) | C++20   |            |
+| **Linux (SUSE Family)**     | x86_64 Computers    | x86_64       | openSUSE Tumbleweed   | C++20   |            |
+| **Linux (SUSE Family)**     | ARM64 Computers     | ARM64        | openSUSE Tumbleweed   | C++20   |            |
+
+
+**To trigger manual workflows:** Go to Actions → Select workflow → Run workflow
+
+
+#### Release Builds (All Platforms)
+
+| Workflow                  | Platforms          | Trigger                    |
+|---------------------------|--------------------|----------------------------|
+| **Release Build**         | All supported      | Git tag (e.g., `v1.0.0`)   |
+
+- When a version tag is created, the **Release Build** workflow automatically:
+  - Builds binaries for all supported platforms (Linux x64, linux ARM64, Windows x64, Windows ARM64, macOS ARM64, macOS Intel, macOS Legacy)
+  - Runs all tests and validation checks
+  - Creates a GitHub Release with the tag
+  - Attaches all platform binaries to the release as downloadable assets
+
+#### Downloading Pre-built Binaries
+
+##### From GitHub Actions (Automated Builds)
+
+For the latest builds from the `master` branch:
+
+  1. Navigate to the **Actions** tab in the repository
+  2. Click on the latest successful workflow run (look for green checkmark)
+  3. Scroll to the **Artifacts** section at the bottom of the page
+  4. Download the artifact for your platform:
+      - `structuracost-linux-x64.tar.gz` (Linux x64)
+      - `structuracost-windows-x64.zip` (Windows x64)
+  5. Extract the archive and run the executable
+
+**Note:** Artifacts expire after 90 days. For permanent builds, use releases (see below).
+
+##### From Manual Builds
+
+For platform-specific or legacy builds:
+
+1. Navigate to the **Actions** tab
+2. Select the appropriate workflow from the left sidebar:
+    - macOS
+    - Windows
+    - Linux (Debian/Ubuntu)
+    - Linux (Fedora/Red Hat)
+    - Linux (SUSE Family)
+3. Click **Run workflow** button (top right)
+4. Configure build options if prompted
+5. Wait for the build to complete (status changes to green checkmark)
+6. Download the artifact from the workflow run page:
+    - `structuracost-macos-arm64.tar.gz` (Apple Silicon)
+    - `structuracost-macos-x64.tar.gz` (Intel macOS)
+    - `structuracost-linux-x64.tar.gz` (Linux x64)
+    - `structuracost-windows-x64.zip` (Windows x64)
+7. Extract and run the executable
+
+##### From Releases (Tagged Versions) — Recommended
+
+For stable, versioned releases with all platforms built automatically:
+
+1. Navigate to the **Releases** page (right sidebar in main repository view)
+2. Select the desired version (e.g., `v1.0.0`)
+3. Download the binary for your platform from the **Assets** section:
+    - `structuracost-linux-x64.tar.gz`
+    - `structuracost-windows-x64.zip`
+    - `structuracost-macos-arm64.tar.gz`
+    - `structuracost-macos-x64.tar.gz`
+    - `structuracost-macos-legacy.tar.gz`
+4. Extract and run the executable
+
+**Note:** Release binaries are permanent and recommended for production use. All platforms are built and tested automatically during the release process.
 
 
 ## Build and Run (Mobile)
