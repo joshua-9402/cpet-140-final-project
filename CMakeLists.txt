@@ -15,6 +15,10 @@ set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED ON CACHE BOOL "Download FreeType if n
 # This ensures HelloImGui can build even when system GLFW packages are unavailable
 set(HELLOIMGUI_DOWNLOAD_GLFW_IF_NEEDED ON CACHE BOOL "Download GLFW if needed" FORCE)
 
+# Disable Hello ImGui's automatic asset installation - we'll handle it manually
+# This prevents absolute path issues on Windows with CPack
+set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "Disable automatic asset install" FORCE)
+
 FetchContent_Declare(
         hello_imgui
         GIT_REPOSITORY https://github.com/pthom/hello_imgui.git
@@ -115,8 +119,9 @@ if(APPLE)
     install(DIRECTORY assets/ DESTINATION "structuracost.app/Contents/Resources/assets")
 elseif(WIN32)
     # Install exe at the root folder
-    # Assets are handled by hello_imgui_add_app via ASSETS_LOCATION parameter
     install(TARGETS structuracost RUNTIME DESTINATION ".")
+    # Manually install assets with relative path (Hello ImGui auto-install disabled to avoid absolute paths)
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/" DESTINATION "assets" PATTERN "*")
 else()
     # Linux: install under /opt/structuracost with bin and assets
     install(TARGETS structuracost RUNTIME DESTINATION bin)
