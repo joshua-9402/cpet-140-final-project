@@ -114,9 +114,9 @@ if(APPLE)
     # Ensure assets are present inside the bundle Resources
     install(DIRECTORY assets/ DESTINATION "structuracost.app/Contents/Resources/assets")
 elseif(WIN32)
-    # Install exe at the root folder, with assets alongside
-    install(TARGETS structuracost RUNTIME DESTINATION .)
-    install(DIRECTORY assets/ DESTINATION assets)
+    # Install exe at the root folder
+    # Assets are handled by hello_imgui_add_app via ASSETS_LOCATION parameter
+    install(TARGETS structuracost RUNTIME DESTINATION ".")
 else()
     # Linux: install under /opt/structuracost with bin and assets
     install(TARGETS structuracost RUNTIME DESTINATION bin)
