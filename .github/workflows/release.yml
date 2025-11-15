@@ -20,10 +20,10 @@ jobs:
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     strategy:
       matrix:
-        distribution: [ubuntu-22.04, ubuntu-20.04, debian-12]
+        distribution: [ubuntu-22.04]
         arch: [x64, arm64]
     container:
-      image: ${{ matrix.distribution == 'debian-12' && 'debian:12' || format('ubuntu:{0}', matrix.distribution == 'ubuntu-22.04' && '22.04' || '20.04') }}
+      image: ubuntu:22.04
 
     steps:
     - name: Install dependencies
@@ -64,10 +64,10 @@ jobs:
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     strategy:
       matrix:
-        distribution: [fedora-latest, almalinux-9, rockylinux-9]
+        distribution: [fedora-latest]
         arch: [x64, arm64]
     container:
-      image: ${{ matrix.distribution == 'fedora-latest' && 'fedora:latest' || matrix.distribution == 'almalinux-9' && 'almalinux:9' || 'rockylinux:9' }}
+      image: fedora:latest
 
     steps:
     - name: Install dependencies
@@ -107,10 +107,10 @@ jobs:
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     strategy:
       matrix:
-        distribution: [opensuse-tumbleweed, opensuse-leap-15.6]
+        distribution: [opensuse-tumbleweed]
         arch: [x64, arm64]
     container:
-      image: ${{ matrix.distribution == 'opensuse-tumbleweed' && 'opensuse/tumbleweed:latest' || 'opensuse/leap:15.6' }}
+      image: opensuse/tumbleweed:latest
 
     steps:
     - name: Install dependencies
