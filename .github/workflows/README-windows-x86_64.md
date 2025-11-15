@@ -350,7 +350,6 @@ To create a fully standalone executable (no DLL dependencies):
 
 Use tools like:
 - **Inno Setup** - Free, popular installer creator
-- **WiX Toolset** - Windows Installer XML
 - **NSIS** - Nullsoft Scriptable Install System
 
 ### Portable Version
@@ -373,4 +372,3 @@ If you encounter issues:
 **Quick Start:** Actions → Build Windows x64 (Manual) → Run workflow → Download artifact
 
 **Remember:** Test the executable on actual Windows 10/11 systems before distributing!
-

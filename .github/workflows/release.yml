@@ -110,7 +110,7 @@ jobs:
         echo "version_numeric=${VERSION_NUMERIC}"   >> "$GITHUB_OUTPUT"
         echo "stage_suffix=${STAGE_SUFFIX}"         >> "$GITHUB_OUTPUT"
         echo "combined_version=${COMBINED_VERSION}" >> "$GITHUB_OUTPUT"
-        echo "Computed: ${COMBINED_VERSION} (${STAGE_LABEL})"
+        echo "Computed: ${COMBINED_VERSION}"
 
   build-linux-debian:
     name: Linux Debian/Ubuntu (${{ matrix.arch }})
@@ -567,7 +567,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ needs.prepare-version.outputs.combined_version }}
-        name: "${{ needs.prepare-version.outputs.combined_version }}${{ inputs.version_x != 'stable' && format(' ({0})', inputs.version_x == 'rc' && 'RC' || inputs.version_x == 'beta' && 'Beta' || inputs.version_x == 'alpha' && 'Alpha' || 'Pre-Alpha') || '' }}"
+        name: "${{ needs.prepare-version.outputs.combined_version }}"
         draft: false
         prerelease: ${{ inputs.version_x != 'stable' }}
         generate_release_notes: true

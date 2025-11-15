@@ -110,7 +110,7 @@ elseif(APPLE)
     set(CPACK_PACKAGING_INSTALL_PREFIX "/tmp/_cpack_staging")
 endif()
 # Note: Windows doesn't set CMAKE_INSTALL_PREFIX or CPACK_PACKAGING_INSTALL_PREFIX
-# NSIS/WiX installers handle their own default paths (e.g., C:\Program Files\StructuraCost)
+# NSIS installer handles its own default paths (e.g., C:\Program Files\StructuraCost)
 
 if(APPLE)
     # Install the .app bundle directly
@@ -157,7 +157,7 @@ set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt" CACHE FILEPATH
 
 # Per-platform DESTDIR handling
 # macOS and Linux use CPACK_SET_DESTDIR=ON to install into staging directory (avoids permission issues)
-# Windows uses OFF because NSIS/WiX expect relative paths and handle install location themselves
+# Windows uses OFF because NSIS expects relative paths and handles install location itself
 if(WIN32)
     set(CPACK_SET_DESTDIR OFF)
 else()
