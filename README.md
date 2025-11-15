@@ -340,37 +340,48 @@ This section documents how modules in the repository should be invoked, the mini
 
 ## Automated Builds (CI/CD)
 
-This project includes automated builds via GitHub Actions that compile the application for multiple platforms whenever code is pushed.
+This project includes both automated and manual builds via GitHub Actions.
 
-### Supported Build Platforms
+### Manual Build Workflows (macOS)
 
-The CI/CD pipeline automatically builds for:
+For macOS, we provide **three manual-trigger workflows** to support different hardware and OS versions:
+
+| Workflow | Target Hardware | macOS Versions | C++ Std | Use Case |
+|----------|----------------|----------------|---------|----------|
+| **Build macOS ARM64** | Apple Silicon (M1/M2/M3) | Sonoma 14.0+ | C++23 | Modern Apple Silicon Macs |
+| **Build macOS Intel** | Modern Intel Macs | Big Sur 11.0+ | C++23 | Modern Intel Macs |
+| **Build macOS Legacy** | Older Intel Macs | Catalina 10.15, Mojave 10.14, High Sierra 10.13 | C++20 | Legacy Intel Macs |
+
+**To trigger:** Go to Actions → Select workflow → Run workflow
+
+See `.github/workflows/README-*.md` for detailed instructions on each workflow.
+
+### Automated Build Platforms
+
+The multi-platform CI/CD pipeline automatically builds for:
 - **Ubuntu Linux** (x64)
-- **macOS** (Intel x64)
-- **macOS** (Apple Silicon ARM64)
 - **Windows** (x64)
 
 ### Downloading Pre-built Binaries
 
-#### From GitHub Actions
+#### From GitHub Actions (Automated Builds)
 1. Navigate to the **Actions** tab in the repository
 2. Click on the latest successful workflow run
 3. Scroll to the **Artifacts** section
 4. Download the artifact for your platform:
    - `payroll-and-monitoring-system-linux-x64.tar.gz`
-   - `payroll-and-monitoring-system-macos-x64.tar.gz`
-   - `payroll-and-monitoring-system-macos-arm64.tar.gz`
    - `payroll-and-monitoring-system-windows-x64.zip`
 
-#### From Releases (Tagged Versions)
-When a version tag is created (e.g., `v1.0.0`), all platform builds are automatically attached to a GitHub Release.
+#### From Manual macOS Builds
+1. Navigate to the **Actions** tab
+2. Select the appropriate macOS workflow (ARM64, Intel, or Legacy)
+3. Click **Run workflow** and configure your build
+4. Wait for the build to complete
+5. Download the artifact from the workflow run page
 
-### Triggering a Manual Build
-You can manually trigger a build:
-1. Go to **Actions** tab
-2. Select **Multi-Platform Build**
-3. Click **Run workflow**
-4. Choose the branch and confirm
+#### From Releases (Tagged Versions)
+When a version tag is created (e.g., `v1.0.0`), platform builds may be automatically attached to a GitHub Release.
+
 
 For detailed CI/CD documentation, see [.github/BUILD.md](.github/BUILD.md).
 
