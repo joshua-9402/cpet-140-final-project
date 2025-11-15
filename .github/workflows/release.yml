@@ -12,12 +12,22 @@ on:
         required: false
         default: false
         type: boolean
+      architectures:
+        description: 'Architectures to build'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - x64
+          - arm64
 
 jobs:
   # Linux Debian/Ubuntu builds
   build-linux-debian:
     name: Linux Debian/Ubuntu (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
+    if: inputs.architectures == 'both' || inputs.architectures == matrix.arch
     strategy:
       matrix:
         distribution: [ubuntu-22.04]
@@ -62,6 +72,7 @@ jobs:
   build-linux-rpm:
     name: Linux RPM (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
+    if: inputs.architectures == 'both' || inputs.architectures == matrix.arch
     strategy:
       matrix:
         distribution: [fedora-latest]
@@ -105,6 +116,7 @@ jobs:
   build-linux-suse:
     name: Linux SUSE (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
+    if: inputs.architectures == 'both' || inputs.architectures == matrix.arch
     strategy:
       matrix:
         distribution: [opensuse-tumbleweed]
@@ -149,6 +161,7 @@ jobs:
   build-macos:
     name: macOS (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
+    if: inputs.architectures == 'both' || (inputs.architectures == 'arm64' && matrix.target == 'arm64') || (inputs.architectures == 'x64' && matrix.target == 'intel')
     strategy:
       matrix:
         include:
@@ -194,6 +207,7 @@ jobs:
   build-windows:
     name: Windows (${{ matrix.arch }})
     runs-on: windows-latest
+    if: inputs.architectures == 'both' || inputs.architectures == matrix.arch
     strategy:
       matrix:
         arch: [x64, arm64]
