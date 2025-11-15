@@ -118,6 +118,7 @@ jobs:
         zypper refresh
         zypper install -y gcc gcc-c++ git cmake ninja file libglfw-devel \
           wayland-devel wayland-protocols-devel \
+          libwayland-client-devel libwayland-cursor-devel libwayland-egl-devel \
           libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
           Mesa-libGL-devel glu-devel freetype2-devel fontconfig-devel pkgconfig
 

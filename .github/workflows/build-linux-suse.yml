@@ -75,6 +75,9 @@ jobs:
           libglfw-devel \
           wayland-devel \
           wayland-protocols-devel \
+          libwayland-client-devel \
+          libwayland-cursor-devel \
+          libwayland-egl-devel \
           libXrandr-devel \
           libXinerama-devel \
           libXcursor-devel \
