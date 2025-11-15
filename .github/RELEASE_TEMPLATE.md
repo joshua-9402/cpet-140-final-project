@@ -1,6 +1,6 @@
 ## What's Changed
 
-This release includes optimized builds for multiple platforms and architectures.
+This release bundles optimized, prebuilt artifacts for desktop platforms: native C/C++ binaries (x64 and ARM64) for Linux / macOS / Windows
 
 ## Supported Platforms
 
@@ -33,7 +33,7 @@ Expand-Archive payroll-and-monitoring-system-*.zip
 ```
 
 ## Build Information
-- Build Type: Release
+- Build Type: Pre-Release
 - Optimizations: Enabled (LTO)
 - Compiler Flags: -O3 (Linux/macOS), /O2 (Windows)
 
