@@ -12,51 +12,67 @@ on:
         required: false
         default: false
         type: boolean
-      architectures:
-        description: 'Architectures to build (applies to all enabled OS)'
+      linux_debian:
+        description: 'Linux Debian/Ubuntu'
         required: true
         default: 'both'
         type: choice
         options:
-          - both
-          - x64-only
-          - arm64-only
-      build_linux_debian:
-        description: 'Build Linux Debian/Ubuntu'
-        required: false
-        default: true
-        type: boolean
-      build_linux_rpm:
-        description: 'Build Linux Fedora/Red Hat'
-        required: false
-        default: true
-        type: boolean
-      build_linux_suse:
-        description: 'Build Linux SUSE'
-        required: false
-        default: true
-        type: boolean
-      build_macos:
-        description: 'Build macOS'
-        required: false
-        default: true
-        type: boolean
-      build_windows:
-        description: 'Build Windows'
-        required: false
-        default: true
-        type: boolean
+          - 'both'
+          - 'x64'
+          - 'arm64'
+          - 'skip'
+      linux_rpm:
+        description: 'Linux Fedora/Red Hat'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'both'
+          - 'x64'
+          - 'arm64'
+          - 'skip'
+      linux_suse:
+        description: 'Linux SUSE'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'both'
+          - 'x64'
+          - 'arm64'
+          - 'skip'
+      macos:
+        description: 'macOS'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'both'
+          - 'arm64'
+          - 'intel'
+          - 'skip'
+      windows:
+        description: 'Windows'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'both'
+          - 'x64'
+          - 'arm64'
+          - 'skip'
 
 jobs:
   # Linux Debian/Ubuntu builds
   build-linux-debian:
     name: Linux Debian/Ubuntu (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.build_linux_debian == true
+    if: inputs.linux_debian != 'skip'
     strategy:
       matrix:
         distribution: [ubuntu-22.04]
-        arch: ${{ fromJSON(inputs.architectures == 'both' && '["x64", "arm64"]' || inputs.architectures == 'x64-only' && '["x64"]' || '["arm64"]') }}
+        arch: ${{ fromJSON(inputs.linux_debian == 'both' && '["x64", "arm64"]' || inputs.linux_debian == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: ubuntu:22.04
 
@@ -97,11 +113,11 @@ jobs:
   build-linux-rpm:
     name: Linux RPM (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.build_linux_rpm == true
+    if: inputs.linux_rpm != 'skip'
     strategy:
       matrix:
         distribution: [fedora-latest]
-        arch: ${{ fromJSON(inputs.architectures == 'both' && '["x64", "arm64"]' || inputs.architectures == 'x64-only' && '["x64"]' || '["arm64"]') }}
+        arch: ${{ fromJSON(inputs.linux_rpm == 'both' && '["x64", "arm64"]' || inputs.linux_rpm == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: fedora:latest
 
@@ -141,11 +157,11 @@ jobs:
   build-linux-suse:
     name: Linux SUSE (${{ matrix.distribution }}-${{ matrix.arch }})
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.build_linux_suse == true
+    if: inputs.linux_suse != 'skip'
     strategy:
       matrix:
         distribution: [opensuse-tumbleweed]
-        arch: ${{ fromJSON(inputs.architectures == 'both' && '["x64", "arm64"]' || inputs.architectures == 'x64-only' && '["x64"]' || '["arm64"]') }}
+        arch: ${{ fromJSON(inputs.linux_suse == 'both' && '["x64", "arm64"]' || inputs.linux_suse == 'x64' && '["x64"]' || '["arm64"]') }}
     container:
       image: opensuse/tumbleweed:latest
 
@@ -186,10 +202,10 @@ jobs:
   build-macos:
     name: macOS (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
-    if: inputs.build_macos == true
+    if: inputs.macos != 'skip'
     strategy:
       matrix:
-        include: ${{ fromJSON(inputs.architectures == 'both' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"},{"target":"intel","runner":"macos-13","deployment":"11.0"}]' || inputs.architectures == 'arm64-only' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"}]' || '[{"target":"intel","runner":"macos-13","deployment":"11.0"}]') }}
+        include: ${{ fromJSON(inputs.macos == 'both' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"},{"target":"intel","runner":"macos-13","deployment":"11.0"}]' || inputs.macos == 'arm64' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"}]' || '[{"target":"intel","runner":"macos-13","deployment":"11.0"}]') }}
 
     steps:
     - name: Checkout code
@@ -226,10 +242,10 @@ jobs:
   build-windows:
     name: Windows (${{ matrix.arch }})
     runs-on: windows-latest
-    if: inputs.build_windows == true
+    if: inputs.windows != 'skip'
     strategy:
       matrix:
-        arch: ${{ fromJSON(inputs.architectures == 'both' && '["x64", "arm64"]' || inputs.architectures == 'x64-only' && '["x64"]' || '["arm64"]') }}
+        arch: ${{ fromJSON(inputs.windows == 'both' && '["x64", "arm64"]' || inputs.windows == 'x64' && '["x64"]' || '["arm64"]') }}
 
     steps:
     - name: Checkout code
