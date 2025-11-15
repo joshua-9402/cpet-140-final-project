@@ -101,6 +101,9 @@ endif()
 if(UNIX AND NOT APPLE)
     set(APP_INSTALL_PREFIX "/opt/structuracost" CACHE PATH "Install prefix used inside installers")
     set(CPACK_PACKAGING_INSTALL_PREFIX "${APP_INSTALL_PREFIX}")
+elseif(APPLE)
+    # For macOS, use a relative prefix to avoid permission issues during packaging
+    set(CPACK_PACKAGING_INSTALL_PREFIX "/")
 endif()
 
 if(APPLE)
@@ -143,6 +146,15 @@ endif()
 # Common metadata (omit license for now as requested)
 # set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE" CACHE FILEPATH "")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md" CACHE FILEPATH "")
+
+# Per-platform DESTDIR handling
+# Windows and macOS need CPACK_SET_DESTDIR=OFF to use relative install paths
+# Linux needs it ON to respect CPACK_PACKAGING_INSTALL_PREFIX
+if(WIN32 OR APPLE)
+    set(CPACK_SET_DESTDIR OFF)
+else()
+    set(CPACK_SET_DESTDIR ON)
+endif()
 
 # Per-platform default generators (can be overridden with -DCPACK_GENERATOR=...)
 if(APPLE)
