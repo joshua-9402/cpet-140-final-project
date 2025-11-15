@@ -74,6 +74,8 @@ jobs:
           ninja-build \
           file \
           libglfw3-dev \
+          libwayland-dev \
+          wayland-protocols \
           libxrandr-dev \
           libxinerama-dev \
           libxcursor-dev \
