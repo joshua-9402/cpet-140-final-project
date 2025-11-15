@@ -2,15 +2,37 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Release version (e.g., v1.0.0)'
+      version_w:
+        description: 'Major Version'
         required: true
-        type: string
-      prerelease:
-        description: 'Mark as pre-release'
+        default: 0
+        type: number
+      version_x:
+        description: 'Development Stage'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - 'pre-alpha'
+          - 'alpha'
+          - 'beta'
+          - 'rc'
+          - 'stable'
+      version_y:
+        description: 'Minor Version'
+        required: true
+        default: 0
+        type: number
+      version_z:
+        description: 'Patch/Bug Fix Version'
+        required: true
+        default: 0
+        type: number
+      stage_iteration:
+        description: 'Stage Build Number (e.g., 1, 2, 3 for -beta.1, -beta.2, etc.)'
         required: false
-        default: false
-        type: boolean
+        default: 0
+        type: number
       linux_debian:
         description: 'Linux Debian/Ubuntu'
         required: true
@@ -63,8 +85,56 @@ on:
           - 'skip'
 
 jobs:
+  prepare-version:
+    name: Prepare Version
+    runs-on: ubuntu-latest
+    outputs:
+      version_numeric: ${{ steps.version.outputs.version_numeric }}
+      stage_suffix: ${{ steps.version.outputs.stage_suffix }}
+      combined_version: ${{ steps.version.outputs.combined_version }}
+    steps:
+    - name: Compute full version
+      id: version
+      shell: bash
+      run: |
+        W="${{ inputs.version_w }}"
+        X_NAME="${{ inputs.version_x }}"   # pre-alpha | alpha | beta | rc | stable
+        Y="${{ inputs.version_y }}"
+        Z="${{ inputs.version_z }}"
+        ITERATION="${{ inputs.stage_iteration }}"
+
+        # Map stage name to numeric X and textual suffix/label
+        case "$X_NAME" in
+          stable)
+            X_NUM=4; STAGE_SUFFIX=""; STAGE_LABEL="Stable" ;;
+          rc)
+            X_NUM=3; STAGE_SUFFIX="-rc"; STAGE_LABEL="RC" ;;
+          beta)
+            X_NUM=2; STAGE_SUFFIX="-beta"; STAGE_LABEL="Beta" ;;
+          alpha)
+            X_NUM=1; STAGE_SUFFIX="-alpha"; STAGE_LABEL="Alpha" ;;
+          pre-alpha)
+            X_NUM=0; STAGE_SUFFIX="-pre-alpha"; STAGE_LABEL="Pre-Alpha" ;;
+          *)
+            echo "Unknown stage '$X_NAME'" >&2; exit 1 ;;
+        esac
+
+        # Append iteration number if provided (e.g., -beta.1, -pre-alpha.2)
+        # Only append for non-stable releases and when iteration is not empty
+        if [ -n "$ITERATION" ] && [ "$X_NAME" != "stable" ]; then
+          STAGE_SUFFIX="${STAGE_SUFFIX}.${ITERATION}"
+        fi
+
+        VERSION_NUMERIC="v${W}.${X_NUM}.${Y}.${Z}"
+        COMBINED_VERSION="${VERSION_NUMERIC}${STAGE_SUFFIX}"
+        echo "version_numeric=${VERSION_NUMERIC}"   >> "$GITHUB_OUTPUT"
+        echo "stage_suffix=${STAGE_SUFFIX}"         >> "$GITHUB_OUTPUT"
+        echo "combined_version=${COMBINED_VERSION}" >> "$GITHUB_OUTPUT"
+        echo "Computed: ${COMBINED_VERSION} (${STAGE_LABEL})"
+
   build-linux-debian:
     name: Linux Debian/Ubuntu (${{ matrix.arch }})
+    needs: prepare-version
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     if: inputs.linux_debian != 'skip'
     strategy:
@@ -89,7 +159,7 @@ jobs:
 
     - name: Configure and Build
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
         cmake --build build --config Release -j $(nproc)
 
     - name: Package (TGZ fallback)
@@ -98,11 +168,11 @@ jobs:
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
         ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        cd artifact && tar -czf ../structuracost-linux-debian-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
+        cd artifact && tar -czf ../structuracost-linux-debian-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz * && cd ..
 
     - name: Build DEB installer via CPack
       run: |
-        cmake -B build -DCPACK_GENERATOR=DEB -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake -B build -DCPACK_GENERATOR=DEB -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
         cmake --build build --target package
         ls -1 build | grep -E '\.deb$' || true
 
@@ -112,7 +182,7 @@ jobs:
         find build -maxdepth 1 -type f -name "*.deb" -exec cp {} installers/ \; || true
         ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
         if ls installers/*.deb 1> /dev/null 2>&1; then
-          for f in installers/*.deb; do mv "$f" installers/structuracost-linux-debian-${ARCH_NAME}-${{ inputs.version }}.deb; done
+          for f in installers/*.deb; do mv "$f" installers/structuracost-linux-debian-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.deb; done
         fi
 
     - name: Upload Debian artifacts
@@ -120,18 +190,19 @@ jobs:
       with:
         name: linux-debian-${{ matrix.arch }}
         path: |
-          installers/structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.deb
+          installers/structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.deb
         retention-days: 7
 
     - name: Upload Debian archive (separate)
       uses: actions/upload-artifact@v4
       with:
         name: linux-debian-${{ matrix.arch }}-archive
-        path: structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
+        path: structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz
         retention-days: 7
 
   build-linux-rpm:
     name: Linux RPM (${{ matrix.arch }})
+    needs: prepare-version
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     if: inputs.linux_rpm != 'skip'
     strategy:
@@ -155,7 +226,7 @@ jobs:
 
     - name: Configure and Build
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
         cmake --build build --config Release -j $(nproc)
 
     - name: Package (TGZ fallback)
@@ -164,11 +235,11 @@ jobs:
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
         ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        cd artifact && tar -czf ../structuracost-linux-rpm-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
+        cd artifact && tar -czf ../structuracost-linux-rpm-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz * && cd ..
 
     - name: Build RPM installer via CPack
       run: |
-        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
         cmake --build build --target package
         ls -1 build | grep -E '\.rpm$' || true
 
@@ -178,7 +249,7 @@ jobs:
         find build -maxdepth 1 -type f -name "*.rpm" -exec cp {} installers/ \; || true
         ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
         if ls installers/*.rpm 1> /dev/null 2>&1; then
-          for f in installers/*.rpm; do mv "$f" installers/structuracost-linux-rpm-${ARCH_NAME}-${{ inputs.version }}.rpm; done
+          for f in installers/*.rpm; do mv "$f" installers/structuracost-linux-rpm-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.rpm; done
         fi
 
     - name: Upload RPM artifacts
@@ -186,18 +257,19 @@ jobs:
       with:
         name: linux-rpm-${{ matrix.arch }}
         path: |
-          installers/structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.rpm
+          installers/structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.rpm
         retention-days: 7
 
     - name: Upload RPM archive (separate)
       uses: actions/upload-artifact@v4
       with:
         name: linux-rpm-${{ matrix.arch }}-archive
-        path: structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
+        path: structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz
         retention-days: 7
 
   build-linux-suse:
     name: Linux SUSE (${{ matrix.arch }})
+    needs: prepare-version
     runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
     if: inputs.linux_suse != 'skip'
     strategy:
@@ -221,7 +293,7 @@ jobs:
 
     - name: Configure and Build
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
         cmake --build build --config Release -j $(nproc)
 
     - name: Package (TGZ fallback)
@@ -230,11 +302,11 @@ jobs:
         cp build/structuracost artifact/
         [ -d "assets" ] && cp -r assets artifact/
         ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        cd artifact && tar -czf ../structuracost-linux-suse-${ARCH_NAME}-${{ inputs.version }}.tar.gz * && cd ..
+        cd artifact && tar -czf ../structuracost-linux-suse-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz * && cd ..
 
     - name: Build RPM installer via CPack (SUSE)
       run: |
-        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION=${{ inputs.version }}
+        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
         cmake --build build --target package
         ls -1 build | grep -E '\.rpm$' || true
 
@@ -244,7 +316,7 @@ jobs:
         find build -maxdepth 1 -type f -name "*.rpm" -exec cp {} installers/ \; || true
         ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
         if ls installers/*.rpm 1> /dev/null 2>&1; then
-          for f in installers/*.rpm; do mv "$f" installers/structuracost-linux-suse-${ARCH_NAME}-${{ inputs.version }}.rpm; done
+          for f in installers/*.rpm; do mv "$f" installers/structuracost-linux-suse-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.rpm; done
         fi
 
     - name: Upload SUSE artifacts
@@ -252,18 +324,19 @@ jobs:
       with:
         name: linux-suse-${{ matrix.arch }}
         path: |
-          installers/structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.rpm
+          installers/structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.rpm
         retention-days: 7
 
     - name: Upload SUSE archive (separate)
       uses: actions/upload-artifact@v4
       with:
         name: linux-suse-${{ matrix.arch }}-archive
-        path: structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.tar.gz
+        path: structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz
         retention-days: 7
 
   build-macos:
     name: macOS (${{ matrix.target }})
+    needs: prepare-version
     runs-on: ${{ matrix.runner }}
     if: inputs.macos != 'skip'
     strategy:
@@ -286,7 +359,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
           ${{ matrix.target == 'intel' && '-DCMAKE_OSX_ARCHITECTURES=x86_64' || '' }} \
-          -DCPACK_PACKAGE_VERSION=${{ inputs.version }} \
+          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} \
           -DCPACK_GENERATOR="DragNDrop;productbuild" \
           -G Ninja
         cmake --build build --config Release -j $(sysctl -n hw.ncpu)
@@ -294,7 +367,7 @@ jobs:
     - name: Make TGZ package (fallback)
       run: |
         cd build
-        tar -czf ../structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.tar.gz structuracost.app
+        tar -czf ../structuracost-macos-${{ matrix.target }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz structuracost.app
 
     - name: Build installers via CPack (DMG + PKG)
       run: |
@@ -307,10 +380,10 @@ jobs:
         find build -maxdepth 1 -type f -name "*.dmg" -exec cp {} installers/ \; || true
         find build -maxdepth 1 -type f -name "*.pkg" -exec cp {} installers/ \; || true
         if ls installers/*.dmg 1> /dev/null 2>&1; then
-          mv installers/*.dmg installers/structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.dmg
+          mv installers/*.dmg installers/structuracost-macos-${{ matrix.target }}-${{ needs.prepare-version.outputs.combined_version }}.dmg
         fi
         if ls installers/*.pkg 1> /dev/null 2>&1; then
-          mv installers/*.pkg installers/structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.pkg
+          mv installers/*.pkg installers/structuracost-macos-${{ matrix.target }}-${{ needs.prepare-version.outputs.combined_version }}.pkg
         fi
 
     - name: Upload macOS installers
@@ -318,19 +391,20 @@ jobs:
       with:
         name: macos-${{ matrix.target }}
         path: |
-          installers/structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.dmg
-          installers/structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.pkg
+          installers/structuracost-macos-${{ matrix.target }}-${{ needs.prepare-version.outputs.combined_version }}.dmg
+          installers/structuracost-macos-${{ matrix.target }}-${{ needs.prepare-version.outputs.combined_version }}.pkg
         retention-days: 7
 
     - name: Upload macOS archive (separate)
       uses: actions/upload-artifact@v4
       with:
         name: macos-${{ matrix.target }}-archive
-        path: structuracost-macos-${{ matrix.target }}-${{ inputs.version }}.tar.gz
+        path: structuracost-macos-${{ matrix.target }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz
         retention-days: 7
 
   build-windows:
     name: Windows (${{ matrix.arch }})
+    needs: prepare-version
     runs-on: windows-latest
     if: inputs.windows != 'skip'
     strategy:
@@ -363,7 +437,7 @@ jobs:
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
           -G Ninja `
-          -DCPACK_PACKAGE_VERSION=${{ inputs.version }} `
+          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} `
           -DCPACK_GENERATOR="NSIS;WIX" `
           ${{ matrix.arch == 'arm64' && '-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64' || '' }}
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
@@ -376,7 +450,7 @@ jobs:
         Copy-Item $exe.FullName artifact/
         if (Test-Path assets) { Copy-Item -Recurse assets artifact/ }
         $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
-        Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-$archName-${{ inputs.version }}.zip"
+        Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.zip"
 
     - name: Build installers via CPack (NSIS EXE + WiX MSI)
       shell: pwsh
@@ -398,16 +472,16 @@ jobs:
         # Collect NSIS exe if available
         $nsis = Get-ChildItem build -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "structuracost|Setup|Installer" } | Select-Object -First 1
         if ($nsis) { 
-          Copy-Item $nsis.FullName "installers/structuracost-windows-$archName-${{ inputs.version }}.exe"
-          Write-Host "NSIS installer created: structuracost-windows-$archName-${{ inputs.version }}.exe"
+          Copy-Item $nsis.FullName "installers/structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.exe"
+          Write-Host "NSIS installer created: structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.exe"
         } else {
           Write-Host "Warning: NSIS installer not found (may not be supported on ${{ matrix.arch }})"
         }
         # Collect WiX msi if available
         $msi = Get-ChildItem build -Recurse -Filter "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($msi) { 
-          Copy-Item $msi.FullName "installers/structuracost-windows-$archName-${{ inputs.version }}.msi"
-          Write-Host "WiX installer created: structuracost-windows-$archName-${{ inputs.version }}.msi"
+          Copy-Item $msi.FullName "installers/structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.msi"
+          Write-Host "WiX installer created: structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.msi"
         } else {
           Write-Host "Warning: WiX installer not found (may not be supported on ${{ matrix.arch }})"
         }
@@ -426,12 +500,12 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: windows-${{ matrix.arch }}-archive
-        path: structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ inputs.version }}.zip
+        path: structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.zip
         retention-days: 7
 
   create-release:
     name: Create Release
-    needs: [build-linux-debian, build-linux-rpm, build-linux-suse, build-macos, build-windows]
+    needs: [prepare-version, build-linux-debian, build-linux-rpm, build-linux-suse, build-macos, build-windows]
     if: |
       always() &&
       needs.build-linux-debian.result != 'failure' && needs.build-linux-debian.result != 'cancelled' &&
@@ -478,17 +552,53 @@ jobs:
 
     - name: Prepare release notes
       run: |
-        cat repo/.github/RELEASE_TEMPLATE.md > release-notes.md
+        # Add release type badge at the top with color-coded highlighting based on X (named stage)
+        case "${{ inputs.version_x }}" in
+          stable)
+            echo "## 🚀 Stable Release" > release-notes.md ;;
+          rc)
+            echo "## 🔄 Release Candidate" > release-notes.md ;;
+          beta)
+            echo "## 🧪 Beta Release" > release-notes.md ;;
+          alpha)
+            echo "## ⚠️ Alpha Release" > release-notes.md ;;
+          pre-alpha)
+            echo "## 🛠️ Pre-Alpha Release" > release-notes.md ;;
+        esac
         echo "" >> release-notes.md
-        echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ inputs.version }}" >> release-notes.md
+        
+        # Add highlighted warning boxes for pre-release types
+        case "${{ inputs.version_x }}" in
+          rc)
+            echo "> [!WARNING]" >> release-notes.md
+            echo "> **Release Candidate:** This is a release candidate. Final testing before stable release." >> release-notes.md
+            echo "" >> release-notes.md ;;
+          beta)
+            echo "> [!CAUTION]" >> release-notes.md
+            echo "> **Beta Release:** This release may contain bugs and is not recommended for production use." >> release-notes.md
+            echo "" >> release-notes.md ;;
+          alpha)
+            echo "> [!CAUTION]" >> release-notes.md
+            echo "> **Alpha Release:** This is an unstable alpha release. Intended for testing purposes only. Do not use in production!" >> release-notes.md
+            echo "" >> release-notes.md ;;
+          pre-alpha)
+            echo "> [!INFO]" >> release-notes.md
+            echo "> **Pre-Alpha Release:** This is a pre-alpha release. It may be unstable and is intended for testing and feedback." >> release-notes.md
+            echo "" >> release-notes.md ;;
+        esac
+        
+        # Add main release template content
+        cat repo/.github/RELEASE_TEMPLATE.md >> release-notes.md
+        echo "" >> release-notes.md
+        echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.prepare-version.outputs.combined_version }}" >> release-notes.md
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ inputs.version }}
-        name: ${{ inputs.version }}
+        tag_name: ${{ needs.prepare-version.outputs.combined_version }}
+        name: "${{ needs.prepare-version.outputs.combined_version }}${{ inputs.version_x != 'stable' && format(' ({0})', inputs.version_x == 'rc' && 'RC' || inputs.version_x == 'beta' && 'Beta' || inputs.version_x == 'alpha' && 'Alpha' || 'Pre-Alpha') || '' }}"
         draft: false
-        prerelease: ${{ inputs.prerelease }}
+        prerelease: ${{ inputs.version_x != 'stable' }}
         generate_release_notes: true
         body_path: release-notes.md
         files: release-assets/*
