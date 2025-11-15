@@ -116,6 +116,14 @@ else()
     # Provide a launcher in /usr/bin that cds into install prefix then runs the app
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/structuracost.sh "#!/bin/sh\ncd \"${APP_INSTALL_PREFIX}\" || exit 1\nexec ./bin/structuracost \"$@\"\n")
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/structuracost.sh DESTINATION /usr/bin RENAME structuracost)
+
+    # Install .desktop and icon
+    install(FILES ${CMAKE_SOURCE_DIR}/packaging/linux/structuracost.desktop DESTINATION share/applications)
+    install(FILES ${CMAKE_SOURCE_DIR}/assets/icons/business_logo.png DESTINATION share/icons/hicolor/256x256/apps RENAME structuracost.png)
+    # Hook post-install: DEB and RPM specific, plus generic fallback
+    set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_SOURCE_DIR}/packaging/linux/postinst.sh;")
+    set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/linux/postinst.sh")
+    set(CPACK_POST_INSTALL_SCRIPT "${CMAKE_SOURCE_DIR}/packaging/linux/postinst.sh")
 endif()
 
 # -------------------------------
@@ -160,5 +168,17 @@ set(CPACK_DEBIAN_PACKAGE_MAINTAINER "")
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_RPM_PACKAGE_LICENSE "MIT")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/Utilities")
+
+# Windows product metadata (for installers)
+if(WIN32)
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "StructuraCost")
+    set(CPACK_WIX_PRODUCT_ICON "${CMAKE_SOURCE_DIR}/assets/icons/business_logo.png")
+    set(CPACK_NSIS_INSTALLED_ICON_NAME "structuracost.exe")
+    # Start Menu and Desktop shortcuts
+    set(CPACK_PACKAGE_EXECUTABLES "structuracost;StructuraCost")
+    set(CPACK_CREATE_DESKTOP_LINKS "structuracost")
+    set(CPACK_NSIS_MENU_NAME "StructuraCost")
+    set(CPACK_WIX_PROGRAM_MENU_FOLDER "StructuraCost")
+endif()
 
 include(CPack)

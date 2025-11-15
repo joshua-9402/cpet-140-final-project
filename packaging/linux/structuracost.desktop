@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=StructuraCost
+GenericName=Payroll and Monitoring System
+Comment=StructuraCost Application
+Exec=structuracost
+Icon=structuracost
+Terminal=false
+Categories=Office;Utility;
+Keywords=payroll;monitoring;structuracost;
+StartupNotify=true
+
