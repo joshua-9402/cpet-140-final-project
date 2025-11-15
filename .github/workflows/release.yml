@@ -116,9 +116,9 @@ jobs:
     - name: Install dependencies
       run: |
         zypper refresh
-        zypper install -y gcc gcc-c++ git cmake ninja file glfw-devel \
+        zypper install -y gcc gcc-c++ git cmake ninja file glfw3-devel \
           libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
-          Mesa-libGL-devel Mesa-libGLU-devel freetype2-devel fontconfig-devel
+          Mesa-libGL-devel libGLU1 freetype2-devel fontconfig-devel
 
     - name: Checkout code
       uses: actions/checkout@v4

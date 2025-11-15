@@ -72,13 +72,13 @@ jobs:
           cmake \
           ninja \
           file \
-          glfw-devel \
+          glfw3-devel \
           libXrandr-devel \
           libXinerama-devel \
           libXcursor-devel \
           libXi-devel \
           Mesa-libGL-devel \
-          Mesa-libGLU-devel \
+          libGLU1 \
           freetype2-devel \
           fontconfig-devel
 
