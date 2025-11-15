@@ -1,4 +1,4 @@
-name: Build Windows ARM64 (Manual)
+name: Windows for ARM
 
 on:
   workflow_dispatch:

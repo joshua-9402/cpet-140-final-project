@@ -1,4 +1,4 @@
-name: Build macOS Intel (Manual)
+name: macOS
 
 on:
   workflow_dispatch:

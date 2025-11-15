@@ -1,4 +1,4 @@
-name: Build Windows x64 (Manual)
+name: Windows
 
 on:
   workflow_dispatch:

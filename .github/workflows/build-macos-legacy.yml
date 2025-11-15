@@ -1,4 +1,4 @@
-name: Build macOS Legacy (Manual)
+name: macOS Legacy
 
 on:
   workflow_dispatch:
