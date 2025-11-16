@@ -1,5 +1,6 @@
 #include "system.h"
 #include <chrono>
+#include <filesystem>
 
 // Platform-specific includes for directory creation
 #ifdef _WIN32
@@ -30,7 +31,7 @@ int system::fetchTime(const PartDateTime part) {
 }
 
 
-bool createDirectory(const std::string& p_directoryName) {
+bool system::createDirectory(const std::string& p_directoryName) {
     const char* folderName = p_directoryName.c_str();
 
     // Use platform-specific mkdir
@@ -48,6 +49,29 @@ bool createDirectory(const std::string& p_directoryName) {
         struct stat info{};
         if (stat(folderName, &info) == 0 && S_ISDIR(info.st_mode)) {
             return true;  // Directory already exists
+        }
+    #endif
+
+    return false;
+}
+
+// Check whether a directory exists at the given path
+bool system::searchDirectory(const std::string& p_directoryName) {
+    try {
+        return std::filesystem::is_directory(p_directoryName);
+    } catch (...) {
+        // fallback to POSIX/stat or Windows _stat
+    }
+
+    #ifdef _WIN32
+        struct _stat info;
+        if (_stat(p_directoryName.c_str(), &info) == 0) {
+            return (info.st_mode & _S_IFDIR) != 0;
+        }
+    #else
+        struct stat info{};
+        if (stat(p_directoryName.c_str(), &info) == 0) {
+            return S_ISDIR(info.st_mode);
         }
     #endif
 

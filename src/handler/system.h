@@ -5,24 +5,28 @@
 
 
 class system {
-public:
-    // Which part of the current local date/time to fetch
-    enum class PartDateTime {
-        YEAR,
-        MONTH,
-        DAY,
-        HOUR,
-        MINUTE,
-        SECOND
-    };
+    public:
+        // Which part of the current local date/time to fetch
+        enum class PartDateTime {
+            YEAR,
+            MONTH,
+            DAY,
+            HOUR,
+            MINUTE,
+            SECOND
+        };
 
-    // Returns the requested part of the current local time.
-    // Example: fetchTime(PartDateTime::HOUR) -> 0..23
-    static int fetchTime(PartDateTime part);
+        // Returns the requested part of the current local time.
+        // Example: fetchTime(PartDateTime::HOUR) -> 0..23
+        static int fetchTime(PartDateTime part);
 
-    // Creates a directory with the specified name.
-    // Returns true on success, false on failure.
-    static bool createDirectory(const std::string& directoryName);
+        // Creates a directory with the specified name.
+        // Returns true on success, false on failure.
+        static bool createDirectory(const std::string& directoryName);
+
+        // Check whether a directory exists at the given path. Returns true if
+        // the path exists and is a directory.
+        static bool searchDirectory(const std::string& directoryName);
 };
 
 

@@ -16,29 +16,61 @@
  * - Single-threaded by default; callers must synchronize if accessed from multiple threads or workers.
  * - Ensure secure handling of credentials; avoid logging sensitive information.
  * - Use standard encryption/hashing for passwords where applicable.
+ *
+ *
+ * USER AND PW:
+ * - username: test_user
+ * - password: test_pass
+ *
+ * - DEVICE CODE GENERATION:
+ *      Handled by the mobile application.
  */
 
 #include "auth.h"
 #include <string>
-#include "../ui/ui.h"
-#include "../config/app_config.h"
-
-
-const config appConfig; // Create an instance of the config
+#include <sodium.h>
 
 
 /*
  * This function is responsible for the connection to and from the mobile application
- *
- * For more information, please refer to the mobile application's repository
- *
- * The generation of device code is handled by the mobile application
- * deviceCode = username + password + device + appGeneratedString (based on time) + salting / hashing
  */
-std::string authGateway(const std::string& username, const std::string& password, const std::string& deviceCode) {
-    if (deviceCode.empty()) {
-        ui::g_failedMessage = "error: invalid verification code";
-        ui::constructUI(appConfig.g_appTitle, appConfig.g_fontName, appConfig.g_defaultWidth, appConfig.g_defaultHeight, "failedUI");
-    }
+std::string auth::authGateway(const std::string& username, const std::string& password, const std::string& deviceCode) {
     return username + "_" + password + "_" + deviceCode;
+}
+
+
+bool auth::checkSodium() {
+    if (sodium_init() < 0) { return false; }
+    return true;
+}
+
+// Hash password using libsodium's crypto_pwhash_str (argon2id)
+std::string auth::hashPassword(const std::string &password) {
+    if (!auth::checkSodium()) return "";
+
+    // Recommended output buffer size from libsodium
+    constexpr size_t out_len = crypto_pwhash_STRBYTES;
+    std::string out(out_len, '\0');
+
+    if (0 != crypto_pwhash_str(
+            &out[0],
+            password.c_str(),
+            password.size(),
+            crypto_pwhash_OPSLIMIT_INTERACTIVE,
+            crypto_pwhash_MEMLIMIT_INTERACTIVE)) {
+        return std::string(); // failure
+    }
+    // The returned string may contain a terminating '\0' inside; resize to actual C-string length
+    out.resize(std::strlen(out.c_str()));
+    return out;
+}
+
+// Verify password against encoded hash
+bool auth::verifyPassword(const std::string &encodedHash, const std::string &password) {
+    if (!auth::checkSodium()) return false;
+
+    if (0 == crypto_pwhash_str_verify(encodedHash.c_str(), password.c_str(), password.size())) {
+        return true; // match
+    }
+    return false;
 }

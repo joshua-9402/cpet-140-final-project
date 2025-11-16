@@ -43,7 +43,7 @@ const std::string g_position = "testPosition";
 
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(), [](const unsigned char c){ return std::tolower(c); });
+    std::ranges::transform(s, s.begin(), [](const unsigned char c){ return std::tolower(c); });
     return s;
 }
 

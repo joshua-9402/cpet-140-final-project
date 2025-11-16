@@ -477,7 +477,7 @@ namespace monitor {
     // Initialize monitoring database
     bool initializeMonitoringDatabase(const std::string& dbName) {
         // Call db.h to create the database
-        return createDatabase(dbName);
+        return db::createDatabase(dbName);
     }
 
     // Save expense to database using db.h
@@ -493,7 +493,7 @@ namespace monitor {
         std::string expenseData = data.str();
 
         // Call db.h to append data
-        return appendToDatabase(dbName, expenseData);
+        return db::appendToDatabase(dbName, expenseData);
     }
 
     // Save payroll summary to database using db.h
@@ -509,14 +509,14 @@ namespace monitor {
         std::string payrollData = data.str();
 
         // Call db.h to append data
-        return appendToDatabase(dbName, payrollData);
+        return db::appendToDatabase(dbName, payrollData);
     }
 
     // Save project budget to text file using db.h
     bool saveProjectBudgetToFile(const std::string& filename, const std::string& projectName, double budget) {
         // First, create the file if it doesn't exist
-        if (!openDatabase(filename)) {
-            createFileText(filename);
+        if (!db::openDatabase(filename)) {
+            db::createFileText(filename);
         }
 
         // Format budget data
@@ -524,13 +524,13 @@ namespace monitor {
         data << projectName << "|" << std::fixed << std::setprecision(2) << budget;
 
         // Call db.h to append to file
-        return appendFileText(filename, data.str(), true);
+        return db::appendFileText(filename, data.str(), true);
     }
 
     // Load project budget from text file using db.h
     double loadProjectBudgetFromFile(const std::string& filename, const std::string& projectName, int lineNumber) {
         // Call db.h to read file
-        std::string line = readFileText(filename, lineNumber);
+        std::string line = db::readFileText(filename, lineNumber);
 
         if (line.empty()) {
             return 0.0;
@@ -561,20 +561,20 @@ namespace monitor {
         }
 
         // Open database connection
-        if (!openDatabase(dbName)) {
+        if (!db::openDatabase(dbName)) {
             return false;
         }
 
         // Save each expense
         for (const auto& expense : g_expenses) {
             if (!saveExpenseToDatabase(dbName, expense)) {
-                closeDatabase(dbName);
+                db::closeDatabase(dbName);
                 return false;
             }
         }
 
         // Close database connection
-        return closeDatabase(dbName);
+        return db::closeDatabase(dbName);
     }
 
 } // namespace monitor

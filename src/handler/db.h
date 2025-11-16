@@ -12,16 +12,20 @@
 
 #include <string>
 
-// File operations
-bool createFileText(const std::string& p_filename);
-std::string readFileText(const std::string& p_filename, int p_lineFileText);
-bool appendFileText(const std::string& p_filename, const std::string& p_newText, bool addNewline = true);
+class db {
+    // Database-related declarations can go here if needed
+    public:
+        // File operations
+        static bool createFileText(const std::string& p_filename);
+        static std::string readFileText(const std::string& p_filename, int p_lineFileText);
+        static bool appendFileText(const std::string& p_filename, const std::string& p_newText, bool addNewline = true);
+        static bool searchFileText(const std::string& p_filename);
 
-// Database operations
-bool createDatabase(const std::string& p_dbName);
-bool openDatabase(const std::string& p_dbName);
-bool closeDatabase(const std::string& p_dbName);
-bool appendToDatabase(const std::string& p_dbName, std::string& p_data);
-
+        // Database operations
+        static bool createDatabase(const std::string& p_dbName);
+        static bool searchDatabase(const std::string& p_dbName);
+        static bool openDatabase(const std::string& p_dbName);
+        static bool closeDatabase(const std::string& p_dbName);
+        static bool appendToDatabase(const std::string& p_dbName, std::string& p_data);
+};
 #endif // DB_H
-
