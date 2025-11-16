@@ -119,47 +119,35 @@ jobs:
       run: |
         echo "=== Checking build output ==="
         ls -lh build/
-        if [ -f "build/payroll-and-monitoring-system" ]; then
-          echo "✅ Executable found"
-          ls -lh build/payroll-and-monitoring-system
-          file build/payroll-and-monitoring-system
-          ldd build/payroll-and-monitoring-system || echo "Static build or libraries not found"
+        if [ -f "build/structuracost" ]; then
+            echo "✅ Executable found"
+            ls -lh build/structuracost
+            file build/structuracost
+            ldd build/structuracost || echo "Static build or libraries not found"
         else
-          echo "❌ Build output not found!"
-          exit 1
+            echo "❌ Build output not found!"
+            exit 1
         fi
 
     - name: Package artifacts
       run: |
         echo "=== Packaging application ==="
         mkdir -p artifact
-        
-        # Copy executable
-        cp build/payroll-and-monitoring-system artifact/
-        
-        # Copy assets
+        cp build/structuracost artifact/
         if [ -d "assets" ]; then
           cp -r assets artifact/
         fi
-        
-        # Create archive with distribution and architecture in name
         DIST_NAME=$(echo "${{ inputs.distribution }}" | sed 's/:/-/g' | sed 's/\//-/g')
-        ARCHIVE_NAME="payroll-and-monitoring-system-${DIST_NAME}-${{ inputs.architecture }}-${{ inputs.build_type }}.tar.gz"
-        
-        cd artifact
-        tar -czf ../${ARCHIVE_NAME} *
-        cd ..
-        
+        ARCHIVE_NAME="structuracost-${DIST_NAME}-${{ inputs.architecture }}-${{ inputs.build_type }}.tar.gz"
+        cd artifact && tar -czf ../${ARCHIVE_NAME} * && cd ..
         echo "=== Archive created ==="
         ls -lh ${ARCHIVE_NAME}
-        
-        # Save archive name for upload step
         echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: payroll-and-monitoring-system-${{ inputs.distribution }}-${{ inputs.architecture }}-${{ inputs.build_type }}
+        name: structuracost-${{ inputs.distribution }}-${{ inputs.architecture }}-${{ inputs.build_type }}
         path: ${{ env.ARCHIVE_NAME }}
         retention-days: 90
         compression-level: 0
@@ -182,4 +170,3 @@ jobs:
         **Note:** This binary is built for ${{ inputs.distribution }} on ${{ inputs.architecture }}.
         It may work on other SUSE-based distributions but testing is recommended.
         EOF
-

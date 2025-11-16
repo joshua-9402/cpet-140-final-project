@@ -58,28 +58,25 @@ jobs:
     - name: Configure CMake
       run: |
         echo "=== Configuring CMake ==="
-        
-        # Set deployment target based on selection
         if [ "${{ inputs.target }}" = "arm64" ]; then
           DEPLOYMENT_TARGET="14.0"
-        elif [ "${{ inputs.target }}" = "intel" ]; then
-          DEPLOYMENT_TARGET="11.0"
-        fi
-        
-        if [ "${{ inputs.enable_lto }}" = "true" ]; then
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
-            -G Ninja \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=$DEPLOYMENT_TARGET \
-            ${CMAKE_OSX_ARCHITECTURES:+-DCMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCHITECTURES}
+          ARCH="arm64"
         else
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
-            -G Ninja \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=$DEPLOYMENT_TARGET \
-            ${CMAKE_OSX_ARCHITECTURES:+-DCMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCHITECTURES} \
-            -DNO_LTO=ON
+          DEPLOYMENT_TARGET="11.0"
+          ARCH="x86_64"
         fi
+        LTO_FLAGS=""
+        if [ "${{ inputs.enable_lto }}" = "true" ]; then
+          LTO_FLAGS="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+        else
+          LTO_FLAGS="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF"
+        fi
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
+          -G Ninja \
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=$DEPLOYMENT_TARGET \
+          -DCMAKE_OSX_ARCHITECTURES=$ARCH \
+          $LTO_FLAGS
 
     - name: Build
       run: |
@@ -90,14 +87,14 @@ jobs:
       run: |
         echo "=== Checking build output ==="
         ls -lh build/
-        if [ -d "build/payroll-and-monitoring-system.app" ]; then
+        if [ -d "build/structuracost.app" ]; then
           echo "✅ App bundle created"
-          ls -lh build/payroll-and-monitoring-system.app/Contents/MacOS/
-          file build/payroll-and-monitoring-system.app/Contents/MacOS/payroll-and-monitoring-system
-        elif [ -f "build/payroll-and-monitoring-system" ]; then
+          ls -lh build/structuracost.app/Contents/MacOS/
+          file build/structuracost.app/Contents/MacOS/structuracost
+        elif [ -f "build/structuracost" ]; then
           echo "✅ Executable created"
-          ls -lh build/payroll-and-monitoring-system
-          file build/payroll-and-monitoring-system
+          ls -lh build/structuracost
+          file build/structuracost
         else
           echo "❌ Build output not found!"
           exit 1
@@ -107,33 +104,27 @@ jobs:
       run: |
         echo "=== Packaging application ==="
         mkdir -p artifact
-        
-        # Check for app bundle first
-        if [ -d "build/payroll-and-monitoring-system.app" ]; then
+        if [ -d "build/structuracost.app" ]; then
           echo "Packaging .app bundle"
-          cp -r build/payroll-and-monitoring-system.app artifact/
+          cp -R build/structuracost.app artifact/
         else
           echo "Packaging standalone executable"
-          cp build/payroll-and-monitoring-system artifact/
-          # Copy assets if they exist
+          cp build/structuracost artifact/
           if [ -d "assets" ]; then
-            cp -r assets artifact/
+            cp -R assets artifact/
           fi
         fi
-        
-        # Create archive
         cd artifact
-        tar -czf ../payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz *
+        tar -czf ../structuracost-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz *
         cd ..
-        
         echo "=== Archive created ==="
-        ls -lh payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
+        ls -lh structuracost-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}
-        path: payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
+        name: structuracost-macos-${{ inputs.target }}-${{ inputs.build_type }}
+        path: structuracost-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
         retention-days: 90
 
     - name: Build summary
@@ -141,19 +132,15 @@ jobs:
         TARGET_NAME="${{ inputs.target }}"
         if [ "$TARGET_NAME" = "arm64" ]; then
           TARGET_DESC="Apple Silicon (M1/M2/M3/M4) - macOS 14.0+"
-        elif [ "$TARGET_NAME" = "intel" ]; then
+        else
           TARGET_DESC="Intel (x64) - macOS 11.0+"
         fi
-        
         cat << EOF >> $GITHUB_STEP_SUMMARY
         ### ✅ Build Completed Successfully
-        
         **Target:** $TARGET_DESC
         **Build Type:** ${{ inputs.build_type }}
         **LTO Enabled:** ${{ inputs.enable_lto }}
         **Compiler:** $(clang++ --version | head -1)
-        
-        **Artifact:** payroll-and-monitoring-system-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
-        
+        **Artifact:** structuracost-macos-${{ inputs.target }}-${{ inputs.build_type }}.tar.gz
         Download the artifact from the workflow run page.
         EOF

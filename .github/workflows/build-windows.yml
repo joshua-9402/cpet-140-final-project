@@ -143,12 +143,12 @@ jobs:
       shell: pwsh
       run: |
         Write-Host "=== Checking build output ==="
-        Get-ChildItem -Recurse build | Where-Object { $_.Name -like "payroll-and-monitoring-system.exe" } | ForEach-Object {
+        Get-ChildItem -Recurse build | Where-Object { $_.Name -like "structuracost.exe" } | ForEach-Object {
           Write-Host "✅ Executable found: $($_.FullName)"
           Write-Host "Size: $([math]::Round($_.Length/1MB, 2)) MB"
         }
         
-        if (-not (Test-Path "build\payroll-and-monitoring-system.exe")) {
+        if (-not (Test-Path "build\structuracost.exe")) {
           Write-Host "❌ Build output not found!"
           exit 1
         }
@@ -160,7 +160,7 @@ jobs:
         New-Item -ItemType Directory -Force -Path artifact | Out-Null
         
         # Find and copy the executable
-        $exe = Get-ChildItem -Recurse build -Filter "payroll-and-monitoring-system.exe" | Select-Object -First 1
+        $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
         Copy-Item $exe.FullName artifact\
         
         # Copy assets if they exist
@@ -169,7 +169,7 @@ jobs:
         }
         
         # Create ZIP archive
-        $archiveName = "payroll-and-monitoring-system-windows-${{ inputs.architecture }}-${{ inputs.build_type }}.zip"
+        $archiveName = "structuracost-windows-${{ inputs.architecture }}-${{ inputs.build_type }}.zip"
         Compress-Archive -Path artifact\* -DestinationPath $archiveName
         
         Write-Host "=== Archive created ==="
@@ -181,8 +181,8 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: payroll-and-monitoring-system-windows-${{ inputs.architecture }}-${{ inputs.build_type }}
-        path: payroll-and-monitoring-system-windows-${{ inputs.architecture }}-${{ inputs.build_type }}.zip
+        name: structuracost-windows-${{ inputs.architecture }}-${{ inputs.build_type }}
+        path: structuracost-windows-${{ inputs.architecture }}-${{ inputs.build_type }}.zip
         retention-days: 90
 
     - name: Build summary
@@ -198,8 +198,7 @@ jobs:
         **LTO Enabled:** ${{ inputs.enable_lto }}
         **Compiler:** MSVC $(cl.exe 2>&1 | Select-String "Compiler Version" | Out-String)
         
-        **Artifact:** payroll-and-monitoring-system-windows-${{ inputs.architecture }}-${{ inputs.build_type }}.zip
+        **Artifact:** structuracost-windows-${{ inputs.architecture }}-${{ inputs.build_type }}.zip
         
         Download the artifact from the workflow run page.
         "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
-
