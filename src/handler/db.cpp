@@ -63,56 +63,6 @@
 #include <fstream>
 #include <filesystem>
 
-// File operations
-bool db::createFileText(const std::string& p_filename) {
-    if (const std::ofstream createdFile(p_filename); createdFile.is_open()) {return true;}
-    return false;
-}
-
-
-bool db::searchFileText(const std::string& p_filename) {
-    // Prefer std::filesystem when available
-    try {
-        if (std::filesystem::exists(p_filename)) return true;
-        if (std::filesystem::exists(p_filename + ".txt")) return true;
-    } catch (...) {
-        // fall back
-    }
-
-    // Fallback: try opening the file
-    if (std::ifstream f(p_filename); f.is_open()) { f.close(); return true; }
-    if (std::ifstream f2(p_filename + ".txt"); f2.is_open()) { f2.close(); return true; }
-    return false;
-}
-
-
-std::string db::readFileText(const std::string& p_filename, const int p_lineFileText) {
-
-    std::ifstream inputFile(p_filename);
-    if (!inputFile.is_open()) {inputFile.clear(); inputFile.open(p_filename + ".txt");}
-
-    if (!inputFile.is_open()) {return "";} // not found / error
-
-    std::string line;
-    int currentLineNumber = 0;
-    while (std::getline(inputFile, line)) {++currentLineNumber; if (currentLineNumber == p_lineFileText) {return line;}}
-    return ""; // line not found
-}
-
-
-bool db::appendFileText(const std::string& p_filename, const std::string& p_newText, const bool addNewline) {
-    std::ofstream outputFile(p_filename, std::ios::app);
-
-    if (!outputFile.is_open()) return false;
-
-    outputFile << p_newText;
-    if (addNewline) outputFile << '\n';
-
-    // flush and check for errors
-    outputFile.flush();
-    return !outputFile.fail();
-}
-
 
 bool db::createDatabase(const std::string& p_dbName) {
     sqlite3* dbPtr; // Pointer to the SQLite database connection
