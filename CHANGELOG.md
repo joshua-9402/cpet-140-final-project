@@ -1,6 +1,6 @@
 ## What's Changed
 
-- add: add support for hashing passwords with sodium
+- add: add support for hashing / encrypting passwords with sodium [b434b3e](https://github.com/joshua-9402/cpet-140-final-project/commit/b434b3e22d16f9c56317f68d3afe9f8a10c4a0eb) and []()
 
 ## Supported Platforms
 
@@ -10,8 +10,8 @@
 - **SUSE**: openSUSE Tumbleweed, Leap 15.6 (x64, ARM64)
 
 ### macOS
-- Apple Silicon (ARM64) - macOS 14.0+
-- Intel (x64) - macOS 11.0+
+- Apple Silicon (ARM64) - macOS 11.0+
+- Intel (x64) - macOS 10.15+
 
 ### Windows
 - x64 and ARM64

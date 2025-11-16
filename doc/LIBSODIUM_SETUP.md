@@ -180,23 +180,154 @@ cmake -DCMAKE_TOOLCHAIN_FILE=... ..
 
 ## CI/CD Integration
 
-The multi-strategy approach ensures builds work in CI/CD environments:
+The CMakeLists.txt automatically detects CI environments (GitHub Actions, GitLab CI, Travis CI) and provides specialized error messages.
 
-### GitHub Actions (example)
+### GitHub Actions - Complete Example
+
+Add this to your workflow YAML file (e.g., `.github/workflows/build.yml`):
+
 ```yaml
-- name: Install libsodium
-  run: |
-    if [[ "$RUNNER_OS" == "Linux" ]]; then
-      sudo apt-get update
-      sudo apt-get install -y libsodium-dev
-    elif [[ "$RUNNER_OS" == "macOS" ]]; then
-      brew install libsodium
-    elif [[ "$RUNNER_OS" == "Windows" ]]; then
-      # Download and extract to dependencies/libsodium
-      curl -L -o libsodium.zip https://download.libsodium.org/libsodium/releases/libsodium-*-msvc.zip
-      unzip libsodium.zip -d dependencies/libsodium
-    fi
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        arch: [x64]
+        include:
+          - os: ubuntu-latest
+            arch: arm64
+          - os: macos-latest
+            arch: arm64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    # Install libsodium - THIS IS REQUIRED
+    - name: Install libsodium (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsodium-dev pkg-config
+    
+    - name: Install libsodium (macOS)
+      if: runner.os == 'macOS'
+      run: brew install libsodium
+    
+    - name: Install libsodium (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        curl -L -o libsodium.zip https://download.libsodium.org/libsodium/releases/libsodium-1.0.20-stable-msvc.zip
+        7z x libsodium.zip -o${{ github.workspace }}/dependencies/libsodium
+        # Adjust paths based on the actual zip structure
+        # You may need to move files from libsodium/x64/Release/v142/static/* to dependencies/libsodium/lib/
+    
+    # Configure and build
+    - name: Configure CMake
+      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: cmake --build build --config Release
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: structuracost-${{ matrix.os }}-${{ matrix.arch }}
+        path: |
+          build/structuracost*
+          build/*.exe
+          build/*.app
 ```
+
+### Minimal GitHub Actions Example
+
+For a simple single-platform build:
+
+```yaml
+name: Build Ubuntu
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsodium-dev ninja-build
+    
+    - name: Build
+      run: |
+        cmake -B build -G Ninja
+        cmake --build build
+```
+
+### GitLab CI Example
+
+```yaml
+build:
+  image: ubuntu:22.04
+  
+  before_script:
+    - apt-get update
+    - apt-get install -y build-essential cmake ninja-build libsodium-dev
+  
+  script:
+    - cmake -B build -G Ninja
+    - cmake --build build
+  
+  artifacts:
+    paths:
+      - build/structuracost
+```
+
+### Travis CI Example
+
+```yaml
+language: cpp
+os:
+  - linux
+  - osx
+
+before_install:
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get update; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install -y libsodium-dev; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libsodium; fi
+
+script:
+  - cmake -B build
+  - cmake --build build
+```
+
+### Important CI Notes
+
+1. **Always install libsodium** before running CMake configure
+2. **Use pkg-config** on Linux for automatic detection
+3. **Cache dependencies** to speed up builds:
+   ```yaml
+   - name: Cache libsodium
+     uses: actions/cache@v4
+     with:
+       path: |
+         /opt/homebrew/Cellar/libsodium
+         /usr/local/Cellar/libsodium
+       key: ${{ runner.os }}-libsodium-${{ hashFiles('**/CMakeLists.txt') }}
+   ```
+4. **Matrix builds** for multiple platforms/architectures work automatically
+5. **Windows builds** may require manual path adjustment after extracting libsodium zip
 
 ## Building from Source (Advanced)
 
