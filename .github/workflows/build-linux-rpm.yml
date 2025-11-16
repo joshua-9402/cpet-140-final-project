@@ -87,6 +87,7 @@ jobs:
           mesa-libGLU-devel \
           freetype-devel \
           fontconfig-devel \
+          libsodium-devel \
           pkg-config
 
     - name: Checkout code

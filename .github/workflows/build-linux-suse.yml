@@ -79,7 +79,8 @@ jobs:
           Mesa-libGL-devel \
           libGLU1 \
           freetype2-devel \
-          fontconfig-devel
+          fontconfig-devel \
+          libsodium-devel
 
     - name: Checkout code
       uses: actions/checkout@v4

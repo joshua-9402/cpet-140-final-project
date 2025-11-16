@@ -36,6 +36,44 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Install libsodium
+      shell: pwsh
+      run: |
+        Write-Host "=== Installing libsodium ==="
+        
+        # Download libsodium prebuilt binary for Windows
+        $url = "https://download.libsodium.org/libsodium/releases/libsodium-1.0.20-stable-msvc.zip"
+        $zipFile = "$env:TEMP\libsodium.zip"
+        $extractPath = "${{ github.workspace }}\dependencies\libsodium"
+        
+        Write-Host "Downloading libsodium from $url"
+        Invoke-WebRequest -Uri $url -OutFile $zipFile
+        
+        Write-Host "Extracting to $extractPath"
+        Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
+        
+        # The zip contains architecture-specific folders, we need to organize them
+        # Structure: libsodium/[x64|Win32|ARM64]/[Release|Debug]/[v142|v143]/[dynamic|static]/
+        
+        Write-Host "Organizing libsodium files..."
+        # Copy include files to a common location
+        if (Test-Path "$extractPath\include") {
+          Write-Host "✓ Include files already in place"
+        } else {
+          # Find and copy include directory from the extracted structure
+          $includeSrc = Get-ChildItem -Path $extractPath -Recurse -Directory -Filter "include" | Select-Object -First 1
+          if ($includeSrc) {
+            Copy-Item -Path $includeSrc.FullName -Destination "$extractPath\include" -Recurse -Force
+            Write-Host "✓ Copied include files"
+          }
+        }
+        
+        Write-Host "✓ libsodium installed successfully"
+        
+        # List the structure for debugging
+        Write-Host "`nExtracted structure:"
+        Get-ChildItem -Path $extractPath -Recurse -Depth 2 | Select-Object FullName
+
     - name: System information
       shell: pwsh
       run: |

@@ -49,7 +49,7 @@ jobs:
     - name: Install dependencies
       run: |
         echo "=== Installing dependencies with Homebrew ==="
-        brew install cmake ninja freetype
+        brew install cmake ninja freetype libsodium
         echo "=== Verifying installations ==="
         cmake --version
         ninja --version

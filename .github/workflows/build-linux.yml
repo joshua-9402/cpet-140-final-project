@@ -84,6 +84,7 @@ jobs:
           libglu1-mesa-dev \
           libfreetype6-dev \
           libfontconfig1-dev \
+          libsodium-dev \
           pkg-config
 
     - name: Checkout code
