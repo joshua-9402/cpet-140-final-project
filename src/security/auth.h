@@ -1,0 +1,9 @@
+#ifndef CPET_140_FINAL_PROJECT_AUTH_H
+#define CPET_140_FINAL_PROJECT_AUTH_H
+
+
+class auth {
+};
+
+
+#endif //CPET_140_FINAL_PROJECT_AUTH_H
