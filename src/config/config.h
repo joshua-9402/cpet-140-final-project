@@ -3,20 +3,24 @@
 
 #include <string>
 
-// Global authentication flag (defined in app_config.cpp)
-extern bool g_auth;
-
 // Application configuration variables (declared once, defined in app_config.cpp)
 class appConfig {
     public:
+    // Global authentication flag (defined in app_config.cpp)
+        static bool g_auth;
+        static bool g_testMode;
+
         static std::string g_appTitle;            // Main App Title
         static std::string g_loginTitle;          // Login Window Title
         static std::string g_errorTitle;          // Error Window Title
 
         static std::string g_fontName;            // Default font path (relative to assets)
+        static std::string g_dataDirectory;       // Data directory path
+        static std::string g_projectDirectory;    // Projects directory path
+
         static std::string g_dbNamePayroll;       // Database file name for payroll
         static std::string g_dbNameTracker;       // Database file name for tracker
-        static std::string g_txtNameUser;         // User data file name
+        static std::string g_dbNameUsers;         // User data file name
 
         static int g_defaultWidth;                // Window width in pixels
         static int g_defaultHeight;               // Window height in pixels

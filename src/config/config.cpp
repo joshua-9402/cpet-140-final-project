@@ -1,7 +1,10 @@
-#include "app_config.h"
+#include "config.h"
 
-// Global authentication flag (declared extern in app_config.h)
-bool g_auth = false;
+// Global authentication flag
+bool appConfig::g_auth = false;
+
+// Global test mode flag
+bool appConfig::g_testMode = false;
 
 // Definitions of application configuration variables (match declarations in app_config.h)
 #include <string>
@@ -11,9 +14,12 @@ std::string appConfig::g_loginTitle    = "LOGIN";
 std::string appConfig::g_errorTitle    = "ERROR";
 
 std::string appConfig::g_fontName      = "fonts/OpenSans-Regular.ttf";
+std::string appConfig::g_dataDirectory = "data/";
+std::string appConfig::g_projectDirectory = "projects/";
+
 std::string appConfig::g_dbNamePayroll = "payroll.db";
 std::string appConfig::g_dbNameTracker = "tracker.db";
-std::string appConfig::g_txtNameUser   = "user.txt";
+std::string appConfig::g_dbNameUsers   = "user.db";
 
 int appConfig::g_defaultWidth  = 1600;
 int appConfig::g_defaultHeight = 900;
