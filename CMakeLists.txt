@@ -4,8 +4,7 @@ set(CMAKE_CXX_STANDARD 20) # set C++ standard to C++20 (AppleClang doesn't suppo
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Fetch Hello ImGui (automatic download)
-include(FetchContent)
+include(FetchContent) # Fetch Hello ImGui (automatic download)
 
 # Download and build FreeType automatically to avoid version conflicts
 # This ensures HelloImGui has a compatible FreeType version regardless of system version
@@ -23,10 +22,12 @@ FetchContent_Declare(
         hello_imgui
         GIT_REPOSITORY https://github.com/pthom/hello_imgui.git
 )
+
 FetchContent_MakeAvailable(hello_imgui)
 
 # Add your app
 hello_imgui_add_app(
+        # Target name
         structuracost
 
         # dependency
@@ -36,20 +37,26 @@ hello_imgui_add_app(
         # The main application file
         src/main.cpp
 
+
         # App config
-        src/config/app_config.cpp
-        src/config/app_config.h
+        src/config/config.cpp
+        src/config/config.h
 
 
         # Handlers
-        src/handler/auth.cpp
-        src/handler/auth.h
-
         src/handler/db.cpp
         src/handler/db.h
 
         src/handler/system.cpp
         src/handler/system.h
+
+
+        # Security
+        src/security/auth.cpp
+        src/security/auth.h
+
+        src/security/cryptography.cpp
+        src/security/cryptography.h
 
 
         # UI Components
@@ -118,6 +125,8 @@ if(NOT LIBSODIUM_FOUND AND APPLE)
                     target_include_directories(structuracost PRIVATE "${HOMEBREW_PATH}/include")
                     target_link_libraries(structuracost PRIVATE "${LIB_PATH}")
                     set(LIBSODIUM_FOUND TRUE)
+                    set(LIBSODIUM_INCLUDE_DIRS "${HOMEBREW_PATH}/include")
+                    set(LIBSODIUM_LIBRARIES "${LIB_PATH}")
                     message(STATUS "✓ Found Homebrew libsodium: ${LIB_PATH}")
                     break()
                 endif()
@@ -286,28 +295,6 @@ if(NOT LIBSODIUM_FOUND)
     endif()
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-    message(STATUS "Release build configured with -O3 optimization.")
-endif()
-
-# GCC and Clang optimization flags
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    # Note: Removed -march=native for better CI/CD compatibility
-    # LTO can be disabled by setting -DNO_LTO=ON if it causes issues
-    if(NOT NO_LTO)
-        set(CMAKE_CXX_FLAGS_RELEASE "-O3 -flto -DNDEBUG")
-        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto")
-    else()
-        set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
-    endif()
-endif()
-
-# MSVC optimization flags
-if (MSVC)
-    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /GL /DNDEBUG")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/LTCG")  # link-time code generation
-endif()
 
 # -------------------------------
 # Install rules for packaging
@@ -380,12 +367,31 @@ endif()
 if(APPLE)
     # Provide both .dmg (DragNDrop) and .pkg (productbuild)
     set(CPACK_GENERATOR "DragNDrop;productbuild")
+    # Link Security framework (Keychain APIs) for keyring support
+    find_library(SECURITY_FRAMEWORK Security)
+    if(SECURITY_FRAMEWORK)
+        target_link_libraries(structuracost PRIVATE ${SECURITY_FRAMEWORK})
+        message(STATUS "Linking Security framework for Keychain support: ${SECURITY_FRAMEWORK}")
+    else()
+        message(WARNING "Security framework not found; keychain support may fail to link")
+    endif()
 elseif(WIN32)
     # Use NSIS (.exe) only on Windows
     set(CPACK_GENERATOR "NSIS")
+    # Link Windows Credential Manager (Advapi32 provides CredWrite/CredRead)
+    target_link_libraries(structuracost PRIVATE Advapi32)
+    message(STATUS "Linking Advapi32 for Windows Credential Manager support")
 else()
     # On Linux, generator will be set from CI per family (DEB or RPM); fallback to TGZ
     set(CPACK_GENERATOR "TGZ")
+    # Try to link libsecret (secret-1) if available for native keyring support; otherwise we fallback to secret-tool or file
+    find_library(LIBSECRET_LIBRARY NAMES secret-1 libsecret-1)
+    if(LIBSECRET_LIBRARY)
+        target_link_libraries(structuracost PRIVATE ${LIBSECRET_LIBRARY})
+        message(STATUS "Linking libsecret for Linux keyring support: ${LIBSECRET_LIBRARY}")
+    else()
+        message(STATUS "libsecret not found; using secret-tool/file fallback for key storage")
+    endif()
 endif()
 
 # NSIS tweaks (Windows)
