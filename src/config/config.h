@@ -20,7 +20,6 @@ class appConfig {
 
         static std::string g_dbNamePayroll;       // Database file name for payroll
         static std::string g_dbNameTracker;       // Database file name for tracker
-        static std::string g_dbNameUsers;         // User data file name
 
         static int g_defaultWidth;                // Window width in pixels
         static int g_defaultHeight;               // Window height in pixels

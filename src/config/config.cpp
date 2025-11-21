@@ -19,7 +19,6 @@ std::string appConfig::g_projectDirectory = "projects/";
 
 std::string appConfig::g_dbNamePayroll = "payroll.db";
 std::string appConfig::g_dbNameTracker = "tracker.db";
-std::string appConfig::g_dbNameUsers   = "user.db";
 
 int appConfig::g_defaultWidth  = 1600;
 int appConfig::g_defaultHeight = 900;
