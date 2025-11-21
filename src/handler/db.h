@@ -17,10 +17,8 @@ class db {
     public:
         // Database operations
         static bool createDatabase(const std::string& p_dbName);
-        static bool searchDatabase(const std::string& p_dbName);
         static bool openDatabase(const std::string& p_dbName);
-        static bool closeDatabase(const std::string& p_dbName);
-        static bool appendToDatabase(const std::string& p_dbName, std::string& p_data);
+        static bool appendDatabase(const std::string& p_dbName, const std::string& p_data);
         static bool isSQLiteAvailable();
 };
 #endif // DB_H

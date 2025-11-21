@@ -65,9 +65,6 @@ void system::logMessage() {
                                    std::to_string(fetchTime(PartDateTime::MINUTE)) + "_" +
                                    std::to_string(fetchTime(PartDateTime::SECOND)) + ".txt";
 
-    // Create the log file if it doesn't exist
-    if (!searchFile(fileName)) {createFile(fileName);}
-
     // Append a log entry
     if (std::ofstream logFile(fileName, std::ios::app); logFile.is_open()) {
         logFile << fileName << std::endl;
@@ -167,26 +164,6 @@ bool system::createFile(const std::string& p_filePath) {
         file.close();
         return true;
     }
-
-
-// Check whether a file exists at the given path
-bool system::searchFile(const std::string& p_filePath) {
-    std::error_code errorCode;
-
-    // Preferred, non-throwing check
-    if (const std::filesystem::path path{p_filePath}; std::filesystem::exists(path, errorCode) && !errorCode) {
-        return std::filesystem::is_regular_file(path, errorCode) && !errorCode;
-    }
-
-    // Fallback to platform-specific stat when filesystem isn't available
-    #if defined(_WIN32)
-        struct _stat info;
-        return _stat(p_filePath.c_str(), &info) == 0 && (info.st_mode & _S_IFREG) != 0;
-    #else
-        struct stat info{};
-        return stat(p_filePath.c_str(), &info) == 0 && S_ISREG(info.st_mode);
-    #endif
-}
 
 
 bool system::deleteFile(const std::string& p_filePath) {

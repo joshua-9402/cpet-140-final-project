@@ -25,20 +25,17 @@ class system {
 
         // Creates a directory with the specified name.
         // Returns true on success, false on failure.
-        static bool createDirectory(const std::string& directoryName);
+        static bool createDirectory(const std::string& p_directoryName);
 
         // Check whether a directory exists at the given path. Returns true if
         // the path exists and is a directory.
-        static bool searchDirectory(const std::string& directoryName);
+        static bool searchDirectory(const std::string& p_directoryName);
 
         // Remove a directory and its contents. Returns true on success.
-        static bool deleteDirectory(const std::string& directoryName);
+        static bool deleteDirectory(const std::string& p_directoryName);
 
         // Create an empty file at the given path, creating parent directories if necessary.
         static bool createFile(const std::string& p_filePath);
-
-        // Check whether a file exists at the given path.
-        static bool searchFile(const std::string& p_filePath);
 
         // Delete the file at the given path.
         static bool deleteFile(const std::string& p_filePath);

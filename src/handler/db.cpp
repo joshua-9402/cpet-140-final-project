@@ -93,17 +93,6 @@ bool db::createDatabase(const std::string& p_dbName) {
             ");";
         database = sqlite3_exec(dbPtr, databaseTable.c_str(), nullptr, nullptr, nullptr);
     }
-    else if (p_dbName == appConfig::g_dbNameUsers) {
-        const std::string databaseTable =
-            "CREATE TABLE IF NOT EXISTS Projects ("
-            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-            "username TEXT,"
-            "passwords TEXT NOT NULL,"
-            "Status TEXT NOT NULL,"
-            "dateCreated TEXT NOT NULL,"
-            "fullName TEXT NOT NULL,"
-            ");";
-    }
     else {
         sqlite3_close(dbPtr);
         return false; // Unknown database name
@@ -118,22 +107,6 @@ bool db::createDatabase(const std::string& p_dbName) {
 }
 
 
-bool db::searchDatabase(const std::string& p_filename) {
-    // Prefer std::filesystem when available
-    try {
-        if (std::filesystem::exists(p_filename)) return true;
-        if (std::filesystem::exists(p_filename + ".db")) return true;
-    } catch (...) {
-        // fall back
-    }
-
-    // Fallback: try opening the file
-    if (std::ifstream f(p_filename); f.is_open()) { f.close(); return true; }
-    if (std::ifstream f2(p_filename + ".txt"); f2.is_open()) { f2.close(); return true; }
-    return false;
-}
-
-
 bool db::openDatabase(const std::string& p_dbName) {
     sqlite3* dbPtr = nullptr; // Database connection object
 
@@ -145,18 +118,7 @@ bool db::openDatabase(const std::string& p_dbName) {
 }
 
 
-bool db::closeDatabase(const std::string& p_dbName) {
-    sqlite3* dbPtr = nullptr; // Pointer to the SQLite database connection
-
-    int rc = sqlite3_open(p_dbName.c_str(), &dbPtr);
-    if (rc != SQLITE_OK) { if (dbPtr) { sqlite3_close(dbPtr); } return false; }
-
-    rc = sqlite3_close(dbPtr);
-    return (rc == SQLITE_OK);
-}
-
-
-bool db::appendToDatabase(const std::string& p_dbName, std::string& p_data) {
+bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) {
     // Simple wrapper - execute given SQL
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
@@ -164,7 +126,7 @@ bool db::appendToDatabase(const std::string& p_dbName, std::string& p_data) {
         return false;
     }
     char* err = nullptr;
-    int rc = sqlite3_exec(dbPtr, p_data.c_str(), nullptr, nullptr, &err);
+    const int rc = sqlite3_exec(dbPtr, p_data.c_str(), nullptr, nullptr, &err);
     if (err) sqlite3_free(err);
     sqlite3_close(dbPtr);
     return rc == SQLITE_OK;
@@ -172,15 +134,13 @@ bool db::appendToDatabase(const std::string& p_dbName, std::string& p_data) {
 
 bool db::isSQLiteAvailable() {
     // Check if SQLite library is available by verifying the version
-    const char* version = sqlite3_libversion();
-    if (version == nullptr || version[0] == '\0') {
+    if (const char* version = sqlite3_libversion(); version == nullptr || version[0] == '\0') {
         return false;
     }
 
     // Alternatively, try to open and close an in-memory database
     sqlite3* testDb = nullptr;
-    int rc = sqlite3_open(":memory:", &testDb);
-    if (rc == SQLITE_OK && testDb != nullptr) {
+    if (const int rc = sqlite3_open(":memory:", &testDb); rc == SQLITE_OK && testDb != nullptr) {
         sqlite3_close(testDb);
         return true;
     }
