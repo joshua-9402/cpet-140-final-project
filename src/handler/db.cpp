@@ -57,7 +57,7 @@
 
 
 #include "db.h"
-#include "../config/app_config.h"
+#include "../config/config.h"
 #include <sqlite3.h>
 #include <string>
 #include <fstream>
@@ -92,6 +92,17 @@ bool db::createDatabase(const std::string& p_dbName) {
             "Notes TEXT"
             ");";
         database = sqlite3_exec(dbPtr, databaseTable.c_str(), nullptr, nullptr, nullptr);
+    }
+    else if (p_dbName == appConfig::g_dbNameUsers) {
+        const std::string databaseTable =
+            "CREATE TABLE IF NOT EXISTS Projects ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "username TEXT,"
+            "passwords TEXT NOT NULL,"
+            "Status TEXT NOT NULL,"
+            "dateCreated TEXT NOT NULL,"
+            "fullName TEXT NOT NULL,"
+            ");";
     }
     else {
         sqlite3_close(dbPtr);
@@ -157,4 +168,23 @@ bool db::appendToDatabase(const std::string& p_dbName, std::string& p_data) {
     if (err) sqlite3_free(err);
     sqlite3_close(dbPtr);
     return rc == SQLITE_OK;
+}
+
+bool db::isSQLiteAvailable() {
+    // Check if SQLite library is available by verifying the version
+    const char* version = sqlite3_libversion();
+    if (version == nullptr || version[0] == '\0') {
+        return false;
+    }
+
+    // Alternatively, try to open and close an in-memory database
+    sqlite3* testDb = nullptr;
+    int rc = sqlite3_open(":memory:", &testDb);
+    if (rc == SQLITE_OK && testDb != nullptr) {
+        sqlite3_close(testDb);
+        return true;
+    }
+
+    if (testDb) sqlite3_close(testDb);
+    return false;
 }

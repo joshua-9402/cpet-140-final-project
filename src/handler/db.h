@@ -21,5 +21,6 @@ class db {
         static bool openDatabase(const std::string& p_dbName);
         static bool closeDatabase(const std::string& p_dbName);
         static bool appendToDatabase(const std::string& p_dbName, std::string& p_data);
+        static bool isSQLiteAvailable();
 };
 #endif // DB_H
