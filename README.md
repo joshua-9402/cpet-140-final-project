@@ -84,17 +84,36 @@ III. Quality & Contributions
 
 ## Technical Overview
 
-This project is a C++ application that demonstrates a payroll and monitoring system with a UI layer and SQLite-backed persistence. It is designed for desktop platforms (Windows, macOS, Linux) and can be adapted to mobile platforms (Android, iOS) with platform-specific toolchains.
+This project is a C++ application that demonstrates a payroll and monitoring system with a UI layer and SQLite-backed persistence. It is designed for desktop platforms (Windows, macOS, Linux).
 
 ### Project Highlights
-- Language: C++23
-- Build system: CMake v4.0
+- Language: C++20
+- Build system: CMake v3.22
 - UI: Hello ImGui (immediate-mode GUI) v1.19.3
 - Database: SQLite (single-file, local, embedded)
+- Cryptography: libsodium (for password hashing, encryption, decryption, salting, etc.)
+- Architecture: modular with clear separation of concerns (UI, DB, core logic, system)
 - Target platforms: Desktop (Win/macOS/Linux), Mobile (Android/iOS)
 
 ### Repository Structure
       cpet-140-final-project/
+      ├── .github/
+      │   └── workflows/
+      │       ├── BULD.md
+      │       ├── README-linux.md
+      │       ├── README-linux-rpm.md
+      │       ├── README-linux-suse.md
+      │       ├── README-macos-arm64.md
+      │       ├── README-macos-intel.md
+      │       ├── README-windows-arm64.md
+      │       ├── README-windows-x86_64.md
+      │       ├── LIBSODIUM_CI_SUMMARY.md
+      │       ├── build-linux.yml
+      │       ├── build-linux-rpm.yml
+      │       ├── build-linux-suse.yml
+      │       ├── build-macos.yml
+      │       ├── build-windows.yml
+      │       └── release.yml
       ├── assets/
       │   ├── fonts/
       │   │   └── OpenSans-Regular.ttf
@@ -102,6 +121,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │       ├── business_logo.png
       │       └── user_icon.png
       ├── assets (raw)/
+      │   ├── user_icon.psd
       │   └── concept.png
       ├── dependencies/
       │   └── sqlite3/
@@ -115,13 +135,11 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       ├── src/
       │   ├── main.cpp
       │   ├── config/
-      │   │   ├── app_config.cpp
-      │   │   └── app_config.h
+      │   │   ├── config.cpp
+      │   │   └── config.h
       │   ├── handler/
       │   │   ├── db.cpp
       │   │   ├── db.h
-      │   │   ├── io.cpp
-      │   │   ├── io.h
       │   │   ├── system.cpp
       │   │   └── system.h
       │   ├── core/
@@ -130,13 +148,17 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │   │   ├── payroll.cpp
       │   │   └── payroll.h
       │   ├── security/
+      │   │   ├── cryptography.cpp
+      │   │   ├── cryptography.cpp
       │   │   ├── auth.cpp
       │   │   └── auth.h
       │   └── ui/
       │       ├── ui.cpp
       │       └── ui.h
       ├── .gitignore
+      ├── CHANGELOG.md
       ├── CMakeLists.txt
+      ├── LICENSE.txt
       └── README.md
 
 
@@ -189,159 +211,180 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
         - checking for dependencies and libraries
         - constructs UI
 
-- From `app_config.cpp`
-    - `g_appTitle;`
-    - `g_loginTitle;`
-    - `g_fontName;`
-    - `g_dbNamePayroll;`
-    - `g_dbNameTracker;`
-    - `g_txtNameUser;`
-    - `g_defaultWidth;`
-    - `g_defaultHeight;`
-    - `g_smallWidth;`
-    - `g_smallHeight;`
+- From `config.h`
+    - `g_appTitle;` - global variable for application title
+    - `g_loginTitle;`- global variable for login UI title
+    - `g_errorTitle;` - global variable for error UI title
+    - `g_fontName;` - global variable for font file name
+    - `g_dataDirectory` - global variable for application data directory
+    - `g_projectDirectory` - global variable for project directory
+    - `g_dbNamePayroll;` - global variable for payroll database name
+    - `g_dbNameTracker;` - global variable for monitoring database name
+    - `g_dbNamePayroll` - global variable for payroll database name
+    - `g_dbNameTracker` - global variable for monitoring database name
+    - `g_defaultWidth;` - global variable for default window width
+    - `g_defaultHeight;`- global variable for default window height
+    - `g_loginWidth` - global variable for login window width
+    - `g_loginHeight` - global variable for login window height
+    - `g_errorWidth` - global variable for error window width
+    - `g_errorHeight` - global variable for error window height
 
-- From `UI.cpp`
+- From `ui.h`
+    - `g_failedMessage` variable
+        - holds the error message to be displayed in the failed UI
     - `constructUI()` function
         - sets up Hello ImGui
         - loads fonts
         - registers UIs
 
-- From `db.cpp`
-    - `createFileText()` function
-        - creates a text file at the specified path with the given content
-    - `readFileText()` function
-        - reads the content of a text file at the specified path
-    - `appendFileText()` function
-        - appends content to a text file at the specified path
+- From `db.h`
     - `createDatabase()` function
         - creates a new database
     - `openDatabase()` function
         - opens an existing database
-    - `closeDatabase()` function
-        - closes the database connection
-    - `appendToDatabase()` function
+    - `appendDatabase()` function
         - appends data to the database
+    - `isSQLiteAvailable()` function
+        - checks if SQLite is available
 
-- From `system.cpp`
+- From `system.h`
     - `fetchTime()` function
         - fetches the current system time
+    - `logMessage()` function
+        - logs a message to the system log
     - `createDirectory()` function
         - creates a new directory at the specified path
+    - `deleteDirectory()` function
+        - deletes the directory at the specified path
+    - `createFile()` function
+        - creates a new file at the specified path
+    - `deleteFile()` function
+        - deletes the file at the specified path
 
-- From `auth.cpp`
-    - `authGateway()` function
-        - handles user authentication and authorization
+- From `auth.h`
+    - `testAuth()` function
+        - tests user authentication
+    - `testDeployAuth()` function
+        - tests deployment authentication
+    - `adminAuth()` function
+        - handles admin authentication
+    - `basicAuth()` function
+        - handles  user authentication
+
+- From `cryptography.h`
+    - `checkSodium()` function
+        - checks if libsodium is available
+    - `generateKey()` function
+        - generates a cryptographic key
+    - `toHex()` function
+        - converts data to hexadecimal format
+    - `hashKey()` function
+        - hashes a password using Argon2
+    - `saltKey()` function
+        - generates a salt for hashing
+    - `encryptFile()` function
+        - encrypts data using symmetric encryption
+    - `decryptFile()` function
+        - decrypts data using symmetric encryption
+    - `vault()` function
+        - secures sensitive data
 
 ### Calling / Invoking Conventions
 This section documents how modules in the repository should be invoked, the minimal contracts (inputs/outputs), common error modes, and a few examples. The conventions are based on the current repository layout and naming conventions (globals start with `g`, local variables with `l`, etc.).
 
 1) General rules
-   - Prefer calling the well-scoped API functions from headers (e.g., `db::`, `system::`, `auth::`). Do not reach into internal implementation files unless there is no public API.
-   - Globals: read-only access is acceptable; modifications should be centralized (for example, set `g_currentUI` only via a UI switch function).
-   - Side effects should be explicit in the function name (e.g., `createDatabase()` creates/persists a database file; `appendFileText()` mutates a file).
+   - Prefer calling public API functions declared in headers (e.g., `db::`, `system::`, `auth::`, `cryptography::`, `ui::`).
+   - Always check return values and propagate errors to the UI via `g_failedMessage` or explicit out-parameters.
+   - Keep UI rendering and business logic separate; UI files must not perform raw DB or crypto operations.
+   - Do not modify off-limits UI internals (for example: `constructUI()` / internal `switchToUI()` handlers in `ui.cpp`).
 
 2) Methods, functions or global variable/s (with conventions)
-   - for `db::` functions (in `db.cpp`)
-     - `db::createDatabase(const std::string &p_dbName)`
-       - Inputs: `p_dbName` = path to DB file
-       - Outputs: returns boolean value (`true` on success, `false` on failure)
-       - Errors: file system permission errors, sqlite open/locking errors
-       - Side effects: creates the file and directories as needed
+   - db:: (in `handler/db.cpp` / `handler/db.h`)
+     - `db::isSQLiteAvailable()` -> bool
+       - Returns true if SQLite is present and usable.
+     - `db::createDatabase(const std::string &p_dbName)` -> bool
+       - Creates or opens DB file. Returns true on success.
+     - `db::openDatabase(const std::string &p_dbName)` -> bool
+       - Opens existing DB. Caller handles errors.
+     - `db::closeDatabase(const std::string &p_dbName)` -> bool
+       - Closes DB handles, returns true on success.
+     - `db::appendToDatabase(const std::string &p_dbName, const std::string &p_data)` -> bool
+       - Appends data; prefer prepared statements and check SQLite return codes.
 
-     - `db::openDatabase(const std::string &p_dbName)`
-       - Inputs: `p_dbName` = path to DB file
-       - Outputs: returns boolean value (`true` on success, `false` on failure)
-       - Errors: missing file, incompatible schema, sqlite errors
-       - Caller responsibility: call `db::closeDatabase()` on the handle when done
-       
-     - `db::closeDatabase(const std::string& p_dbName)`
-       - Inputs: `p_dbName` = path to DB file
-       - Outputs: returns boolean value (`true` on success, `false` on failure)
-       - Errors: sqlite errors during close
-       - Side effects: releases DB handle/resources
+   - system:: (in `handler/system.cpp` / `handler/system.h`)
+     - `system::createDirectory(const std::string &directoryName)` -> bool
+       - Creates directory; treat "already exists" as success.
+     - `system::fetchTime(PartDateTime part)` -> int
+       - Returns requested date/time component.
+     - `system::logMessage(const std::string &msg)` -> void
+       - Log helpful debugging information before exposing shorter UI messages.
 
-     - `db::appendToDatabase(const std::string& p_dbName, std::string& p_data)`
-       - Inputs: `p_dbName` = path to DB file, `p_data` = data to append
-       - Outputs: returns boolean value (`true` on success, `false` on failure)
-       - Errors: SQL syntax, constraint violations; always inspect return
+   - auth:: (in `security/auth.cpp` / `security/auth.h`)
+     - `auth::authGateway(const std::string &username, const std::string &password, const std::string &source)` -> bool
+       - Authenticates credentials; returns true on success and sets session state or returns false on failure.
 
-   - for `system::` functions (in `system.cpp`)
-     - `system::fetchTime(const PartDateTime part)`
-       - Inputs: `part` = enum selecting portion to return (examples: `Full`, `Date`, `Time`, `Year`, `Month`, `Day`)
-       - Outputs: returns `int` with the requested date or time part
-       - Errors: system clock access failure, invalid `part` value
-       - Note: keep function side\-effect free; callers handle timezone/locale conversions
-       
-     - `system::createDirectory(const std::string &directoryName)`
-       - Inputs: directory path
-       - Outputs: returns boolean value (`true` on success, `false` on failure)
-       - Errors: permission denied, invalid path, already exists
-       - Note: callers should check for existence before creating (to avoid errors)
-       
-   - for `auth::` functions (in `auth.cpp`)
-     - `auth::authGateway(const std::string &username, const std::string &password, const std::string &source)`
-       - Inputs: credentials and optional source tag
-       - Outputs: returns an auth result (bool or enum) and sets session/globals
-       - Errors: invalid credentials, DB errors
-       - Side effects: may set `g_auth` or a session token; prefer returning an explicit result instead of relying on globals
+   - cryptography:: (in `security/cryptography.cpp` / `security/cryptography.h`)
+     - `cryptography::checkSodium()` -> bool
+       - Verify libsodium is initialized and available.
+     - `cryptography::generateKey(size_t length)` -> std::vector<unsigned char>
+       - Generate a key of requested length. Do not enforce an arbitrary internal limit; return empty vector on invalid request.
+     - `cryptography::saltKey()` -> std::vector<unsigned char>
+       - Generate and return a secure salt for password hashing.
+     - `cryptography::hashKey(const std::string &password, const std::vector<unsigned char> &salt)` -> std::string
+       - Use Argon2 to produce a hash; return encoded string (hex/base64).
+     - `cryptography::encryptFile(const std::string &filepath, const std::vector<unsigned char> &key)` -> bool
+       - Encrypt file; writes `filepath + ".enc"` and returns true on success.
+     - `cryptography::decryptFileInPlace(const std::string &encPath, const std::vector<unsigned char> &key)` -> bool
+       - Decrypt and replace the encrypted file (in-place). On failure, leave encrypted file intact.
 
-   - for `ui::` functions (in `ui.cpp`)
-     - `constructUI(const std::string &a_title, const std::string& a_fontLocation, const int a_widthPx, const int a_heightPx, const std::string& a_window)`
-       - Inputs: title, font path, window size (width and height), assets folder
-       - Outputs: registers UI handlers with HelloImGui and loads fonts/resources
-       - Errors: missing assets, font load errors — log and fall back to defaults
-     - `g_errorMessage` — global string to hold error messages for UI display
+   - ui:: (in `ui/ui.cpp` / `ui/ui.h`)
+     - `constructUI(const std::string &title, const std::string &fontLocation, int widthPx, int heightPx, const std::string &assetsFolder)` -> void
+       - Register UI handlers and load fonts/resources. Keep UI handlers small and free of heavy business logic.
 
 3) Example call flows
-   - Startup (in `main.cpp`):
-     - call config load functions to populate `g_*` variables
-     - call `system::createDirectory()` for app data directory if needed
-     - call `db::createDatabase()` or `db::openDatabase()` to ensure persistence is available
-     - call `constructUI()` to initialize the UI system
-     - start the HelloImGui runner
+   - Startup (main.cpp):
+     - Load config globals (`g_*`).
+     - Validate critical dependencies: `db::isSQLiteAvailable()` and `cryptography::checkSodium()`; if missing, set `g_failedMessage` and show failed UI.
+     - Ensure app data directory via `system::createDirectory()`.
+     - Open or create DB via `db::createDatabase()`.
+     - Call `constructUI()` and start the UI loop.
 
-   - Login flow (high-level):
-     - Login UI calls `auth::authGateway(username, password, "loginUI")`
-     - On success: set `g_auth = true` (or return an auth token). `main.cpp` observes `g_auth` and calls `switchToUI(MainUI)`
-     - On logout: call `auth::logout()` (if present) which clears session and sets `g_auth = false`; then call `switchToUI(LoginUI)`
+   - Login flow (UI handler):
+     - If `username.empty() || password.empty()`:
+       - set `g_failedMessage = "Empty credentials"` and switch to `failedUI()`.
+     - Else: call `auth::authGateway(username, password, "loginUI")`.
+       - On success: switch to main UI. On failure: set `g_failedMessage` and show failed UI.
 
 4) Error and edge-case handling (recommended patterns)
-   - Always check and propagate error messages (use `outError` strings) rather than silently ignoring failures.
-   - For filesystem operations, handle the "already exists" case as success (unless replacing is intended).
-   - For DB operations: prefer prepared statements and validate inputs before executing.
-   - For UI asset loads: call `HelloImGui::SetAssetsFolder()` at startup to avoid brittle relative-path lookups.
+   - Log detailed errors via `system::logMessage()` before setting short, user-facing `g_failedMessage`.
+   - For filesystem operations, treat "already exists" as success unless replacement is intended.
+   - For DB operations, prefer prepared statements and validate inputs.
+   - For cryptography: validate key sizes and return empty/false results on invalid parameters; callers should translate to UI errors.
 
 5) Minimal examples
-   - Call `system::createDirectory()` safely:
+   - Directory creation:
 
-           // pseudo-call (conceptual)
-           std::string path = "/path/to/appdata";
-           if (!system::createDirectory(path)) {
-               // handle failure: log and show a friendly UI error
-           }
+         std::string path = "/path/to/appdata";
+         if (!system::createDirectory(path)) {
+             system::logMessage("createDirectory failed: " + path);
+             g_failedMessage = "Failed to prepare application data directory";
+             // switch to failed UI
+         }
 
-   - Login (conceptual):
+   - Login handler (conceptual):
 
-           // in login UI handler
-           std::string err;
-           auto ok = auth::authGateway(username, password, "loginUI");
-           if (ok) {
-               // ask main loop to switch UI (set flag or call switchToUI)
-           } else {
-               // show error
-           }
+         if (username.empty() || password.empty()) {
+             g_failedMessage = "Empty credentials";
+             // switch to failed UI
+         } else if (!auth::authGateway(username, password, "loginUI")) {
+             g_failedMessage = "Authentication failed";
+             // switch to failed UI
+         }
 
-6) Notes about globals used in the codebase
-   - `g_currentUI` — read-only from most files; only `ui.cpp` (or a dedicated switch function) should change it.
-   - `g_auth` — represents authentication state. Prefer exposing a small API (e.g., `auth::isAuthenticated()`) rather than reading the global directly.
-   - `g_smallWidth`, `g_smallHeight`, `g_defaultWidth`, `g_defaultHeight` — layout hints for UIs. UIs should use these as suggestions, not absolute constraints.
-
-7) Quick checklist for contributors when calling modules
-   - Read the header for the module you call and prefer the public API.
+6) Quick checklist for contributors when calling modules
+   - Read the header of the module you call and prefer the public API.
    - Check return codes and propagate errors to the caller/UI.
-   - Avoid changing globals directly; use switch/setter functions where present.
-     - Keep UI code free of raw DB operations; call `db::` helpers instead.
+   - Avoid modifying `ui.cpp` internals; file issues/PRs for UI changes.
 
 
 ## Build & Run (Desktop)
@@ -368,12 +411,12 @@ Windows README files:
 - [README-windows-x86_64.md](.github/workflows/README-windows-x86_64.md)
 - [README-windows-arm64.md](.github/workflows/README-windows-arm64.md)
 
-| Workflow    | Target Hardware          | Architecture | Target Windows Version | C++ Std | Asset Name                                |
-|-------------|--------------------------|--------------|------------------------|---------|-------------------------------------------|
-| **Windows** | Computer with Windows 10 | x86_64       | Windows 10             | C++20   | `structuracost-windows-x86_64-${version}` |
-| **Windows** | Computer with Windows 10 | ARM64        | Windows 10 for ARM     | C++20   | `structuracost-windows-arm64-${version}`  |
-| **Windows** | Computer with Windows 11 | x86_64       | Windows 11             | C++20   | `structuracost-windows-x86_64-${version}` |
-| **Windows** | Computer with Windows 11 | ARM64        | Windows 11 for ARM     | C++20   | `structuracost-windows-arm64-${version}`  |
+| Workflow    | Target Hardware          | Architecture | Target Windows Version | C++ Std | Asset Name                                             |
+|-------------|--------------------------|--------------|------------------------|---------|--------------------------------------------------------|
+| **Windows** | Computer with Windows 10 | x86_64       | Windows 10             | C++20   | `structuracost-windows-x86_64-${version}-${dev_stage}` |
+| **Windows** | Computer with Windows 10 | ARM64        | Windows 10 for ARM     | C++20   | `structuracost-windows-arm64-${version}-${dev_stage}`  |
+| **Windows** | Computer with Windows 11 | x86_64       | Windows 11             | C++20   | `structuracost-windows-x86_64-${version}-${dev_stage}` |
+| **Windows** | Computer with Windows 11 | ARM64        | Windows 11 for ARM     | C++20   | `structuracost-windows-arm64-${version}-${dev_stage}`  |
 
 #### macOS Builds
 
@@ -381,10 +424,10 @@ macOS README files:
    - [README-macos-arm64.md](.github/workflows/README-macos-arm64.md)
    - [README-macos-x86_64.md](.github/workflows/README-macos-x86_64.md)
 
-| Workflow  | Target Hardware          | Architecture | Target macOS Versions | C++ Std | Asset Name |
-|-----------|--------------------------|--------------|-----------------------|---------|------------|
-| **macOS** | Apple Silicon (M1/M2/M3) | ARM64        | macOS Sequoia 15.0    | C++20   |            |
-| **macOS** | Intel Macs               | x86_64       | macOS Ventura 13.0    | C++20   |            |
+| Workflow  | Target Hardware             | Architecture | Target macOS Versions | C++ Std | Asset Name                                        |
+|-----------|-----------------------------|--------------|-----------------------|---------|---------------------------------------------------|
+| **macOS** | Apple Silicon (M1/M2/M3/M4) | ARM64        | macOS Sequoia 15.0    | C++20   | `structuracost-mac-arm64-${version}-${dev_stage}` |
+| **macOS** | Intel Macs                  | x86_64       | macOS Ventura 13.0    | C++20   | `structuracost-mac-intel-${version}-${dev_stage}` |
 
 #### Linux Builds
 
@@ -393,14 +436,14 @@ Linux README files:
    - [README-linux-rpm.md](.github/workflows/README-linux-rpm.md)
    - [README-linux-suse.md](.github/workflows/README-linux-suse.md)
 
-| Workflow                    | Target Hardware     | Architecture | Target Linux Versions | C++ Std | Asset Name |
-|-----------------------------|---------------------|--------------|-----------------------|---------|------------|
-| **Linux (Debian/Ubuntu)**   | x86_64 Computers    | x86_64       | Ubuntu 20.04          | C++20   |            |
-| **Linux (Debian/Ubuntu)**   | ARM64 Computers     | ARM64        | Ubuntu 20.04 (ARM64)  | C++20   |            |
-| **Linux (Fedora/Red Hat)**  | x86_64 Computers    | x86_64       | Fedora Latest         | C++20   |            |
-| **Linux (Fedora/Red Hat)**  | ARM64 Computers     | ARM64        | Fedora Latest (ARM64) | C++20   |            |
-| **Linux (SUSE Family)**     | x86_64 Computers    | x86_64       | openSUSE Tumbleweed   | C++20   |            |
-| **Linux (SUSE Family)**     | ARM64 Computers     | ARM64        | openSUSE Tumbleweed   | C++20   |            |
+| Workflow                    | Target Hardware     | Architecture | Target Linux Versions | C++ Std | Asset Name                                                 |
+|-----------------------------|---------------------|--------------|-----------------------|---------|------------------------------------------------------------|
+| **Linux (Debian/Ubuntu)**   | x86_64 Computers    | x86_64       | Ubuntu 20.04          | C++20   | `structuracost-linux-debian-intel-${version}-${dev_stage}` |
+| **Linux (Debian/Ubuntu)**   | ARM64 Computers     | ARM64        | Ubuntu 20.04 (ARM64)  | C++20   | `structuracost-linux-debian-arm64-${version}-${dev_stage}` |
+| **Linux (Fedora/Red Hat)**  | x86_64 Computers    | x86_64       | Fedora Latest         | C++20   | `structuracost-linux-rpm-intel-${version}-${dev_stage}`    |
+| **Linux (Fedora/Red Hat)**  | ARM64 Computers     | ARM64        | Fedora Latest (ARM64) | C++20   | `structuracost-linux-rpm-arm64-${version}-${dev_stage}`    |
+| **Linux (SUSE Family)**     | x86_64 Computers    | x86_64       | openSUSE Tumbleweed   | C++20   | `structuracost-linux-suse-intel-${version}-${dev_stage}`   |
+| **Linux (SUSE Family)**     | ARM64 Computers     | ARM64        | openSUSE Tumbleweed   | C++20   | `structuracost-linux-suse-arm64-${version}-${dev_stage}`   |
 
 
 **To trigger manual workflows:** Go to Actions → Select workflow → Run workflow
@@ -414,7 +457,6 @@ Linux README files:
 
 - When a version tag is created, the **Release Build** workflow automatically:
   - Builds binaries for all supported platforms (Linux x64, linux ARM64, Windows x64, Windows ARM64, macOS ARM64, macOS Intel, macOS Legacy)
-  - Runs all tests and validation checks
   - Creates a GitHub Release with the tag
   - Attaches all platform binaries to the release as downloadable assets
 
@@ -427,9 +469,7 @@ For the latest builds from the `master` branch:
   1. Navigate to the **Actions** tab in the repository
   2. Click on the latest successful workflow run (look for green checkmark)
   3. Scroll to the **Artifacts** section at the bottom of the page
-  4. Download the artifact for your platform:
-      - `structuracost-linux-x64.tar.gz` (Linux x64)
-      - `structuracost-windows-x64.zip` (Windows x64)
+  4. Download the artifact for your platform
   5. Extract the archive and run the executable
 
 **Note:** Artifacts expire after 90 days. For permanent builds, use releases (see below).
@@ -440,11 +480,11 @@ For platform-specific or legacy builds:
 
 1. Navigate to the **Actions** tab
 2. Select the appropriate workflow from the left sidebar:
-    - macOS
-    - Windows
-    - Linux (Debian/Ubuntu)
-    - Linux (Fedora/Red Hat)
-    - Linux (SUSE Family)
+    - `macOS`
+    - `Windows`
+    - `Linux (Debian/Ubuntu)`
+    - `Linux (Fedora/Red Hat)`
+    - `Linux (SUSE Family)`
 3. Click **Run workflow** button (top right)
 4. Configure build options if prompted
 5. Wait for the build to complete (status changes to green checkmark)
@@ -457,20 +497,20 @@ For platform-specific or legacy builds:
 
 #### From Releases (Tagged Versions) — Recommended
 
-For stable, versioned releases with all platforms built automatically:
+For release build (version tagging and automatic release):
 
-1. Navigate to the **Releases** page (right sidebar in main repository view)
-2. Select the desired version (e.g., `v1.0.0`)
-3. Download the binary for your platform from the **Assets** section:
+1. Navigate to the **Actions** tab
+2. Select the `Release` workflow from the left sidebar 
+3. Select the desired version (e.g., `v1.0.0`)
+4. Download the binary for your platform from the **Assets** section:
     - `structuracost-linux-x64.tar.gz`
     - `structuracost-windows-x64.zip`
     - `structuracost-macos-arm64.tar.gz`
     - `structuracost-macos-x64.tar.gz`
     - `structuracost-macos-legacy.tar.gz`
-4. Extract and run the executable
+5. Extract and run the executable
 
-**Note:** Release binaries are permanent and recommended for production use. All platforms are built and tested automatically during the release process.
-
+**Note:** Release binaries are permanent and recommended for production use.
 
 ## Build and Run (Mobile)
 
@@ -480,22 +520,10 @@ For stable, versioned releases with all platforms built automatically:
 ## Dependencies
 
 - sqlite3 (runtime + development headers)
-- argon2 (for password hashing, runtime + development headers)
-- Hello ImGui 
+- libsodium (for cryptography)
+- Hello Dear ImGui 
 - Optional:
   - libraries for platform windows/rendering (GLFW/SDL/DirectX/Metal)
-
-
-## Testing & Validation
-
-- Manual smoke tests: 
-  - startup
-  - DB create/open
-  - add/edit/delete inventory items
-  - add/edit/delete payroll transactions
-  - close and reopen DB
-  - UI interactions.
-- Automated tests (recommended): add unit tests around db helpers and inventory logic (Catch2/GoogleTest).
 
 
 ## Contribution Guidelines
