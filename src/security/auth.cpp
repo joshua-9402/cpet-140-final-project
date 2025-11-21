@@ -47,3 +47,11 @@ bool auth::adminAuth(const std::string& username, const std::string& password) {
     }
     return false;
 }
+
+
+bool auth::basicAuth(const std::string& username, const std::string& password) {
+    if (username == "basicUser" && password == "basicPass") {
+        return true;
+    }
+    return false;
+}
