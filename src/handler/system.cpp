@@ -1,7 +1,26 @@
+/*
+* CpET 140 Final Project — System Caller module
+* StructuraCost - Handler - System Call module
+*
+* Contributors:
+*  Joshua Literal
+*
+* Purpose
+* - Handle system-level operations such as file and directory management, and time retrieval.
+*
+* Boundaries
+* - Interacts with the operating system for file system operations.
+*
+* Notes
+* - This module abstracts away platform-specific details for file and directory handling.
+* - Simplifies OS interactions for higher-level application logic.
+*/
+
+
 #include "system.h"
 #include <chrono>
 #include <filesystem>
-
+#include <fstream>
 // Platform-specific includes for directory creation
 #ifdef _WIN32
     #include <direct.h>  // For _mkdir on Windows
@@ -9,9 +28,13 @@
     #define MKDIR(path) _mkdir(path)
 #else
     #include <sys/stat.h>  // For mkdir on Unix/Linux/macOS
+    #include <unistd.h>    // For rmdir and other POSIX functions
     #define MKDIR(path) mkdir(path, 0777)
 #endif
 
+
+// Returns the requested part of the current local time.
+// Example: fetchTime(PartDateTime::HOUR) -> 0..23
 int system::fetchTime(const PartDateTime part) {
     // Get current time
     const auto now = std::chrono::system_clock::now();
@@ -27,6 +50,28 @@ int system::fetchTime(const PartDateTime part) {
         case PartDateTime::MINUTE: return localTime->tm_min;
         case PartDateTime::SECOND: return localTime->tm_sec;
         default: return -1;
+    }
+}
+
+
+// Logs messages in the terminal to the log file.
+void system::logMessage() {
+    // Construct log file name based on current date and time
+    const std::string fileName = std::string("logs/") + "log_" +
+        std::to_string(fetchTime(PartDateTime::YEAR)) + "_" +
+                                   std::to_string(fetchTime(PartDateTime::MONTH)) + "_" +
+                                   std::to_string(fetchTime(PartDateTime::DAY)) + "_" +
+                                   std::to_string(fetchTime(PartDateTime::HOUR)) + "_" +
+                                   std::to_string(fetchTime(PartDateTime::MINUTE)) + "_" +
+                                   std::to_string(fetchTime(PartDateTime::SECOND)) + ".txt";
+
+    // Create the log file if it doesn't exist
+    if (!searchFile(fileName)) {createFile(fileName);}
+
+    // Append a log entry
+    if (std::ofstream logFile(fileName, std::ios::app); logFile.is_open()) {
+        logFile << fileName << std::endl;
+        logFile.close();
     }
 }
 
@@ -55,6 +100,7 @@ bool system::createDirectory(const std::string& p_directoryName) {
     return false;
 }
 
+
 // Check whether a directory exists at the given path
 bool system::searchDirectory(const std::string& p_directoryName) {
     try {
@@ -75,5 +121,99 @@ bool system::searchDirectory(const std::string& p_directoryName) {
         }
     #endif
 
+    return false;
+}
+
+
+bool system::deleteDirectory(const std::string& p_directoryName) {
+    std::error_code ec;
+    const std::filesystem::path dir{p_directoryName};
+
+    // Ensure path exists and is a directory
+    if (!std::filesystem::exists(dir, ec) || !std::filesystem::is_directory(dir, ec)) {
+        return false;
+    }
+
+    // Try noexcept remove_all
+    const auto removed = std::filesystem::remove_all(dir, ec);
+    if (!ec) {
+        return removed > 0;
+    }
+
+    // Fallback: attempt platform-specific removal for empty directory
+    #ifdef _WIN32
+        return _rmdir(p_directoryName.c_str()) == 0;
+    #else
+        return rmdir(p_directoryName.c_str()) == 0;
+    #endif
+}
+
+
+// Create an empty file at the given path, creating parent directories if necessary
+bool system::createFile(const std::string& p_filePath) {
+    std::error_code errorCode;
+    const std::filesystem::path path{p_filePath};
+
+    if (const auto parent = path.parent_path(); !parent.empty() && !std::filesystem::exists(parent, errorCode)) {
+        if (!std::filesystem::create_directories(parent, errorCode) || errorCode) {
+            return false;
+        }
+    }
+
+    std::ofstream file(p_filePath, std::ios::binary);
+    if (!file.is_open()) {
+        return false;
+    }
+        file.close();
+        return true;
+    }
+
+
+// Check whether a file exists at the given path
+bool system::searchFile(const std::string& p_filePath) {
+    std::error_code errorCode;
+
+    // Preferred, non-throwing check
+    if (const std::filesystem::path path{p_filePath}; std::filesystem::exists(path, errorCode) && !errorCode) {
+        return std::filesystem::is_regular_file(path, errorCode) && !errorCode;
+    }
+
+    // Fallback to platform-specific stat when filesystem isn't available
+    #if defined(_WIN32)
+        struct _stat info;
+        return _stat(p_filePath.c_str(), &info) == 0 && (info.st_mode & _S_IFREG) != 0;
+    #else
+        struct stat info{};
+        return stat(p_filePath.c_str(), &info) == 0 && S_ISREG(info.st_mode);
+    #endif
+}
+
+
+bool system::deleteFile(const std::string& p_filePath) {
+    std::error_code errorCode;
+    // Try portable std::filesystem removal (non-throwing)
+    if (std::filesystem::remove(p_filePath, errorCode)) {
+        return true;
+    }
+    // If filesystem set an error, try to make file writable and retry
+    try {
+        std::filesystem::permissions(p_filePath,
+                                     std::filesystem::perms::owner_write,
+                                     std::filesystem::perm_options::add);
+        errorCode.clear();
+        if (std::filesystem::remove(p_filePath, errorCode)) {
+            return true;
+        }
+    } catch (...) {
+        // ignore and fall through to platform-specific attempts
+    }
+    // Platform-specific fallbacks
+    #ifdef _WIN32
+        // Try C std::remove as a fallback; on Windows this maps to _unlink/DeleteFile
+        if (std::remove(p_filePath.c_str()) == 0) return true;
+    #else
+        // POSIX unlink
+        if (unlink(p_filePath.c_str()) == 0) return true;
+    #endif
     return false;
 }
