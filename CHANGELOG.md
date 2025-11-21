@@ -1,11 +1,10 @@
 ## What's Changed
 
-- add: add support for hashing / encrypting passwords and database with sodium [b434b3e](https://github.com/joshua-9402/cpet-140-final-project/commit/b434b3e22d16f9c56317f68d3afe9f8a10c4a0eb) and []()
-- feat: addition of a system vault for storing passwords securely []()
+- add: add support for hashing / encrypting passwords and database with sodium [b434b3e](https://github.com/joshua-9402/cpet-140-final-project/commit/b434b3e22d16f9c56317f68d3afe9f8a10c4a0eb)
+- feat: addition of a system vault for storing passwords securely [c1e9b30](https://github.com/joshua-9402/cpet-140-final-project/commit/c1e9b307e446713a1423e2ea032b66c017d8a8b1)
 - fix: fix error in GitHub Actions workflow for building releases [0f6adc9](https://github.com/joshua-9402/cpet-140-final-project/commit/0f6adc980e39a2cf8797054add2651cb09d7eac9)
 - refactor: improve code accessibility and consistency in all module [f7b9c6a](https://github.com/joshua-9402/cpet-140-final-project/commit/f7b9c6ab36af64b11a7b6f08dac7ed60a04e4e0c)
 - remove: remove all function related to text files as database storage [fa8e444](https://github.com/joshua-9402/cpet-140-final-project/commit/fa8e4445af642b4cf70ab2d0bf3702dc646d93a3)
-- feat: implement logging functionality for better debugging and monitoring []()
 
 ## Supported Platforms
 
