@@ -1,6 +1,6 @@
 /*
  * CpET 140 Final Project — UI module
- * Payroll and Monitoring System - UI module
+ * StructuraCost - UI - UI module
  *
  * Contributors:
  *  Joshua Literal
@@ -19,15 +19,19 @@
  */
 
 #include <string>
-#include <cstring>
 #include <algorithm>
-#include "hello_imgui/hello_imgui.h"
-#include "ui.h"
-#include "../handler/system.h"
-#include "../config/app_config.h"
 #include <filesystem>
 #include <iostream>
-#include <vector>
+#include <sstream>
+#include <iomanip>
+
+#include "ui.h"
+
+#include "hello_imgui/hello_imgui.h"
+#include "../handler/system.h"
+#include "../config/config.h"
+#include "../security/cryptography.h"
+#include "../security/auth.h"
 
 
 // UI registry and UI management
@@ -36,9 +40,12 @@ static std::function<void()> g_currentUI = nullptr;
 static std::function<void()> g_rightUI = nullptr; // Right panel active UI (shown in main two-column layout)
 auto g_buttonSizePxSelector = ImVec2(270, 40); // x for width, y for height of buttons
 std::string ui::g_failedMessage; // Global failed message for failedUI
-const std::string g_accountNumber = "1234567890";
-const std::string g_userName = "testUserName";
-const std::string g_position = "testPosition";
+std::string g_accountNumber = "NA";
+std::string g_userName;
+std::string g_position;
+
+// Track whether the failed login modal is open
+static bool g_failedPopupOpen = false;
 
 
 // Lowercase helper used by both constructUI and switchToUI
@@ -97,8 +104,9 @@ static void loadImage(const std::string& p_location, const float p_locationXPx, 
 
 static void failedUI() {
     ImGui::Text("%s", ui::g_failedMessage.c_str());
-    if (ImGui::Button("Exit"))
+    if (ImGui::Button("Exit")) {
         HelloImGui::GetRunnerParams()->appShallExit = true;
+    }
 }
 
 
@@ -108,7 +116,6 @@ static void loginUI() {
     constexpr int textboxPaddingX = 8;
     constexpr int textboxPaddingY = 5;
     constexpr float textboxWidth = 460.0f;
-    static bool showError = false;
 
     loadImage("icons/business_logo.png", 0.05f, 10.1f, 70.0f);
     ImGui::SetCursorPos(ImVec2(18.0f, 90.0f));
@@ -134,21 +141,64 @@ static void loginUI() {
 
     ImGui::SetCursorPos(ImVec2(25.0f, 310.0f));
     if (setButtonCenter("Log In", fullWidthButtonSize(35)), ImGui::IsItemClicked()){
-        constexpr int maxPasswordLength = 128;
-        constexpr int minPasswordLength = 10;
-        if (const std::size_t lengthPassword = strlen(password); lengthPassword >= static_cast<std::size_t>(minPasswordLength) && lengthPassword <= static_cast<std::size_t>(maxPasswordLength)) {
-            showError = false;
-            g_auth = true;
+
+        // First, validate inputs are provided. Show failed popup when either field is empty.
+        if (username[0] == '\0' || password[0] == '\0') {
+            username[0] = '\0';
+            password[0] = '\0';
+            ui::g_failedMessage = "Error: Username and password are required.";
+            appConfig::g_auth = false;
+
+            // Mark the modal open and instruct ImGui to open it
+            g_failedPopupOpen = true;
+            ImGui::OpenPopup("Failed##login");
+        }
+
+        // Inputs present — proceed with authentication checks
+        if (auth::testAuth(username, password)) {
+            g_userName = std::string(username);
+            appConfig::g_auth = true;
+            appConfig::g_testMode = true;
             username[0] = '\0';
             password[0] = '\0';
             HelloImGui::GetRunnerParams()->appShallExit = true;
+        } else if (auth::testDeployAuth(username, password)) {
+            g_userName = std::string(username);
+            appConfig::g_auth = true;
+            appConfig::g_testMode = false;
+            username[0] = '\0';
+            password[0] = '\0';
+            HelloImGui::GetRunnerParams()->appShallExit = true;
+        } else {
+            // Invalid credentials: show failed UI modal (reuse same mechanism)
+            ui::g_failedMessage = "Error: Invalid username or password.";
+            appConfig::g_auth = false;
+
+            g_failedPopupOpen = true;
+            ImGui::OpenPopup("Failed##login");
         }
-        else {showError = true;}
     }
 
-    if (showError) {
-        ImGui::SetCursorPos(ImVec2(105.0f, 220.0f));
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "ERROR: Password is too short");
+    // Render the failed modal if it's open. This must be called every frame so the popup stays visible
+    {
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
+
+        if (g_failedPopupOpen || ImGui::IsPopupOpen("Failed##login")) {
+            // Ensure the window size/pos are set for when the popup opens
+            ImGui::SetNextWindowSize(ImVec2(420.0f, 180.0f), ImGuiCond_Appearing);
+            ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        }
+
+        // Pass pointer so ImGui will clear flag when modal is closed by user actions
+        if (ImGui::BeginPopupModal("Failed##login", &g_failedPopupOpen, flags)) {
+            failedUI();
+            ImGui::Spacing();
+            if (ImGui::Button("Close")) {
+                ImGui::CloseCurrentPopup();
+                g_failedPopupOpen = false;
+            }
+            ImGui::EndPopup();
+        }
     }
 
     ImGui::SetCursorPos(ImVec2(25.0f, 360.0f));
@@ -160,16 +210,18 @@ static void accountUI() {
     loadImage("icons/business_logo.png", 0.1f, 10.0f, 70.1f);
     loadImage("icons/user_icon.png", 0.8f, 10.0f, 60.0f);
 
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
-    setTextRight(g_accountNumber.c_str());
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
-    setTextRight(g_userName.c_str());
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
-    setTextRight(g_position.c_str());
+    if (!appConfig::g_testMode) {
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
+        setTextRight(g_accountNumber.c_str());
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
+        setTextRight(g_userName.c_str());
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
+        setTextRight(g_position.c_str());
+    }
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
     if (ImGui::Button("Log Out", fullWidthButtonSize(40))) {
-        g_auth = false;
+        appConfig::g_auth = false;
         HelloImGui::GetRunnerParams()->appShallExit = true;
     }
 }
@@ -199,12 +251,18 @@ static void selectorUI() {
     ImGui::Text("%s", g_userName.c_str());
 
     // Navigation buttons control the right pane
-    ImGui::SetCursorPos(ImVec2(8.0f, 210.0f));
-    if (ImGui::Button("Summary", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; }
-    ImGui::SetCursorPos(ImVec2(8.0f, 320.0f));
-    if (ImGui::Button("Payroll", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; }
-    ImGui::SetCursorPos(ImVec2(8.0f, 430.0f));
-    if (ImGui::Button("Expenses", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; }
+    if (appConfig::g_testMode) {
+        ImGui::SetCursorPos(ImVec2(8.0f, 210.0f));
+        if (ImGui::Button("Test/Debug", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("test")) g_rightUI = g_uiMap["test"]; }
+    }
+    else {
+        ImGui::SetCursorPos(ImVec2(8.0f, 210.0f));
+        if (ImGui::Button("Summary", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; }
+        ImGui::SetCursorPos(ImVec2(8.0f, 320.0f));
+        if (ImGui::Button("Payroll", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("payroll")) g_rightUI = g_uiMap["payroll"]; }
+        ImGui::SetCursorPos(ImVec2(8.0f, 430.0f));
+        if (ImGui::Button("Expenses", fullWidthButtonSize(g_buttonSizePxSelector.y + 50))) { if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; }
+    }
 
     // Top: Account info inside a bordered child, matching the two-column style
     ImGui::Spacing();
@@ -240,9 +298,109 @@ static void monitorUI() {
 }
 
 
+void testUI() {
+    ImGui::Text("THIS IS ONLY FOR TESTING/DEBUGGING PURPOSE ONLY");
+
+    static int keySizeBits = 128; // Default key size
+    ImGui::InputInt("Key Size (bits)", &keySizeBits, 8, 64);
+
+    static bool keyGenerated = false;
+    static std::vector<unsigned char> storedKeyRaw;
+    static std::string storedKeyHashed;
+    static std::string storedKeyHashedSalted;
+    static int storedKeySizeBits = 0;
+
+    if (ImGui::Button("Generate Key")) {
+        storedKeyRaw = cryptography::generateKey(keySizeBits);
+        storedKeyHashed = cryptography::toHex(storedKeyRaw);
+        storedKeyHashedSalted = cryptography::saltKey(storedKeyHashed);
+        storedKeySizeBits = keySizeBits;
+        keyGenerated = true;
+    }
+
+    if (keyGenerated) {
+        ImGui::Spacing();
+        const float wrapWidth = ImGui::GetContentRegionAvail().x;
+        const float height = ImGui::GetTextLineHeightWithSpacing() +
+                             ImGui::CalcTextSize(storedKeyHashed.c_str(), nullptr, false, wrapWidth).y +
+                             ImGui::CalcTextSize(storedKeyHashedSalted.c_str(), nullptr, false, wrapWidth).y;
+        ImGui::BeginChild("KeyDisplayPanel", ImVec2(0, height), true);
+        ImGui::Text("The key size in bits is: %d", storedKeySizeBits);
+        ImGui::TextWrapped("The key in hex: %s", storedKeyHashed.c_str());
+        ImGui::TextWrapped("The key in hex and salted: %s", storedKeyHashedSalted.c_str());
+        ImGui::EndChild();
+    }
+
+    // Test encryption and decryption
+    static const std::string location = "test.txt";
+    static std::string encryptionStatus;
+    static std::string decryptionStatus;
+
+    ImGui::Spacing();
+    ImGui::Text("Encryption/Decryption Test");
+
+    if (ImGui::Button("Encrypt")) {
+        // Ensure we have a key; generate with the user-selected size if missing
+        if (!keyGenerated || storedKeyRaw.empty()) {
+            storedKeyRaw = cryptography::generateKey(keySizeBits);
+            storedKeyHashed = cryptography::toHex(storedKeyRaw);
+            storedKeyHashedSalted = cryptography::saltKey(storedKeyHashed);
+            storedKeySizeBits = keySizeBits;
+            keyGenerated = true;
+        }
+
+        if (storedKeyRaw.empty()) {
+            encryptionStatus = "ERROR: Key generation failed. Cannot encrypt.";
+        } else {
+            if (cryptography::encryptFile(location, storedKeyRaw)) {
+                encryptionStatus = "SUCCESS: File encrypted to " + location + ".enc";
+                system::deleteFile(location); // Delete the unencrypted file after successful encryption
+            } else {
+                encryptionStatus = "ERROR: Encryption failed. Check if file exists and key is correct.";
+            }
+        }
+    }
+
+    if (ImGui::Button("Decrypt")) {
+        if (!keyGenerated || storedKeyRaw.empty()) {
+            decryptionStatus = "ERROR: No key available. Generate or load a key before decrypting.";
+        } else {
+            if (cryptography::decryptFile(location + ".enc", storedKeyRaw)) {
+                decryptionStatus = "SUCCESS: File decrypted (replaced " + location + ".enc with decrypted content)";
+                system::deleteFile(location + ".enc"); // Delete the encrypted file after successful decryption
+            } else {
+                decryptionStatus = "ERROR: Decryption failed. Check if encrypted file exists and key is correct.";
+            }
+        }
+    }
+
+    if (!encryptionStatus.empty()) {
+        ImGui::Spacing();
+        if (encryptionStatus.find("SUCCESS") != std::string::npos) {
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", encryptionStatus.c_str());
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", encryptionStatus.c_str());
+        }
+    }
+
+    if (!decryptionStatus.empty()) {
+        ImGui::Spacing();
+        if (decryptionStatus.find("SUCCESS") != std::string::npos) {
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", decryptionStatus.c_str());
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", decryptionStatus.c_str());
+        }
+    }
+}
+
+
 // Main two-column layout: left = selector (with account), right = active panel (summary/payroll/monitor)
 static void mainUI() {
-    if (!g_rightUI) g_rightUI = summaryUI; // default right panel
+    if (appConfig::g_testMode) {
+        g_rightUI = testUI; // default right panel if in test mode
+    } else {
+        g_rightUI = summaryUI; // default right panel if not in test mode
+    }
 
     // Full-viewport, borderless root so the main UI is in the app window itself
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -294,12 +452,13 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
 
     // populate UI registry (ensure it's available before selecting current UI)
     g_uiMap.clear();
-    g_uiMap.reserve(6);
+    g_uiMap.reserve(7);
     g_uiMap["auth"] = loginUI;
     g_uiMap["main"] = mainUI;
     g_uiMap["summary"] = summaryUI;
     g_uiMap["payroll"] = payrollUI;
     g_uiMap["monitor"] = monitorUI;
+    g_uiMap["test"] = testUI;
     g_uiMap["failed"] = failedUI;
 
     // Load a custom font with only the default ASCII character set to save memory.
@@ -334,6 +493,10 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     }
     else if (startKey == "monitor") {
         if (g_uiMap.contains("monitor")) g_rightUI = g_uiMap["monitor"]; else g_rightUI = monitorUI;
+        g_currentUI = mainUI;
+    }
+    else if (startKey == "test") {
+        if (g_uiMap.contains("test")) g_rightUI = g_uiMap["test"]; else g_rightUI = testUI;
         g_currentUI = mainUI;
     }
     else if (startKey == "summary" || startKey == "main") {
