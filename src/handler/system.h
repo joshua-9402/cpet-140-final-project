@@ -37,6 +37,9 @@ class system {
         // Create an empty file at the given path, creating parent directories if necessary.
         static bool createFile(const std::string& p_filePath);
 
+        // Check whether a file exists at the given path. Returns true if the file exists.
+        static bool searchFile(const std::string &p_dbName);
+
         // Delete the file at the given path.
         static bool deleteFile(const std::string& p_filePath);
 };

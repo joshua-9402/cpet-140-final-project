@@ -163,7 +163,13 @@ bool system::createFile(const std::string& p_filePath) {
     }
         file.close();
         return true;
-    }
+}
+
+
+bool system::searchFile(const std::string& p_dbName) {
+    // Check if the database file exists in the filesystem
+    return std::filesystem::exists(p_dbName);
+}
 
 
 bool system::deleteFile(const std::string& p_filePath) {

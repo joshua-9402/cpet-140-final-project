@@ -48,8 +48,8 @@ void systemCheck() {
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory);}
 
-    if (db::searchDatabase(appConfig::g_dataDirectory + appConfig::g_dbNamePayroll) == false) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_dbNamePayroll);}
-    if (db::searchDatabase(appConfig::g_dataDirectory + appConfig::g_dbNameTracker) == false) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_dbNameTracker);}
+    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_dbNamePayroll)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_dbNamePayroll);}
+    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_dbNameTracker)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_dbNameTracker);}
 }
 
 
