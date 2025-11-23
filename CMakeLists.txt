@@ -142,51 +142,85 @@ endif()
 # Strategy 3: Try local dependencies folder (all platforms, useful for Windows CI)
 if(NOT LIBSODIUM_FOUND)
     set(LOCAL_LIBSODIUM_ROOT "${CMAKE_SOURCE_DIR}/dependencies/libsodium")
+    # Also handle nested extraction like dependencies/libsodium/libsodium/
+    if(EXISTS "${LOCAL_LIBSODIUM_ROOT}/libsodium")
+        set(LOCAL_LIBSODIUM_ALT_ROOT "${LOCAL_LIBSODIUM_ROOT}/libsodium")
+    endif()
 
-    if(EXISTS "${LOCAL_LIBSODIUM_ROOT}/include/sodium.h")
-        target_include_directories(structuracost PRIVATE "${LOCAL_LIBSODIUM_ROOT}/include")
+    # Prefer env vars if workflow exported them
+    if(DEFINED ENV{SODIUM_INCLUDE_DIR} AND EXISTS "$ENV{SODIUM_INCLUDE_DIR}/sodium.h")
+        target_include_directories(structuracost PRIVATE "$ENV{SODIUM_INCLUDE_DIR}")
+        if(DEFINED ENV{SODIUM_LIBRARY_FILE} AND EXISTS "$ENV{SODIUM_LIBRARY_FILE}")
+            target_link_libraries(structuracost PRIVATE "$ENV{SODIUM_LIBRARY_FILE}")
+            set(LIBSODIUM_FOUND TRUE)
+            message(STATUS "✓ Found libsodium via environment variables: $ENV{SODIUM_LIBRARY_FILE}")
+        endif()
+    endif()
 
-        # Platform-specific library paths and names
+    if(NOT LIBSODIUM_FOUND AND (EXISTS "${LOCAL_LIBSODIUM_ROOT}/include/sodium.h" OR (DEFINED LOCAL_LIBSODIUM_ALT_ROOT AND EXISTS "${LOCAL_LIBSODIUM_ALT_ROOT}/include/sodium.h")))
+        # Choose actual include root
+        if(EXISTS "${LOCAL_LIBSODIUM_ROOT}/include/sodium.h")
+            set(_INC_ROOT "${LOCAL_LIBSODIUM_ROOT}")
+        else()
+            set(_INC_ROOT "${LOCAL_LIBSODIUM_ALT_ROOT}")
+        endif()
+        target_include_directories(structuracost PRIVATE "${_INC_ROOT}/include")
+
         if(WIN32)
-            # Windows: try both .lib (static/import) and .dll locations
-            set(WIN_LIB_PATHS
-                "${LOCAL_LIBSODIUM_ROOT}/lib/libsodium.lib"
-                "${LOCAL_LIBSODIUM_ROOT}/lib/libsodium.a"
-                "${LOCAL_LIBSODIUM_ROOT}/windows/libsodium.lib"
-                "${LOCAL_LIBSODIUM_ROOT}/windows/libsodium.a"
-                "${LOCAL_LIBSODIUM_ROOT}/Win32/Release/v142/static/libsodium.lib"
-                "${LOCAL_LIBSODIUM_ROOT}/x64/Release/v142/static/libsodium.lib"
-                "${LOCAL_LIBSODIUM_ROOT}/Win32/Release/v143/static/libsodium.lib"
-                "${LOCAL_LIBSODIUM_ROOT}/x64/Release/v143/static/libsodium.lib"
-                # ARM64 variants (MSVC prebuilt zip layout)
-                "${LOCAL_LIBSODIUM_ROOT}/ARM64/Release/v142/static/libsodium.lib"
-                "${LOCAL_LIBSODIUM_ROOT}/ARM64/Release/v142/dynamic/libsodium.lib"
-                "${LOCAL_LIBSODIUM_ROOT}/ARM64/Release/v143/static/libsodium.lib"
-                "${LOCAL_LIBSODIUM_ROOT}/ARM64/Release/v143/dynamic/libsodium.lib"
+            # Detect target architecture
+            string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _proc_lower)
+            set(_want_arm FALSE)
+            if(_proc_lower MATCHES "arm64")
+                set(_want_arm TRUE)
+            endif()
+
+            # Candidate architecture folders (flatten both root and nested)
+            set(_ARCH_ROOTS
+                "${_INC_ROOT}"
+                "${_INC_ROOT}/x64"
+                "${_INC_ROOT}/Win32"
+                "${_INC_ROOT}/ARM64"
             )
 
-            foreach(LIB_PATH ${WIN_LIB_PATHS})
-                if(EXISTS "${LIB_PATH}")
-                    target_link_libraries(structuracost PRIVATE "${LIB_PATH}")
-                    set(LIBSODIUM_FOUND TRUE)
-                    message(STATUS "✓ Found local libsodium (Windows candidate): ${LIB_PATH}")
-                    break()
+            # Build filtered candidate libs list
+            set(_WIN_LIB_CANDIDATES "")
+            foreach(R ${_ARCH_ROOTS})
+                if(EXISTS "${R}")
+                    file(GLOB_RECURSE _TMP_LIBS
+                        "${R}/*libsodium.lib" "${R}/*libsodium.a")
+                    foreach(L ${_TMP_LIBS})
+                        # Filter by architecture
+                        if(_want_arm)
+                            if(L MATCHES "[Aa][Rr][Mm]64" OR NOT (L MATCHES "[Xx]64"))
+                                list(APPEND _WIN_LIB_CANDIDATES "${L}")
+                            endif()
+                        else()
+                            if(L MATCHES "[Xx]64" AND NOT (L MATCHES "[Aa][Rr][Mm]64"))
+                                list(APPEND _WIN_LIB_CANDIDATES "${L}")
+                            endif()
+                        endif()
+                    endforeach()
                 endif()
             endforeach()
 
-            # Fallback: recursive search if not found in predefined locations (handles unexpected zip layouts)
-            if(NOT LIBSODIUM_FOUND)
-                file(GLOB_RECURSE _SODIUM_LIB_RECURSE
-                     "${LOCAL_LIBSODIUM_ROOT}/*.lib" "${LOCAL_LIBSODIUM_ROOT}/*.a")
-                foreach(CANDIDATE_LIB ${_SODIUM_LIB_RECURSE})
-                    if(CANDIDATE_LIB MATCHES "libsodium\\.(lib|a)$")
-                        target_link_libraries(structuracost PRIVATE "${CANDIDATE_LIB}")
-                        set(LIBSODIUM_FOUND TRUE)
-                        message(STATUS "✓ Found local libsodium by recursive search: ${CANDIDATE_LIB}")
-                        break()
+            # Fallback: if filter produced none, allow any libsodium (still avoid wrong arch if both present)
+            if(_WIN_LIB_CANDIDATES STREQUAL "")
+                file(GLOB_RECURSE _ANY_LIBS "${_INC_ROOT}/*.lib" "${_INC_ROOT}/*.a")
+                foreach(L ${_ANY_LIBS})
+                    if(L MATCHES "libsodium\\.(lib|a)$")
+                        list(APPEND _WIN_LIB_CANDIDATES "${L}")
                     endif()
                 endforeach()
             endif()
+
+            list(LENGTH _WIN_LIB_CANDIDATES _CNT)
+            if(_CNT GREATER 0)
+                list(GET _WIN_LIB_CANDIDATES 0 _BEST_LIB)
+                target_link_libraries(structuracost PRIVATE "${_BEST_LIB}")
+                set(LIBSODIUM_FOUND TRUE)
+                message(STATUS "✓ Selected libsodium (Windows, arch filtered): ${_BEST_LIB}")
+            endif()
+
         elseif(APPLE)
             # macOS: try .dylib (dynamic) and .a (static)
             set(MAC_LIB_PATHS

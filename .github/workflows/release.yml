@@ -431,65 +431,7 @@ jobs:
     - name: Install libsodium
       shell: pwsh
       run: |
-        Write-Host "=== Installing libsodium ==="
-        $url = "https://download.libsodium.org/libsodium/releases/libsodium-1.0.20-stable-msvc.zip"
-        $zipFile = "$env:TEMP\libsodium.zip"
-        $extractPath = "${{ github.workspace }}\dependencies\libsodium"
-        Invoke-WebRequest -Uri $url -OutFile $zipFile
-        Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
-        if (Test-Path "$extractPath\include") {
-          Write-Host "Include already present"
-        } else {
-          $includeSrc = Get-ChildItem -Path $extractPath -Recurse -Directory -Filter "include" | Select-Object -First 1
-          if ($includeSrc) {
-            $dest = Join-Path $extractPath "include"
-            $destPath = (Resolve-Path -LiteralPath $dest -ErrorAction SilentlyContinue).Path
-            # Only copy if source and destination are different
-            if (-not $destPath -or ($includeSrc.FullName -ne $destPath)) {
-              Copy-Item -Path $includeSrc.FullName -Destination $dest -Recurse -Force
-            } else {
-              Write-Host "Include source equals destination, skipping copy"
-            }
-          }
-        }
-        # Export environment variables for later steps
-        $inc = Get-ChildItem -Path $extractPath -Recurse -Filter "sodium.h" | Select-Object -First 1 | Split-Path -Parent
-        if ($inc) { "SODIUM_INCLUDE_DIR=$inc" >> $env:GITHUB_ENV; Write-Host "SODIUM_INCLUDE_DIR set to $inc" }
-        $lib = Get-ChildItem -Path $extractPath -Recurse -Include "libsodium.lib" | Select-Object -First 1
-        if ($lib) { "SODIUM_LIBRARY_FILE=$($lib.FullName)" >> $env:GITHUB_ENV; Write-Host "SODIUM_LIBRARY_FILE set to $($lib.FullName)" }
-        Write-Host "=== libsodium install complete ==="
-
-    - name: Verify libsodium
-      shell: pwsh
-      run: |
-        Write-Host "=== Verifying libsodium ==="
-        if (-not $env:SODIUM_INCLUDE_DIR) {
-          Write-Host "SODIUM_INCLUDE_DIR not set, scanning..."
-          $scanPath = "${{ github.workspace }}\dependencies\libsodium"
-          $header = Get-ChildItem -Path $scanPath -Recurse -Filter "sodium.h" | Select-Object -First 1
-          if ($header) {
-            Write-Host "Found header at $($header.FullName)"
-          } else {
-            Write-Host "libsodium header missing"; exit 1
-          }
-        } elseif (-not (Test-Path "$env:SODIUM_INCLUDE_DIR\sodium.h")) {
-          Write-Host "libsodium header missing at $env:SODIUM_INCLUDE_DIR"; exit 1
-        } else {
-          Write-Host "libsodium header OK ($env:SODIUM_INCLUDE_DIR\sodium.h)"
-        }
-        if ($env:SODIUM_LIBRARY_FILE -and (Test-Path $env:SODIUM_LIBRARY_FILE)) {
-          Write-Host "libsodium library located: $env:SODIUM_LIBRARY_FILE"
-        } else {
-          Write-Host "libsodium .lib not found (will rely on dynamic/runtime if available)"
-        }
-        Write-Host "Verification complete"
-
-    # Windows-specific install: download/extract MSVC zip and export include/lib paths
-    - name: Install libsodium (Windows, before configure)
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        Write-Host "=== Installing libsodium (Windows) ==="
+        Write-Host "=== Installing libsodium (arch-aware) ==="
         $url = "https://download.libsodium.org/libsodium/releases/libsodium-1.0.20-stable-msvc.zip"
         $zipFile = "$env:TEMP\libsodium.zip"
         $extractPath = "${{ github.workspace }}\dependencies\libsodium"
@@ -497,34 +439,78 @@ jobs:
         Invoke-WebRequest -Uri $url -OutFile $zipFile
         Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
 
-        # Ensure include folder exists at dependencies/libsodium/include
-        $includeSrc = Get-ChildItem -Path $extractPath -Recurse -Directory -Filter "include" | Select-Object -First 1
-        if ($includeSrc) {
-          $dest = Join-Path $extractPath "include"
-          $destPath = (Resolve-Path -LiteralPath $dest -ErrorAction SilentlyContinue).Path
-          if (-not $destPath -or ($includeSrc.FullName -ne $destPath)) {
-            Copy-Item -Path $includeSrc.FullName -Destination $dest -Recurse -Force
-          } else {
-            Write-Host "Include source equals destination, skipping copy"
+        # Handle nested 'libsodium' folder from archive
+        $root = $extractPath
+        if (Test-Path "$extractPath\libsodium") { $root = "$extractPath\libsodium" }
+
+        # Ensure include directory present
+        if (-not (Test-Path "$extractPath\include\sodium.h")) {
+          $includeSrc = Get-ChildItem -Path $root -Recurse -Directory -Filter "include" | Select-Object -First 1
+          if ($includeSrc) {
+            $dest = Join-Path $extractPath "include"
+            $destPath = (Resolve-Path -LiteralPath $dest -ErrorAction SilentlyContinue).Path
+            if (-not $destPath -or ($includeSrc.FullName -ne $destPath)) {
+              Copy-Item -Path $includeSrc.FullName -Destination $dest -Recurse -Force
+            }
           }
         }
 
-        # Determine target arch and pick matching libsodium .lib if present
-        $arch = '${{ matrix.arch }}'
-        $libFile = $null
-        if ($arch -eq 'x64') {
-          $libFile = Get-ChildItem -Path $extractPath -Recurse -Include "libsodium.lib" | Where-Object { $_.FullName -match 'x64|x86_64|Win64' } | Select-Object -First 1
-        } else {
-          $libFile = Get-ChildItem -Path $extractPath -Recurse -Include "libsodium.lib" | Where-Object { $_.FullName -match 'arm64|ARM64' } | Select-Object -First 1
-          if (-not $libFile) { $libFile = Get-ChildItem -Path $extractPath -Recurse -Include "libsodium.lib" | Select-Object -First 1 }
+        $arch = "${{ matrix.arch }}"
+        Write-Host "Target architecture: $arch"
+
+        # Gather candidate libs filtered by architecture
+        $candidates = @()
+        Get-ChildItem -Path $root -Recurse -Include "libsodium.lib","libsodium.a" | ForEach-Object {
+          $p = $_.FullName
+          if ($arch -eq "x64") {
+            if ($p -match "x64|x86_64|Win64" -and $p -notmatch "ARM64") { $candidates += $p }
+          } else {
+            if ($p -match "ARM64" -and $p -notmatch "x64|x86_64") { $candidates += $p }
+          }
         }
 
-        # Export environment variables for CMake to pick up
-        $inc = Get-ChildItem -Path $extractPath -Recurse -Filter "sodium.h" | Select-Object -First 1 | Split-Path -Parent
-        if ($inc) { "SODIUM_INCLUDE_DIR=$inc" >> $env:GITHUB_ENV; Write-Host "SODIUM_INCLUDE_DIR set to $inc" }
-        if ($libFile) { "SODIUM_LIBRARY_FILE=$($libFile.FullName)" >> $env:GITHUB_ENV; Write-Host "SODIUM_LIBRARY_FILE set to $($libFile.FullName)" }
-        Write-Host "=== libsodium Windows install complete ==="
+        if ($candidates.Count -eq 0) {
+          Write-Host "No architecture-filtered libs found; using first found libsodium.* if any"
+          $fallback = Get-ChildItem -Path $root -Recurse -Include "libsodium.lib","libsodium.a" | Select-Object -First 1
+          if ($fallback) { $candidates += $fallback.FullName }
+        }
 
+        if ($candidates.Count -gt 0) {
+          $libPick = $candidates[0]
+          "SODIUM_LIBRARY_FILE=$libPick" >> $env:GITHUB_ENV
+          Write-Host "Selected libsodium library: $libPick"
+        } else {
+          Write-Host "WARNING: libsodium library not found; build may fail"
+        }
+
+        $header = Get-ChildItem -Path $extractPath -Recurse -Filter "sodium.h" | Select-Object -First 1
+        if ($header) {
+          $incDir = Split-Path -Parent $header.FullName
+          "SODIUM_INCLUDE_DIR=$incDir" >> $env:GITHUB_ENV
+          Write-Host "Include dir: $incDir"
+        } else {
+          Write-Host "ERROR: sodium.h not found"; exit 1
+        }
+
+        Write-Host "=== libsodium install complete ==="
+
+    - name: Verify libsodium
+      shell: pwsh
+      run: |
+        Write-Host "=== Verifying libsodium ==="
+        if (-not $env:SODIUM_INCLUDE_DIR -or -not (Test-Path "$env:SODIUM_INCLUDE_DIR\sodium.h")) {
+          Write-Host "libsodium header missing"; exit 1
+        }
+        Write-Host "Header OK: $env:SODIUM_INCLUDE_DIR\sodium.h"
+        if ($env:SODIUM_LIBRARY_FILE -and (Test-Path $env:SODIUM_LIBRARY_FILE)) {
+          Write-Host "Library OK: $env:SODIUM_LIBRARY_FILE"
+        } else {
+          Write-Host "Library not set (may attempt dynamic linkage)"
+        }
+        Write-Host "Verification complete"
+
+    # Removed duplicate Windows-specific install and redundant env var step
+    # ...existing code (next steps: cross-platform install for non-Windows, tools, configure, build, etc.)...
     - name: Install libsodium (cross-platform, before configure)
       if: runner.os != 'Windows'
       shell: bash
