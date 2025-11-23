@@ -10,6 +10,9 @@ FetchContent_Declare(
         hello_imgui
         GIT_REPOSITORY https://github.com/pthom/hello_imgui.git
 )
+set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED ON CACHE BOOL "Download FreeType if needed" FORCE)
+set(HELLOIMGUI_DOWNLOAD_GLFW_IF_NEEDED ON CACHE BOOL "Download GLFW if needed" FORCE)
+set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "Disable automatic asset install" FORCE)
 
 FetchContent_MakeAvailable(hello_imgui)
 
@@ -69,18 +72,6 @@ hello_imgui_add_app(
 #                                                THIS AREA IS OFF LIMITS                                               #
 #                                                                                                                      #
 ########################################################################################################################
-
-# Download and build FreeType automatically to avoid version conflicts
-# This ensures HelloImGui has a compatible FreeType version regardless of system version
-set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED ON CACHE BOOL "Download FreeType if needed" FORCE)
-
-# Download and build GLFW automatically if not found (especially for SUSE)
-# This ensures HelloImGui can build even when system GLFW packages are unavailable
-set(HELLOIMGUI_DOWNLOAD_GLFW_IF_NEEDED ON CACHE BOOL "Download GLFW if needed" FORCE)
-
-# Disable Hello ImGui's automatic asset installation - we'll handle it manually
-# This prevents absolute path issues on Windows with CPack
-set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "Disable automatic asset install" FORCE)
 
 # Add include directory for SQLite3 headers
 target_include_directories(structuracost PRIVATE
