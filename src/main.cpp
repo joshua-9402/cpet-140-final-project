@@ -42,9 +42,9 @@ void systemCheck() {
         ui::constructUI(appConfig::g_errorTitle, appConfig::g_fontName, appConfig::g_errorWidth, appConfig::g_defaultHeight, "failed");
     }
 
-    // Create necessary directories and files
-    if (!system::searchFile("test.txt")) {system::createFile("test.txt");}
+    // Create necessary directories and database files
     if (!system::searchDirectory("logs")) {system::createDirectory("logs");}
+    if (!system::searchDirectory("backup")) {system::createDirectory("backup");}
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory);}
 
