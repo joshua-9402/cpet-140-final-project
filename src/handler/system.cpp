@@ -262,7 +262,13 @@ bool system::deleteFile(const std::string& p_filePath) {
 
 
 void system::appShutdown() {
-    copyDirectory("data", "backup/data_backup" + std::to_string(fetchTime(PartDateTime::YEAR)) + "_" +
+    copyDirectory("data", "backup/data" + std::to_string(fetchTime(PartDateTime::YEAR)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::MONTH)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::DAY)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::HOUR)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::MINUTE)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::SECOND)));
+    copyDirectory("logs", "backup/logs" + std::to_string(fetchTime(PartDateTime::YEAR)) + "_" +
                   std::to_string(fetchTime(PartDateTime::MONTH)) + "_" +
                   std::to_string(fetchTime(PartDateTime::DAY)) + "_" +
                   std::to_string(fetchTime(PartDateTime::HOUR)) + "_" +
