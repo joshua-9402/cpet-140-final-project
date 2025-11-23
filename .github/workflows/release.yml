@@ -641,7 +641,7 @@ jobs:
         echo "=== Installer Files ==="
         ls -lh release-assets/*.{deb,rpm,dmg,pkg,exe} 2>/dev/null || echo "Note: Some installer types may not be present"
 
-    - name: Checkout repository for release template
+    - name: Checkout repository for CHANGELOG
       uses: actions/checkout@v4
       with:
         path: repo
@@ -683,12 +683,14 @@ jobs:
             echo "" >> release-notes.md ;;
         esac
         
-        # Add main release template content
-        cat repo/.github/RELEASE_TEMPLATE.md >> release-notes.md
+        # Use CHANGELOG.md as the main release content
+        if [ -f "repo/CHANGELOG.md" ]; then
+          cat repo/CHANGELOG.md >> release-notes.md
+        else
+          echo "**No changelog available for this release.**" >> release-notes.md
+        fi
         echo "" >> release-notes.md
         echo "---" >> release-notes.md
-        echo "" >> release-notes.md
-        echo "📋 **For detailed changelog, see:** [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ needs.prepare-version.outputs.combined_version }}/CHANGELOG.md)" >> release-notes.md
         echo "" >> release-notes.md
         echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.prepare-version.outputs.combined_version }}" >> release-notes.md
 
