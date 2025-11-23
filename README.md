@@ -541,7 +541,8 @@ The participation of everyone is needed to make this project a success. Please f
 ### Whitespace and Formatting
 - Use 4 spaces or 1 tab for indentation .
 - Limit lines to a maximum of 20 words (comments only) for better readability.
-  - This restriction applies only to inline comments within source files; header comments, top-of-function/method comments, and documentation files are exempted.
+  - This restriction applies only to inline comments within source files
+  - Header comments, top-of-function/method comments, and documentation files are exempted.
 - Use blank lines to separate logical sections of code.
   - For spaces in function / methods:
     - give two line for each function / method definition and implementation.
@@ -631,32 +632,36 @@ The participation of everyone is needed to make this project a success. Please f
 - Ensure all tests pass before submitting the PR. Submitted PRs will undergo for a review and also include the test results.
 
 ### Troubleshooting & Debugging Tips
-- For `main.cpp` module
-  - Make sure that all functions / methods are correctly called
-  - Only put valid values when calling functions / methods or configuring application variables to avoid unexpected behaviors.
-  - For `main()` function:
-    - Ensure that all dependencies are correctly initialized before starting the UI.
-    - For `constructUI()`, make sure to correctly match the variables and the arguments.
 
+- For `src/main.cpp`
+    - Ensure dependency checks run early:
+        - `db::isSQLiteAvailable()` must return true.
+        - `cryptography::checkSodium()` must succeed.
+    - Validate application globals (`g_*`) and ensure correct arguments are passed to `ui::constructUI(const std::string&, const std::string&, int, int, const std::string&)`.
+    - Typical startup flow: create app data directory via `system::createDirectory()`, create/open DB via `db::createDatabase()`, then call `ui::constructUI()` and start the UI loop.
 
-- For `UI.cpp` module
-  - The `switchUI()`, `mainUI()`, `posUI()`, `inventoryUI()`, and `failedUI()` are private functions. No one except the functions / methods  in the `UI.cpp` can access it.
-  - For `constructUI()`, this function is STRICTLY OFF-LIMITS as it contains critical UI initialization logic; do not modify it without prior approval from the project maintainers.
-  - For `createFailedMessage()`, this function is used to create a failed message when the application fails to start. Do not modify it without prior approval from the project maintainers.
+- For `src/ui/ui.cpp` module
+    - Files: `src/ui/ui.cpp` and `src/ui/ui.h`.
+    - Off-limits internals: `constructUI()` and internal UI handlers such as private `switchToUI()`, `mainUI()`, `payrollUI()`, `monitorUI()`, `failedUI()` implementations. Do not modify without maintainer approval.
+    - Keep UI handlers lightweight: UI code must not perform raw DB or crypto operations; instead call `db::`, `auth::`, `cryptography::` helpers.
 
+- For `src/handler/db.cpp` and database-related modules
+    - Files: `src/handler/db.cpp` and `src/handler/db.h` are OFF-LIMITS for direct edits unless approved.
+    - Use RAII for DB connections, prepared statements, and always check SQLite return codes.
+    - Enable verbose SQLite logging during development (use `sqlite3_log`) and reproduce issues with a temporary DB when debugging.
+    - When debugging SQL issues: log the statement, parameters, and return code; add unit/regression tests once fixed.
 
-- For `payroll.cpp`
+- For `src/security` (auth / cryptography)
+    - Files: `src/security/auth.cpp`, `src/security/auth.h`, `src/security/cryptography.cpp`, `src/security/cryptography.h`.
+    - Validate key sizes and inputs for `cryptography::generateKey`, `cryptography::saltKey`, `cryptography::hashKey`, `cryptography::encryptFile`, and `cryptography::decryptFileInPlace`. On invalid parameters, these functions should return empty/false results and callers should surface user-friendly errors.
+    - For authentication failures, log detailed context with `system::logMessage()` (in `src/handler/system.cpp`) before setting `g_failedMessage`.
 
+- For `src/core` modules (`src/core/payroll.cpp`, `src/core/monitor.cpp`)
+    - Keep business logic here; delegate persistence to `db::` helpers. Validate inputs and add unit tests for calculations and aggregation logic.
+    - Do not add long-running background threads in these modules; keep APIs synchronous and testable.
 
-- For `monitoring.cpp`
-
-
-- For `db.cpp` and database-related module / dependencies
-  - This module is STRICTLY OFF-LIMITS.
-  - Enable verbose SQLite logging during development (sqlite3_log).
-  - Add a debug mode to log SQL statements and durations.
-  - Reproduce issues with a temporary DB and add unit/regression tests once fixed.
-  - Calling methods from `db.cpp` is `<db>::method` (e.g., `db::createDatabase(<path>, <error>)`)
-  - For `createDatabase()`
-    - It will create a new database or open a database (if there is an existing database)
-    - Returns either `true` or `false with error`
+- General tips & patterns
+    - Always log detailed internal errors with `system::logMessage()` before assigning short, user-facing `g_failedMessage`.
+    - Treat "already exists" for filesystem operations as success unless you explicitly intend replacement.
+    - For build/debug on macOS: ensure CMake and required dev headers are installed; Apple Clang may have partial C++26 support — target C++20 in CI/builds unless explicitly configured otherwise.
+    - When reporting a bug: include the failing module path (for example, `src/handler/db.cpp`), function name, exact steps to reproduce, sample inputs, and relevant logs.

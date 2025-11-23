@@ -5,6 +5,7 @@
 - fix: fix error in GitHub Actions workflow for building releases [0f6adc9](https://github.com/joshua-9402/cpet-140-final-project/commit/0f6adc980e39a2cf8797054add2651cb09d7eac9)
 - refactor: improve code accessibility and consistency in all module [f7b9c6a](https://github.com/joshua-9402/cpet-140-final-project/commit/f7b9c6ab36af64b11a7b6f08dac7ed60a04e4e0c)
 - remove: remove all function related to text files as database storage [fa8e444](https://github.com/joshua-9402/cpet-140-final-project/commit/fa8e4445af642b4cf70ab2d0bf3702dc646d93a3)
+- feat: implement backup when closing the application [8292450](https://github.com/joshua-9402/cpet-140-final-project/commit/8292450c78f45256b80f4a229fc42de900a8161e)
 
 ## Supported Platforms
 
