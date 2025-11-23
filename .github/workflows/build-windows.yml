@@ -63,8 +63,14 @@ jobs:
           # Find and copy include directory from the extracted structure
           $includeSrc = Get-ChildItem -Path $extractPath -Recurse -Directory -Filter "include" | Select-Object -First 1
           if ($includeSrc) {
-            Copy-Item -Path $includeSrc.FullName -Destination "$extractPath\include" -Recurse -Force
-            Write-Host "✓ Copied include files"
+            $dest = Join-Path $extractPath "include"
+            $destPath = (Resolve-Path -LiteralPath $dest -ErrorAction SilentlyContinue).Path
+            if (-not $destPath -or ($includeSrc.FullName -ne $destPath)) {
+              Copy-Item -Path $includeSrc.FullName -Destination $dest -Recurse -Force
+              Write-Host "✓ Copied include files"
+            } else {
+              Write-Host "Include source equals destination, skipping copy"
+            }
           }
         }
         

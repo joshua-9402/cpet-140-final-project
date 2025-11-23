@@ -441,7 +441,16 @@ jobs:
           Write-Host "Include already present"
         } else {
           $includeSrc = Get-ChildItem -Path $extractPath -Recurse -Directory -Filter "include" | Select-Object -First 1
-          if ($includeSrc) { Copy-Item -Path $includeSrc.FullName -Destination "$extractPath\include" -Recurse -Force }
+          if ($includeSrc) {
+            $dest = Join-Path $extractPath "include"
+            $destPath = (Resolve-Path -LiteralPath $dest -ErrorAction SilentlyContinue).Path
+            # Only copy if source and destination are different
+            if (-not $destPath -or ($includeSrc.FullName -ne $destPath)) {
+              Copy-Item -Path $includeSrc.FullName -Destination $dest -Recurse -Force
+            } else {
+              Write-Host "Include source equals destination, skipping copy"
+            }
+          }
         }
         # Export environment variables for later steps
         $inc = Get-ChildItem -Path $extractPath -Recurse -Filter "sodium.h" | Select-Object -First 1 | Split-Path -Parent
@@ -491,7 +500,13 @@ jobs:
         # Ensure include folder exists at dependencies/libsodium/include
         $includeSrc = Get-ChildItem -Path $extractPath -Recurse -Directory -Filter "include" | Select-Object -First 1
         if ($includeSrc) {
-          Copy-Item -Path $includeSrc.FullName -Destination "$extractPath\include" -Recurse -Force
+          $dest = Join-Path $extractPath "include"
+          $destPath = (Resolve-Path -LiteralPath $dest -ErrorAction SilentlyContinue).Path
+          if (-not $destPath -or ($includeSrc.FullName -ne $destPath)) {
+            Copy-Item -Path $includeSrc.FullName -Destination $dest -Recurse -Force
+          } else {
+            Write-Host "Include source equals destination, skipping copy"
+          }
         }
 
         # Determine target arch and pick matching libsodium .lib if present
@@ -500,7 +515,6 @@ jobs:
         if ($arch -eq 'x64') {
           $libFile = Get-ChildItem -Path $extractPath -Recurse -Include "libsodium.lib" | Where-Object { $_.FullName -match 'x64|x86_64|Win64' } | Select-Object -First 1
         } else {
-          # Try to find ARM64 variant first, fallback to any lib
           $libFile = Get-ChildItem -Path $extractPath -Recurse -Include "libsodium.lib" | Where-Object { $_.FullName -match 'arm64|ARM64' } | Select-Object -First 1
           if (-not $libFile) { $libFile = Get-ChildItem -Path $extractPath -Recurse -Include "libsodium.lib" | Select-Object -First 1 }
         }
