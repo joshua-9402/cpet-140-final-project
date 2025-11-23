@@ -105,7 +105,7 @@ static void loadImage(const std::string& p_location, const float p_locationXPx, 
 static void failedUI() {
     ImGui::Text("%s", ui::g_failedMessage.c_str());
     if (ImGui::Button("Exit")) {
-        HelloImGui::GetRunnerParams()->appShallExit = true;
+        system::appShutdown();
     }
 }
 
@@ -161,14 +161,14 @@ static void loginUI() {
             appConfig::g_testMode = true;
             username[0] = '\0';
             password[0] = '\0';
-            HelloImGui::GetRunnerParams()->appShallExit = true;
+            system::appShutdown();
         } else if (auth::testDeployAuth(username, password)) {
             g_userName = std::string(username);
             appConfig::g_auth = true;
             appConfig::g_testMode = false;
             username[0] = '\0';
             password[0] = '\0';
-            HelloImGui::GetRunnerParams()->appShallExit = true;
+            system::appShutdown();
         } else {
             // Invalid credentials: show failed UI modal (reuse same mechanism)
             ui::g_failedMessage = "Error: Invalid username or password.";
@@ -202,7 +202,7 @@ static void loginUI() {
     }
 
     ImGui::SetCursorPos(ImVec2(25.0f, 360.0f));
-    if (setButtonCenter("Exit App", fullWidthButtonSize(35)), ImGui::IsItemClicked()) {HelloImGui::GetRunnerParams()->appShallExit = true;}
+    if (setButtonCenter("Exit App", fullWidthButtonSize(35)), ImGui::IsItemClicked()) {system::appShutdown();}
 }
 
 static void accountUI() {
@@ -222,7 +222,7 @@ static void accountUI() {
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
     if (ImGui::Button("Log Out", fullWidthButtonSize(40))) {
         appConfig::g_auth = false;
-        HelloImGui::GetRunnerParams()->appShallExit = true;
+        system::appShutdown();
     }
 }
 
