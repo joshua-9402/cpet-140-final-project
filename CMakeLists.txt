@@ -156,17 +156,37 @@ if(NOT LIBSODIUM_FOUND)
                 "${LOCAL_LIBSODIUM_ROOT}/windows/libsodium.a"
                 "${LOCAL_LIBSODIUM_ROOT}/Win32/Release/v142/static/libsodium.lib"
                 "${LOCAL_LIBSODIUM_ROOT}/x64/Release/v142/static/libsodium.lib"
+                "${LOCAL_LIBSODIUM_ROOT}/Win32/Release/v143/static/libsodium.lib"
+                "${LOCAL_LIBSODIUM_ROOT}/x64/Release/v143/static/libsodium.lib"
+                # ARM64 variants (MSVC prebuilt zip layout)
+                "${LOCAL_LIBSODIUM_ROOT}/ARM64/Release/v142/static/libsodium.lib"
+                "${LOCAL_LIBSODIUM_ROOT}/ARM64/Release/v142/dynamic/libsodium.lib"
+                "${LOCAL_LIBSODIUM_ROOT}/ARM64/Release/v143/static/libsodium.lib"
+                "${LOCAL_LIBSODIUM_ROOT}/ARM64/Release/v143/dynamic/libsodium.lib"
             )
 
             foreach(LIB_PATH ${WIN_LIB_PATHS})
                 if(EXISTS "${LIB_PATH}")
                     target_link_libraries(structuracost PRIVATE "${LIB_PATH}")
                     set(LIBSODIUM_FOUND TRUE)
-                    message(STATUS "✓ Found local libsodium (Windows): ${LIB_PATH}")
+                    message(STATUS "✓ Found local libsodium (Windows candidate): ${LIB_PATH}")
                     break()
                 endif()
             endforeach()
 
+            # Fallback: recursive search if not found in predefined locations (handles unexpected zip layouts)
+            if(NOT LIBSODIUM_FOUND)
+                file(GLOB_RECURSE _SODIUM_LIB_RECURSE
+                     "${LOCAL_LIBSODIUM_ROOT}/*.lib" "${LOCAL_LIBSODIUM_ROOT}/*.a")
+                foreach(CANDIDATE_LIB ${_SODIUM_LIB_RECURSE})
+                    if(CANDIDATE_LIB MATCHES "libsodium\\.(lib|a)$")
+                        target_link_libraries(structuracost PRIVATE "${CANDIDATE_LIB}")
+                        set(LIBSODIUM_FOUND TRUE)
+                        message(STATUS "✓ Found local libsodium by recursive search: ${CANDIDATE_LIB}")
+                        break()
+                    endif()
+                endforeach()
+            endif()
         elseif(APPLE)
             # macOS: try .dylib (dynamic) and .a (static)
             set(MAC_LIB_PATHS
