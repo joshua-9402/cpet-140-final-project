@@ -6,18 +6,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent) # Fetch Hello ImGui (automatic download)
 
-# Download and build FreeType automatically to avoid version conflicts
-# This ensures HelloImGui has a compatible FreeType version regardless of system version
-set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED ON CACHE BOOL "Download FreeType if needed" FORCE)
-
-# Download and build GLFW automatically if not found (especially for SUSE)
-# This ensures HelloImGui can build even when system GLFW packages are unavailable
-set(HELLOIMGUI_DOWNLOAD_GLFW_IF_NEEDED ON CACHE BOOL "Download GLFW if needed" FORCE)
-
-# Disable Hello ImGui's automatic asset installation - we'll handle it manually
-# This prevents absolute path issues on Windows with CPack
-set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "Disable automatic asset install" FORCE)
-
 FetchContent_Declare(
         hello_imgui
         GIT_REPOSITORY https://github.com/pthom/hello_imgui.git
@@ -76,6 +64,24 @@ hello_imgui_add_app(
         ASSETS_LOCATION "assets/"
 )
 
+########################################################################################################################
+#                                                                                                                      #
+#                                                THIS AREA IS OFF LIMITS                                               #
+#                                                                                                                      #
+########################################################################################################################
+
+# Download and build FreeType automatically to avoid version conflicts
+# This ensures HelloImGui has a compatible FreeType version regardless of system version
+set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED ON CACHE BOOL "Download FreeType if needed" FORCE)
+
+# Download and build GLFW automatically if not found (especially for SUSE)
+# This ensures HelloImGui can build even when system GLFW packages are unavailable
+set(HELLOIMGUI_DOWNLOAD_GLFW_IF_NEEDED ON CACHE BOOL "Download GLFW if needed" FORCE)
+
+# Disable Hello ImGui's automatic asset installation - we'll handle it manually
+# This prevents absolute path issues on Windows with CPack
+set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "Disable automatic asset install" FORCE)
+
 # Add include directory for SQLite3 headers
 target_include_directories(structuracost PRIVATE
         ${CMAKE_SOURCE_DIR}/dependencies/sqlite
@@ -95,62 +101,67 @@ else()
 endif()
 
 # Minimal macOS Homebrew link dir fallback: ensure linker searches Homebrew lib path
-if(APPLE)
-    if(EXISTS "/opt/homebrew/lib/libsodium.dylib" OR EXISTS "/opt/homebrew/lib/libsodium.a")
+if(APPLE AND (EXISTS "/opt/homebrew/lib/libsodium.dylib" OR EXISTS "/opt/homebrew/lib/libsodium.a"))
         target_link_directories(structuracost PRIVATE "/opt/homebrew/lib")
-        # also ensure -L is provided early to the linker
-        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.13")
-            target_link_options(structuracost PRIVATE "-L/opt/homebrew/lib")
-        endif()
-        message(STATUS "✓ Added /opt/homebrew/lib to link directories to resolve -lsodium")
-    endif()
-    if(EXISTS "/usr/local/lib/libsodium.dylib" OR EXISTS "/usr/local/lib/libsodium.a")
-        target_link_directories(structuracost PRIVATE "/usr/local/lib")
-        if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.13")
-            target_link_options(structuracost PRIVATE "-L/usr/local/lib")
-        endif()
-        message(STATUS "✓ Added /usr/local/lib to link directories to resolve -lsodium")
-    endif()
 endif()
 
-if(DEFINED LIBSODIUM_FOUND AND LIBSODIUM_FOUND)
-    # Include dirs from pkg-config
+if(APPLE AND CMAKE_VERSION VERSION_GREATER_EQUAL "3.13" AND (EXISTS "/opt/homebrew/lib/libsodium.dylib" OR EXISTS "/opt/homebrew/lib/libsodium.a"))
+    target_link_options(structuracost PRIVATE "-L/opt/homebrew/lib")
+endif()
+
+# Check for libsodium in /usr/local/lib without nesting
+if(EXISTS "/usr/local/lib/libsodium.dylib" OR EXISTS "/usr/local/lib/libsodium.a")
+    set(_SODIUM_USRLIB_EXISTS TRUE)
+else()
+    set(_SODIUM_USRLIB_EXISTS FALSE)
+endif()
+
+if(APPLE AND _SODIUM_USRLIB_EXISTS)
+        target_link_directories(structuracost PRIVATE "/usr/local/lib")
+endif()
+
+if(APPLE AND _SODIUM_USRLIB_EXISTS)
+            target_link_options(structuracost PRIVATE "-L/usr/local/lib")
+endif()
+
+if(LIBSODIUM_FOUND)
     target_include_directories(structuracost PRIVATE ${LIBSODIUM_INCLUDE_DIRS})
 
-    # Prefer linking a concrete libsodium file on macOS/Homebrew to avoid unresolved -lsodium
     find_library(SODIUM_LIB_FILE NAMES sodium libsodium
         PATHS /opt/homebrew/lib /usr/local/lib /usr/lib
         NO_DEFAULT_PATH)
+
     if(SODIUM_LIB_FILE)
-        # Make sure subsequent link uses the concrete path instead of '-lsodium'
-        set(LIBSODIUM_LIBRARIES "${SODIUM_LIB_FILE}")
-        target_link_libraries(structuracost PRIVATE "${LIBSODIUM_LIBRARIES}")
-        message(STATUS "✓ Found libsodium via pkg-config and linked concrete file: ${SODIUM_LIB_FILE}")
+        set(_SODIUM_LINK "${SODIUM_LIB_FILE}")
     else()
-        # Fall back to whatever pkg-config returned (may include -lsodium)
-        target_link_libraries(structuracost PRIVATE ${LIBSODIUM_LIBRARIES})
-        message(STATUS "✓ Found libsodium via pkg-config (falling back to pkg-config libraries)")
+        set(_SODIUM_LINK ${LIBSODIUM_LIBRARIES})
     endif()
-else()
-    message(STATUS "pkg-config did not find libsodium")
+
+    target_link_libraries(structuracost PRIVATE ${_SODIUM_LINK})
 endif()
 
 # Try Homebrew paths (macOS)
 if(NOT LIBSODIUM_FOUND AND APPLE)
     foreach(HOMEBREW_PATH /opt/homebrew /usr/local)
-        if(EXISTS "${HOMEBREW_PATH}/include/sodium.h")
-            foreach(LIB_PATH "${HOMEBREW_PATH}/lib/libsodium.a" "${HOMEBREW_PATH}/lib/libsodium.dylib")
-                if(EXISTS "${LIB_PATH}")
-                    target_include_directories(structuracost PRIVATE "${HOMEBREW_PATH}/include")
-                    target_link_libraries(structuracost PRIVATE "${LIB_PATH}")
-                    set(LIBSODIUM_FOUND TRUE)
-                    message(STATUS "✓ Found libsodium: ${LIB_PATH}")
-                    break()
-                endif()
-            endforeach()
-            if(LIBSODIUM_FOUND)
+        if(NOT EXISTS "${HOMEBREW_PATH}/include/sodium.h")
+            continue()
+        endif()
+
+            set(_LIB_A "${HOMEBREW_PATH}/lib/libsodium.a")
+            set(_LIB_DY "${HOMEBREW_PATH}/lib/libsodium.dylib")
+        set(_SELECTED_SODIUM "")
+
+            if(EXISTS "${_LIB_A}")
+            set(_SELECTED_SODIUM "${_LIB_A}")
+            elseif(EXISTS "${_LIB_DY}")
+            set(_SELECTED_SODIUM "${_LIB_DY}")
+        endif()
+
+        if(NOT "${_SELECTED_SODIUM}" STREQUAL "")
+                target_include_directories(structuracost PRIVATE "${HOMEBREW_PATH}/include")
+            target_link_libraries(structuracost PRIVATE "${_SELECTED_SODIUM}")
+                set(LIBSODIUM_FOUND TRUE)
                 break()
-            endif()
         endif()
     endforeach()
 endif()
@@ -158,87 +169,51 @@ endif()
 # Try local dependencies folder (Windows)
 if(NOT LIBSODIUM_FOUND AND WIN32)
     set(LOCAL_LIBSODIUM_ROOT "${CMAKE_SOURCE_DIR}/dependencies/libsodium")
-    if(EXISTS "${LOCAL_LIBSODIUM_ROOT}/include/sodium.h")
+    if(NOT EXISTS "${LOCAL_LIBSODIUM_ROOT}/include/sodium.h")
+        return()
+    endif()
+
         target_include_directories(structuracost PRIVATE "${LOCAL_LIBSODIUM_ROOT}/include")
         file(GLOB_RECURSE _TMP_LIBS "${LOCAL_LIBSODIUM_ROOT}/*libsodium.lib")
-        set(_WIN_LIB_CANDIDATES "")
 
-        # Determine target architecture (ARM64 vs X64) using processor or generator platform
-        set(_TARGET_ARCH "")
+    # Determine target architecture (ARM64 vs X64)
+    set(_TARGET_ARCH "X64")
         if(DEFINED CMAKE_SYSTEM_PROCESSOR)
             string(TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" _SYS_CPU)
             if(_SYS_CPU MATCHES "ARM64")
                 set(_TARGET_ARCH "ARM64")
-            elseif(_SYS_CPU MATCHES "AMD64|X86_64")
-                set(_TARGET_ARCH "X64")
             endif()
-        endif()
-        if(_TARGET_ARCH STREQUAL "" AND DEFINED CMAKE_GENERATOR_PLATFORM)
+    elseif(DEFINED CMAKE_GENERATOR_PLATFORM)
             string(TOUPPER "${CMAKE_GENERATOR_PLATFORM}" _GEN_PLAT)
             if(_GEN_PLAT MATCHES "ARM64")
                 set(_TARGET_ARCH "ARM64")
-            elseif(_GEN_PLAT MATCHES "X64|AMD64")
-                set(_TARGET_ARCH "X64")
-            endif()
         endif()
-        if(_TARGET_ARCH STREQUAL "")
-            # Fallback: assume X64 if unknown (safer than ARM64 because it matches most GitHub runners)
-            set(_TARGET_ARCH "X64")
-            message(WARNING "Could not detect Windows architecture; defaulting to X64 for libsodium selection")
         endif()
 
+    # Filter libraries by architecture
+    set(_WIN_LIB_CANDIDATES "")
         foreach(_L ${_TMP_LIBS})
             string(TOUPPER "${_L}" _LU)
             if(_TARGET_ARCH STREQUAL "ARM64")
-                if(_LU MATCHES "ARM64" AND NOT _LU MATCHES "X64|X86_64|AMD64")
+            if(_LU MATCHES "ARM64" AND NOT _LU MATCHES "X64|AMD64")
                     list(APPEND _WIN_LIB_CANDIDATES "${_L}")
                 endif()
-            else() # X64
-                if((_LU MATCHES "X64" OR _LU MATCHES "X86_64" OR _LU MATCHES "AMD64" OR _LU MATCHES "WIN64") AND NOT _LU MATCHES "ARM64")
-                    list(APPEND _WIN_LIB_CANDIDATES "${_L}")
-                endif()
-            endif()
-        endforeach()
-
-        # Fallback: if no strictly filtered candidate, try any libsodium excluding obvious mismatch
-        if(_WIN_LIB_CANDIDATES STREQUAL "")
-            foreach(_L ${_TMP_LIBS})
-                string(TOUPPER "${_L}" _LU)
-                if(_TARGET_ARCH STREQUAL "ARM64")
-                    if(_LU MATCHES "ARM64")
-                        list(APPEND _WIN_LIB_CANDIDATES "${_L}")
-                        break()
-                    endif()
-                else()
+        else()
                     if(NOT _LU MATCHES "ARM64")
                         list(APPEND _WIN_LIB_CANDIDATES "${_L}")
-                        break()
                     endif()
                 endif()
             endforeach()
-        endif()
 
-        if(NOT _WIN_LIB_CANDIDATES STREQUAL "")
+    if(_WIN_LIB_CANDIDATES)
             list(GET _WIN_LIB_CANDIDATES 0 _BEST_LIB)
-            string(TOUPPER "${_BEST_LIB}" _BEST_UP)
-            # Sanity check: mismatch detection
-            if(_TARGET_ARCH STREQUAL "ARM64" AND (_BEST_UP MATCHES "X64|X86_64|AMD64|WIN64"))
-                message(FATAL_ERROR "Selected x64 libsodium for ARM64 build. Provide ARM64 libsodium (folder containing ARM64 in path). Found: ${_BEST_LIB}")
-            elseif(_TARGET_ARCH STREQUAL "X64" AND (_BEST_UP MATCHES "ARM64"))
-                message(FATAL_ERROR "Selected ARM64 libsodium for x64 build. Provide x64 libsodium (path with x64/x86_64). Found: ${_BEST_LIB}")
-            endif()
             target_link_libraries(structuracost PRIVATE "${_BEST_LIB}")
             set(LIBSODIUM_FOUND TRUE)
-            message(STATUS "✓ Selected libsodium (${_TARGET_ARCH}): ${_BEST_LIB}")
-        else()
-            message(FATAL_ERROR "No suitable libsodium library found for target architecture ${_TARGET_ARCH} under ${LOCAL_LIBSODIUM_ROOT}. Place the correct prebuilt libsodium there.")
-        endif()
-    endif()
+endif()
 endif()
 
 # Try system paths (Linux)
-if(NOT LIBSODIUM_FOUND AND UNIX AND NOT APPLE)
-    if(EXISTS "/usr/include/sodium.h" OR EXISTS "/usr/local/include/sodium.h")
+if(NOT LIBSODIUM_FOUND AND UNIX AND NOT APPLE AND (EXISTS "/usr/include/sodium.h" OR EXISTS "/usr/local/include/sodium.h"))
         foreach(LIB_PATH
             "/usr/lib/libsodium.so"
             "/usr/lib/x86_64-linux-gnu/libsodium.so"
@@ -246,23 +221,14 @@ if(NOT LIBSODIUM_FOUND AND UNIX AND NOT APPLE)
             if(EXISTS "${LIB_PATH}")
                 target_link_libraries(structuracost PRIVATE "${LIB_PATH}")
                 set(LIBSODIUM_FOUND TRUE)
-                message(STATUS "✓ Found libsodium: ${LIB_PATH}")
                 break()
             endif()
         endforeach()
     endif()
-endif()
 
 # Error if not found
 if(NOT LIBSODIUM_FOUND)
-    message(FATAL_ERROR
-        "\nlibsodium not found!\n\n"
-        "Install libsodium:\n"
-        "  macOS:   brew install libsodium\n"
-        "  Ubuntu:  sudo apt-get install libsodium-dev\n"
-        "  Fedora:  sudo dnf install libsodium-devel\n"
-        "  Windows: Download from https://github.com/jedisct1/libsodium/releases\n"
-        "           and place in dependencies/libsodium/\n")
+    return()
 endif()
 
 
