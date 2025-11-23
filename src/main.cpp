@@ -23,7 +23,6 @@
 
 #include "ui/ui.h"
 #include "config/config.h"
-#include "security/security.h"
 #include "handler/system.h"
 #include "handler/db.h"
 #include "security/cryptography.h"
