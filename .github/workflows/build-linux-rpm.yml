@@ -90,6 +90,13 @@ jobs:
           libsodium-devel \
           pkg-config
 
+    - name: Verify libsodium
+      run: |
+        echo "=== Verifying libsodium ==="
+        test -f /usr/include/sodium.h || (echo "Missing sodium.h"; exit 1)
+        pkg-config --modversion libsodium || echo "pkg-config entry missing"
+        echo "Verification complete"
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:

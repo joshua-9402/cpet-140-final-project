@@ -87,6 +87,14 @@ jobs:
           libsodium-dev \
           pkg-config
 
+    - name: Verify libsodium
+      run: |
+        echo "=== Verifying libsodium ==="
+        ldconfig -p | grep sodium || echo "libsodium not in ldconfig (may be okay in container)"
+        test -f /usr/include/sodium.h && echo "Header OK" || (echo "Missing sodium.h"; exit 1)
+        pkg-config --modversion libsodium || echo "pkg-config entry missing"
+        echo "Done"
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:

@@ -202,3 +202,26 @@ jobs:
         
         Download the artifact from the workflow run page.
         "@ | Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+    - name: Set up environment variables for libsodium
+      shell: pwsh
+      run: |
+        Write-Host "Setting environment variables for CMake"
+        $inc = Get-ChildItem -Path $extractPath -Recurse -Filter "sodium.h" | Select-Object -First 1 | Split-Path -Parent
+        if ($inc) {
+          echo "SODIUM_INCLUDE_DIR=$inc" >> $env:GITHUB_ENV
+        }
+        $lib = Get-ChildItem -Path $extractPath -Recurse -Include "libsodium.lib" | Select-Object -First 1
+        if ($lib) {
+          echo "SODIUM_LIBRARY_FILE=$($lib.FullName)" >> $env:GITHUB_ENV
+        }
+
+    - name: Verify libsodium
+      shell: pwsh
+      run: |
+        Write-Host "=== Verifying libsodium ==="
+        if (-not $env:SODIUM_INCLUDE_DIR) { Write-Host "Missing SODIUM_INCLUDE_DIR"; exit 1 }
+        if (-not (Test-Path $env:SODIUM_INCLUDE_DIR\sodium.h)) { Write-Host "sodium.h not found"; exit 1 }
+        Write-Host "Header OK"
+        if (-not $env:SODIUM_LIBRARY_FILE) { Write-Host "libsodium.lib not found (may still link dynamically)"; }
+        Write-Host "Verification complete"

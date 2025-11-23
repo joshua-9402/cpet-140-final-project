@@ -55,6 +55,13 @@ jobs:
         ninja --version
         clang++ --version
 
+    - name: Verify libsodium
+      run: |
+        echo "=== Verifying libsodium ==="
+        test -f /opt/homebrew/include/sodium.h || test -f /usr/local/include/sodium.h || (echo "sodium.h not found"; exit 1)
+        ls /opt/homebrew/lib/libsodium* 2>/dev/null || ls /usr/local/lib/libsodium* 2>/dev/null || echo "libsodium library not listed"
+        echo "Verification complete"
+
     - name: Configure CMake
       run: |
         echo "=== Configuring CMake ==="
