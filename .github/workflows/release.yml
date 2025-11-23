@@ -730,112 +730,47 @@ jobs:
       with:
         path: artifacts
 
+    - name: Aggregate artifacts
+      run: |
+        echo "Creating aggregated artifact directory (test mode)"
+        mkdir -p release-assets
+        # Copy all installer and archive files into release-assets for easy browsing
+        find artifacts -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.exe" -o -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \; || true
+        echo "Listing aggregated artifacts:";
+        ls -lh release-assets || echo "No artifacts copied"
+
     - name: Display test build summary
       run: |
         echo "=============================================="
         echo "🧪 TEST MODE - Build Summary"
         echo "=============================================="
-        echo ""
         echo "Version: ${{ needs.prepare-version.outputs.combined_version }}"
-        echo "Mode: TEST (no release will be created)"
+        echo "Mode: TEST (no GitHub release will be created)"
         echo ""
         echo "Build Results:"
         echo "  Linux Debian: ${{ needs.build-linux-debian.result }}"
-        echo "  Linux RPM: ${{ needs.build-linux-rpm.result }}"
-        echo "  Linux SUSE: ${{ needs.build-linux-suse.result }}"
-        echo "  macOS: ${{ needs.build-macos.result }}"
-        echo "  Windows: ${{ needs.build-windows.result }}"
+        echo "  Linux RPM:    ${{ needs.build-linux-rpm.result }}"
+        echo "  Linux SUSE:   ${{ needs.build-linux-suse.result }}"
+        echo "  macOS:        ${{ needs.build-macos.result }}"
+        echo "  Windows:      ${{ needs.build-windows.result }}"
         echo ""
         echo "=============================================="
-        echo "Artifacts created:"
+        echo "Artifacts (raw download structure):"
         echo "=============================================="
-        ls -R artifacts
+        ls -R artifacts || true
         echo ""
         echo "=============================================="
-        echo "Artifact files:"
+        echo "Aggregated Artifacts (release-assets):"
         echo "=============================================="
-        find artifacts -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.exe" -o -name "*.tar.gz" -o -name "*.zip" \) -exec ls -lh {} \;
+        ls -lh release-assets || true
+        echo ""
+        echo "Installer files (if present):"
+        ls -lh release-assets/*.{deb,rpm,dmg,pkg,exe} 2>/dev/null || echo "(none)"
+        echo ""
+        echo "Archive files (if present):"
+        ls -lh release-assets/*.{tar.gz,zip} 2>/dev/null || echo "(none)"
         echo ""
         echo "=============================================="
-        echo "✅ Test build complete!"
-        echo "To create a release, run this workflow again with mode='release'"
+        echo "✅ Test build complete. To publish, rerun with mode='release'."
         echo "=============================================="
-        
-        # Collect all archives (from -archive artifacts)
-        find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \;
-        
-        echo "=== Release Assets ==="
-        ls -lh release-assets/
-        echo ""
-        echo "=== Archive Files ==="
-        ls -lh release-assets/*.tar.gz release-assets/*.zip 2>/dev/null || echo "Note: Some archive types may not be present"
-        echo ""
-        echo "=== Installer Files ==="
-        ls -lh release-assets/*.{deb,rpm,dmg,pkg,exe} 2>/dev/null || echo "Note: Some installer types may not be present"
-
-    - name: Checkout repository for CHANGELOG
-      uses: actions/checkout@v4
-      with:
-        path: repo
-
-    - name: Prepare release notes
-      run: |
-        # Add release type badge at the top with color-coded highlighting based on X (named stage)
-        case "${{ inputs.version_x }}" in
-          stable)
-            echo "## 🚀 Stable Release" > release-notes.md ;;
-          rc)
-            echo "## 🔄 Release Candidate" > release-notes.md ;;
-          beta)
-            echo "## 🧪 Beta Release" > release-notes.md ;;
-          alpha)
-            echo "## ⚠️ Alpha Release" > release-notes.md ;;
-          pre-alpha)
-            echo "## 🛠️ Pre-Alpha Release" > release-notes.md ;;
-        esac
-        echo "" >> release-notes.md
-        
-        # Add highlighted warning boxes for pre-release types
-        case "${{ inputs.version_x }}" in
-          rc)
-            echo "> [!WARNING]" >> release-notes.md
-            echo "> **Release Candidate:** This is a release candidate. Final testing before stable release." >> release-notes.md
-            echo "" >> release-notes.md ;;
-          beta)
-            echo "> [!CAUTION]" >> release-notes.md
-            echo "> **Beta Release:** This release may contain bugs and is not recommended for production use." >> release-notes.md
-            echo "" >> release-notes.md ;;
-          alpha)
-            echo "> [!CAUTION]" >> release-notes.md
-            echo "> **Alpha Release:** This is an unstable alpha release. Intended for testing purposes only. Do not use in production!" >> release-notes.md
-            echo "" >> release-notes.md ;;
-          pre-alpha)
-            echo "> [!INFO]" >> release-notes.md
-            echo "> **Pre-Alpha Release:** This is a pre-alpha release. It may be unstable and is intended for testing and feedback." >> release-notes.md
-            echo "" >> release-notes.md ;;
-        esac
-        
-        # Use CHANGELOG.md as the main release content
-        if [ -f "repo/CHANGELOG.md" ]; then
-          cat repo/CHANGELOG.md >> release-notes.md
-        else
-          echo "**No changelog available for this release.**" >> release-notes.md
-        fi
-        echo "" >> release-notes.md
-        echo "---" >> release-notes.md
-        echo "" >> release-notes.md
-        echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.prepare-version.outputs.combined_version }}" >> release-notes.md
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ needs.prepare-version.outputs.combined_version }}
-        name: "${{ needs.prepare-version.outputs.combined_version }}"
-        draft: false
-        prerelease: ${{ inputs.version_x != 'stable' }}
-        generate_release_notes: true
-        body_path: release-notes.md
-        files: release-assets/*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
