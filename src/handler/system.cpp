@@ -21,6 +21,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include "hello_imgui/hello_imgui.h"
 // Platform-specific includes for directory creation
 #ifdef _WIN32
     #include <direct.h>  // For _mkdir on Windows
@@ -122,6 +123,23 @@ bool system::searchDirectory(const std::string& p_directoryName) {
 }
 
 
+bool system::copyDirectory(const std::string &source, const std::string &destination) {
+    namespace fs = std::filesystem;
+
+    try {
+        fs::create_directories(destination);
+        fs::copy(source, destination,
+                 fs::copy_options::recursive |
+                 fs::copy_options::overwrite_existing);
+        return true;
+    }
+    catch (const std::exception &e) {
+        std::cerr << "Copy failed: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+
 bool system::deleteDirectory(const std::string& p_directoryName) {
     std::error_code ec;
     const std::filesystem::path dir{p_directoryName};
@@ -199,4 +217,15 @@ bool system::deleteFile(const std::string& p_filePath) {
         if (unlink(p_filePath.c_str()) == 0) return true;
     #endif
     return false;
+}
+
+
+void system::appShutdown() {
+    copyDirectory("data", "backup/data_backup" + std::to_string(fetchTime(PartDateTime::YEAR)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::MONTH)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::DAY)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::HOUR)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::MINUTE)) + "_" +
+                  std::to_string(fetchTime(PartDateTime::SECOND)));
+    HelloImGui::GetRunnerParams()->appShallExit = true;
 }

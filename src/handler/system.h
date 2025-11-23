@@ -31,6 +31,9 @@ class system {
         // the path exists and is a directory.
         static bool searchDirectory(const std::string& p_directoryName);
 
+        // Copy a directory and its contents from source to destination.
+        static bool copyDirectory(const std::string &source, const std::string &destination);
+
         // Remove a directory and its contents. Returns true on success.
         static bool deleteDirectory(const std::string& p_directoryName);
 
@@ -42,6 +45,9 @@ class system {
 
         // Delete the file at the given path.
         static bool deleteFile(const std::string& p_filePath);
+
+        // Application shutdown routine to clean up resources.
+        static void appShutdown();
 };
 
 
