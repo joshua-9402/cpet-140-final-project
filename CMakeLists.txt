@@ -94,6 +94,16 @@ if(PKG_CONFIG_FOUND)
         target_include_directories(structuracost PRIVATE ${LIBSODIUM_INCLUDE_DIRS})
         target_link_libraries(structuracost PRIVATE ${LIBSODIUM_LIBRARIES})
         message(STATUS "✓ Found libsodium via pkg-config")
+
+        # Minimal fallback: if the linker cannot resolve -lsodium, prefer linking a concrete
+        # libsodium library from common Homebrew/system locations so the macOS linker finds it.
+        find_library(SODIUM_LIB_FILE NAMES sodium libsodium
+            PATHS /opt/homebrew/lib /usr/local/lib /usr/lib
+            NO_DEFAULT_PATH)
+        if(SODIUM_LIB_FILE)
+            target_link_libraries(structuracost PRIVATE "${SODIUM_LIB_FILE}")
+            message(STATUS "✓ Also linking concrete libsodium library: ${SODIUM_LIB_FILE}")
+        endif()
     endif()
 endif()
 
@@ -122,12 +132,76 @@ if(NOT LIBSODIUM_FOUND AND WIN32)
     set(LOCAL_LIBSODIUM_ROOT "${CMAKE_SOURCE_DIR}/dependencies/libsodium")
     if(EXISTS "${LOCAL_LIBSODIUM_ROOT}/include/sodium.h")
         target_include_directories(structuracost PRIVATE "${LOCAL_LIBSODIUM_ROOT}/include")
-        file(GLOB_RECURSE LIBSODIUM_LIB "${LOCAL_LIBSODIUM_ROOT}/*libsodium.lib")
-        if(LIBSODIUM_LIB)
-            list(GET LIBSODIUM_LIB 0 LIBSODIUM_LIB_PATH)
-            target_link_libraries(structuracost PRIVATE "${LIBSODIUM_LIB_PATH}")
+        # Collect candidate libs
+        file(GLOB_RECURSE _TMP_LIBS "${LOCAL_LIBSODIUM_ROOT}/*libsodium.lib")
+        set(_WIN_LIB_CANDIDATES "")
+
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            # 64-bit build - prefer libs that mention x64/x86_64/Win64 in the path/name
+            foreach(_L ${_TMP_LIBS})
+                string(TOUPPER "${_L}" _LU)
+                if(_LU MATCHES "X64" OR _LU MATCHES "X86_64" OR _LU MATCHES "WIN64")
+                    list(APPEND _WIN_LIB_CANDIDATES "${_L}")
+                endif()
+            endforeach()
+        else()
+            # Non-64-bit builds - prefer ARM64 labeled libs if present
+            foreach(_L ${_TMP_LIBS})
+                string(TOUPPER "${_L}" _LU)
+                if(_LU MATCHES "ARM64")
+                    list(APPEND _WIN_LIB_CANDIDATES "${_L}")
+                endif()
+            endforeach()
+        endif()
+
+        # If we didn't find an architecture-specific candidate, try a small local find as fallback
+        if(_WIN_LIB_CANDIDATES STREQUAL "")
+            find_library(SODIUM_LIB_FILE NAMES libsodium sodium
+                PATHS "${LOCAL_LIBSODIUM_ROOT}" "${LOCAL_LIBSODIUM_ROOT}/x64" "${LOCAL_LIBSODIUM_ROOT}/X64" "${LOCAL_LIBSODIUM_ROOT}/Win64"
+                NO_DEFAULT_PATH)
+            if(SODIUM_LIB_FILE)
+                list(APPEND _WIN_LIB_CANDIDATES "${SODIUM_LIB_FILE}")
+            endif()
+        endif()
+
+        # Fallback: take the first discovered library (if any)
+        if(_WIN_LIB_CANDIDATES STREQUAL "")
+            foreach(_L ${_TMP_LIBS})
+                # avoid obvious ARM64 when building x64
+                string(TOUPPER "${_L}" _LU)
+                if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND _LU MATCHES "ARM64")
+                    continue()
+                endif()
+                list(APPEND _WIN_LIB_CANDIDATES "${_L}")
+                break()
+            endforeach()
+        endif()
+
+        if(NOT _WIN_LIB_CANDIDATES STREQUAL "")
+            list(GET _WIN_LIB_CANDIDATES 0 _BEST_LIB)
+
+            # If building 64-bit but the chosen library path contains ARM64, try a quick x64 fallback
+            if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+                string(TOUPPER "${_BEST_LIB}" _BEST_UPPER)
+                if(_BEST_UPPER MATCHES "ARM64")
+                    # Try common x64 subfolders under the local libsodium root
+                    find_library(_SODIUM_X64 NAMES libsodium sodium
+                        PATHS "${LOCAL_LIBSODIUM_ROOT}/x64" "${LOCAL_LIBSODIUM_ROOT}/X64" "${LOCAL_LIBSODIUM_ROOT}/Win64" "${LOCAL_LIBSODIUM_ROOT}/x86_64"
+                        NO_DEFAULT_PATH)
+                    if(_SODIUM_X64)
+                        set(_BEST_LIB "${_SODIUM_X64}")
+                        message(STATUS "✓ Found x64 libsodium fallback: ${_BEST_LIB}")
+                    else()
+                        message(FATAL_ERROR "libsodium: selected library is ARM64 but target is x64. Please provide an x64 libsodium library under ${LOCAL_LIBSODIUM_ROOT} (e.g., x64/ or Win64/).")
+                    endif()
+                endif()
+            endif()
+
+            target_link_libraries(structuracost PRIVATE "${_BEST_LIB}")
             set(LIBSODIUM_FOUND TRUE)
-            message(STATUS "✓ Found libsodium: ${LIBSODIUM_LIB_PATH}")
+            message(STATUS "✓ Selected libsodium (Windows, arch filtered): ${_BEST_LIB}")
+        else()
+            message(WARNING "No suitable Windows libsodium found in ${LOCAL_LIBSODIUM_ROOT}; build may fail or you may need to provide an x64 libsodium for x64 builds")
         endif()
     endif()
 endif()
