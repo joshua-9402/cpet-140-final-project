@@ -16,12 +16,19 @@ class system {
             SECOND
         };
 
+        enum class messageClassification {
+            INFO,
+            WARNING,
+            ERROR,
+            FATAL
+        };
+
         // Returns the requested part of the current local time.
         // Example: fetchTime(PartDateTime::HOUR) -> 0..23
         static int fetchTime(PartDateTime part);
 
         // Logs messages in the terminal to the log file.
-        static void logMessage();
+        static void logMessage(messageClassification classification, const std::string &message);
 
         // Creates a directory with the specified name.
         // Returns true on success, false on failure.
@@ -41,7 +48,7 @@ class system {
         static bool createFile(const std::string& p_filePath);
 
         // Check whether a file exists at the given path. Returns true if the file exists.
-        static bool searchFile(const std::string &p_dbName);
+        static bool searchFile(const std::string &p_fileName);
 
         // Delete the file at the given path.
         static bool deleteFile(const std::string& p_filePath);

@@ -38,8 +38,8 @@
 // Example: fetchTime(PartDateTime::HOUR) -> 0..23
 int system::fetchTime(const PartDateTime part) {
     // Get current time
-    const auto now = std::chrono::system_clock::now();
-    const std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    const auto currentSystemTime = std::chrono::system_clock::now();
+    const std::time_t now_c = std::chrono::system_clock::to_time_t(currentSystemTime);
     const std::tm* localTime = std::localtime(&now_c);
     if (!localTime) return -1;
 
@@ -56,20 +56,44 @@ int system::fetchTime(const PartDateTime part) {
 
 
 // Logs messages in the terminal to the log file.
-void system::logMessage() {
-    // Construct log file name based on current date and time
-    const std::string fileName = std::string("logs/") + "log_" +
-        std::to_string(fetchTime(PartDateTime::YEAR)) + "_" +
-                                   std::to_string(fetchTime(PartDateTime::MONTH)) + "_" +
-                                   std::to_string(fetchTime(PartDateTime::DAY)) + "_" +
-                                   std::to_string(fetchTime(PartDateTime::HOUR)) + "_" +
-                                   std::to_string(fetchTime(PartDateTime::MINUTE)) + "_" +
-                                   std::to_string(fetchTime(PartDateTime::SECOND)) + ".txt";
+void system::logMessage(const messageClassification classification, const std::string& message) {
+    // Get current time once
+    const auto currentSystemTime = std::chrono::system_clock::now();
+    const std::time_t now_c = std::chrono::system_clock::to_time_t(currentSystemTime);
+    const std::tm* localTime = std::localtime(&now_c);
+    if (!localTime) return;
 
-    // Append a log entry
+    // Helper for zero-padding
+    auto pad2 = [](const int v) { return v < 10 ? "0" + std::to_string(v) : std::to_string(v); };
+
+    // Construct timestamp and filename
+    const int year = localTime->tm_year + 1900;
+    const int month = localTime->tm_mon + 1;
+    const int day = localTime->tm_mday;
+    const int hour = localTime->tm_hour;
+    const int minute = localTime->tm_min;
+    const int second = localTime->tm_sec;
+
+    const std::string timestamp = std::to_string(year) + "-" + pad2(month) + "-" + pad2(day) +
+                                  " " + pad2(hour) + ":" + pad2(minute) + ":" + pad2(second);
+
+    const std::string fileName = "logs/log_" + std::to_string(year) + "_" +
+                                 std::to_string(month) + "_" + std::to_string(day) + "_" +
+                                 std::to_string(hour) + "_" + std::to_string(minute) + "_" +
+                                 std::to_string(second) + ".txt";
+
+    // Determine classification prefix
+        std::string prefix;
+        switch (classification) {
+        case messageClassification::INFO:    prefix = "[INFO]"; break;
+        case messageClassification::WARNING: prefix = "[WARNING]"; break;
+        case messageClassification::ERROR:   prefix = "[ERROR]"; break;
+        default:                             prefix = "[INFO]"; break;
+        }
+
+    // Write to log file
     if (std::ofstream logFile(fileName, std::ios::app); logFile.is_open()) {
-        logFile << fileName << std::endl;
-        logFile.close();
+        logFile << "[" << timestamp << "] " << prefix << ": " << message << std::endl;
     }
 }
 
@@ -184,9 +208,26 @@ bool system::createFile(const std::string& p_filePath) {
 }
 
 
-bool system::searchFile(const std::string& p_dbName) {
-    // Check if the database file exists in the filesystem
-    return std::filesystem::exists(p_dbName);
+bool system::searchFile(const std::string& p_fileName) {
+    std::error_code errorCode;
+    namespace fs = std::filesystem;
+    if (const fs::path p{p_fileName}; fs::exists(p, errorCode)) {
+        return fs::is_regular_file(p, errorCode) || fs::is_symlink(p, errorCode) || !fs::is_directory(p, errorCode);
+    }
+    if (errorCode) {
+#ifdef _WIN32
+        struct _stat info;
+        if (_stat(p_fileName.c_str(), &info) == 0) {
+            return (info.st_mode & _S_IFDIR) == 0; // exists and is not a directory
+        }
+#else
+        struct stat info{};
+        if (stat(p_fileName.c_str(), &info) == 0) {
+            return S_ISREG(info.st_mode) || S_ISLNK(info.st_mode);
+        }
+#endif
+    }
+    return false;
 }
 
 
