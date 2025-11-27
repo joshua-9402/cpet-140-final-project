@@ -272,7 +272,21 @@ bool system::deleteFile(const std::string& p_filePath) {
 
 
 void system::appShutdown() {
+    std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
+    for (const auto& entry : std::filesystem::directory_iterator("backup")) {
+        if (std::filesystem::is_directory(entry)) {
+            directories.emplace_back(std::filesystem::last_write_time(entry), entry.path());
+        }
+    }
+
+    if (directories.size() > 20) {
+        std::ranges::partial_sort(directories, directories.begin() + 2);
+        std::filesystem::remove_all(directories[0].second);
+        std::filesystem::remove_all(directories[1].second);
+    }
+
     copyDirectory("data", "backup/data-" + timeDateString());
     copyDirectory("logs", "backup/logs-" + timeDateString());
+
     HelloImGui::GetRunnerParams()->appShallExit = true;
 }
