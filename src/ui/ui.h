@@ -7,6 +7,8 @@ class ui {
     public:
         // Global Variable/s
         static std::string g_failedMessage;
+        static std::string g_userName;
+        static std::string g_position;
 
         // Global Methods
         static void constructUI(const std::string &a_title, const std::string& a_fontLocation, int a_widthPx, int a_heightPx, const std::string& a_window);
