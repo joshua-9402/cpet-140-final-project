@@ -40,9 +40,8 @@ static std::function<void()> g_currentUI = nullptr;
 static std::function<void()> g_rightUI = nullptr; // Right panel active UI (shown in main two-column layout)
 auto g_buttonSizePxSelector = ImVec2(270, 40); // x for width, y for height of buttons
 std::string ui::g_failedMessage; // Global failed message for failedUI
-std::string g_accountNumber = "NA";
-std::string g_userName;
-std::string g_position;
+std::string ui::g_userName;
+std::string ui::g_position;
 
 // Track whether the failed login modal is open
 static bool g_failedPopupOpen = false;
@@ -156,14 +155,12 @@ static void loginUI() {
 
         // Inputs present — proceed with authentication checks
         if (auth::testAuth(username, password)) {
-            g_userName = std::string(username);
             appConfig::g_auth = true;
             appConfig::g_testMode = true;
             username[0] = '\0';
             password[0] = '\0';
             system::appShutdown();
         } else if (auth::testDeployAuth(username, password)) {
-            g_userName = std::string(username);
             appConfig::g_auth = true;
             appConfig::g_testMode = false;
             username[0] = '\0';
@@ -181,7 +178,7 @@ static void loginUI() {
 
     // Render the failed modal if it's open. This must be called every frame so the popup stays visible
     {
-        ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
+        constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
 
         if (g_failedPopupOpen || ImGui::IsPopupOpen("Failed##login")) {
             // Ensure the window size/pos are set for when the popup opens
@@ -210,18 +207,17 @@ static void accountUI() {
     loadImage("icons/business_logo.png", 0.1f, 10.0f, 70.1f);
     loadImage("icons/user_icon.png", 0.8f, 10.0f, 60.0f);
 
-    if (!appConfig::g_testMode) {
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
-        setTextRight(g_accountNumber.c_str());
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
-        setTextRight(g_userName.c_str());
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
-        setTextRight(g_position.c_str());
-    }
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
+    setTextRight(ui::g_userName.c_str());
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f); // Small vertical spacing
+    setTextRight(ui::g_position.c_str());
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
     if (ImGui::Button("Log Out", fullWidthButtonSize(40))) {
         appConfig::g_auth = false;
+        appConfig::g_testMode = false;
+        ui::g_userName = "";
+        ui::g_position = "";
         system::appShutdown();
     }
 }
@@ -248,7 +244,7 @@ static void selectorUI() {
     ImGui::Text("%s", l_greetings.c_str());
     ImGui::SetWindowFontScale(1.0f); // Reset font scale
     ImGui::SetCursorPos(ImVec2(40.0f, 115.0f));
-    ImGui::Text("%s", g_userName.c_str());
+    ImGui::Text("%s", ui::g_userName.c_str());
 
     // Navigation buttons control the right pane
     if (appConfig::g_testMode) {
@@ -266,9 +262,9 @@ static void selectorUI() {
 
     // Top: Account info inside a bordered child, matching the two-column style
     ImGui::Spacing();
-    ImGui::SetCursorPos(ImVec2(8.0f, 600.0f));
+    ImGui::SetCursorPos(ImVec2(8.0f, 650.0f));
     const float lineH = ImGui::GetTextLineHeightWithSpacing();
-    const float accountHeight = lineH * 10.0f + 12.0f; // 6 text lines + small padding
+    const float accountHeight = lineH * 8.5f;
 
     // Push a custom background color (RGB: 0.25, 0.25, 0.25) for the next ImGui child window.
     // This creates a lighter gray panel that visually separates the account info from the surrounding UI
@@ -396,10 +392,15 @@ void testUI() {
 
 // Main two-column layout: left = selector (with account), right = active panel (summary/payroll/monitor)
 static void mainUI() {
-    if (appConfig::g_testMode) {
-        g_rightUI = testUI; // default right panel if in test mode
-    } else {
-        g_rightUI = summaryUI; // default right panel if not in test mode
+    // Only set default right panel on first call, not every frame
+    static bool initialized = false;
+    if (!initialized) {
+        if (appConfig::g_testMode) {
+            g_rightUI = testUI; // default right panel if in test mode
+        } else {
+            g_rightUI = summaryUI; // default right panel if not in test mode
+        }
+        initialized = true;
     }
 
     // Full-viewport, borderless root so the main UI is in the app window itself
@@ -500,11 +501,6 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
         g_currentUI = mainUI;
     }
     else if (startKey == "summary" || startKey == "main") {
-        if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; else g_rightUI = summaryUI;
-        g_currentUI = mainUI;
-    }
-    else {
-        ui::g_failedMessage = "Unknown start window: " + startKey;
         if (g_uiMap.contains("summary")) g_rightUI = g_uiMap["summary"]; else g_rightUI = summaryUI;
         g_currentUI = mainUI;
     }
