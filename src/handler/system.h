@@ -27,6 +27,9 @@ class system {
         // Example: fetchTime(PartDateTime::HOUR) -> 0..23
         static int fetchTime(PartDateTime part);
 
+
+        static std::string timeDateString();
+
         // Logs messages in the terminal to the log file.
         static void logMessage(messageClassification classification, const std::string &message);
 

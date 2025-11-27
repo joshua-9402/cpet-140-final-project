@@ -55,6 +55,16 @@ int system::fetchTime(const PartDateTime part) {
 }
 
 
+std::string system::timeDateString() {
+    return std::to_string(system::fetchTime(PartDateTime::YEAR)) + "_" +
+                  std::to_string(system::fetchTime(PartDateTime::MONTH)) + "_" +
+                  std::to_string(system::fetchTime(PartDateTime::DAY)) + "_" +
+                  std::to_string(system::fetchTime(PartDateTime::HOUR)) + "_" +
+                  std::to_string(system::fetchTime(PartDateTime::MINUTE)) + "_" +
+                  std::to_string(system::fetchTime(PartDateTime::SECOND));
+}
+
+
 // Logs messages in the terminal to the log file.
 void system::logMessage(const messageClassification classification, const std::string& message) {
     // Get current time once
@@ -262,17 +272,7 @@ bool system::deleteFile(const std::string& p_filePath) {
 
 
 void system::appShutdown() {
-    copyDirectory("data", "backup/data" + std::to_string(fetchTime(PartDateTime::YEAR)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::MONTH)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::DAY)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::HOUR)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::MINUTE)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::SECOND)));
-    copyDirectory("logs", "backup/logs" + std::to_string(fetchTime(PartDateTime::YEAR)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::MONTH)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::DAY)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::HOUR)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::MINUTE)) + "_" +
-                  std::to_string(fetchTime(PartDateTime::SECOND)));
+    copyDirectory("data", "backup/data-" + timeDateString());
+    copyDirectory("logs", "backup/logs-" + timeDateString());
     HelloImGui::GetRunnerParams()->appShallExit = true;
 }
