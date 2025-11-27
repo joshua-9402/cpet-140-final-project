@@ -16,9 +16,12 @@ std::string appConfig::g_errorTitle    = "ERROR";
 std::string appConfig::g_fontName      = "fonts/OpenSans-Regular.ttf";
 std::string appConfig::g_dataDirectory = "data/";
 std::string appConfig::g_projectDirectory = "projects/";
+std::string appConfig::g_payrollDirectory  = "payroll/";
+
+std::string appConfig::g_projectExpenseDirectory = "expenses/";
 
 std::string appConfig::g_dbNamePayroll = "payroll.db";
-std::string appConfig::g_dbNameTracker = "tracker.db";
+std::string appConfig::g_dbNameProject = "project.db";
 
 int appConfig::g_defaultWidth  = 1600;
 int appConfig::g_defaultHeight = 900;
