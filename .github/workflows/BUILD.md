@@ -123,7 +123,7 @@ The manual Linux workflow allows you to build for **Debian-based Linux distribut
 
 - **Build Method:** Container-based (Docker)
 - **Package Manager:** apt (Debian/Ubuntu standard)
-- **C++ Standard:** C++23
+- **C++ Standard:** C++20
 - **Compiler:** GCC (version depends on distribution)
 - **Build System:** Ninja
 - **LTO:** Configurable (enabled by default)
@@ -229,7 +229,7 @@ The manual Linux RPM workflow allows you to build for **Fedora/Red Hat family di
 
 - **Build Method:** Container-based (Docker)
 - **Package Manager:** dnf (Red Hat standard)
-- **C++ Standard:** C++23
+- **C++ Standard:** C++20
 - **Compiler:** GCC (version depends on distribution)
 - **Build System:** Ninja
 - **LTO:** Configurable (enabled by default)
@@ -326,7 +326,7 @@ The manual Linux SUSE workflow allows you to build for **SUSE family distributio
 
 - **Build Method:** Container-based (Docker)
 - **Package Manager:** zypper (SUSE standard)
-- **C++ Standard:** C++23
+- **C++ Standard:** C++20
 - **Compiler:** GCC (version depends on distribution)
 - **Build System:** Ninja
 - **LTO:** Configurable (enabled by default)
@@ -470,7 +470,7 @@ Example: `structuracost-macos-intel-v1.0.0.tar.gz`
 **Configuration:**
 - **Runner:** `windows-latest` (Windows Server 2022)
 - **Architecture:** x64
-- **C++ Standard:** C++23
+- **C++ Standard:** C++20
 - **Compiler:** MSVC (Microsoft Visual C++)
 - **LTO (LTCG):** Enabled by default
 - **Optimizations:** `/O2 /GL /LTCG`
@@ -509,7 +509,7 @@ Example: `structuracost-windows-x86_64-v1.0.0.zip`
 - **Runner:** `windows-latest` (Windows Server 2022 x64)
 - **Build Architecture:** x64 (cross-compilation)
 - **Target Architecture:** ARM64
-- **C++ Standard:** C++23
+- **C++ Standard:** C++20
 - **Compiler:** MSVC ARM64 cross-compiler
 - **LTO (LTCG):** Enabled by default
 - **Optimizations:** `/O2 /GL /LTCG`
@@ -544,7 +544,7 @@ Example: `structuracost-windows-arm64-v1.0.0.zip`
 |------------------|----------------|---------------|---------------|-------|------|--------------|
 | **macOS ARM64**  | macos-14       | Apple Silicon | Sonoma 14.0+  | C++20 | ✅    | ARM64        |
 | **macOS Intel**  | macos-13       | Modern Intel  | Big Sur 11.0+ | C++20 | ✅    | x86_64       |
-| **Windows x64**  | windows-latest | Windows 10/11 | N/A           | C++23 | ✅    | x64          |
+| **Windows x64**  | windows-latest | Windows 10/11 | N/A           | C++20 | ✅    | x64          |
 
 ### Architecture Decision Tree
 
@@ -865,7 +865,7 @@ Should match the deployment target you selected.
 ## Additional Resources
 
 - **Workflow Files:** `.github/workflows/`
-- **Detailed Docs:** 
+- **Detailed Docs:**
   - [README-linux.md](README-linux.md) - Debian/Ubuntu
   - [README-linux-rpm.md](README-linux-rpm.md) - Fedora/Red Hat
   - [README-linux-suse.md](README-linux-suse.md) - SUSE Family
@@ -925,5 +925,33 @@ git push origin master
 
 ---
 
-**Last Updated:** November 15, 2025
+## Release vs Test workflows (added)
 
+- Release: produces artifacts and creates a GitHub Release (published to the Releases tab) when configured to do so in the workflow. Use this for official distributable builds.
+- Test: identical build steps to Release, but will not publish to the GitHub Releases tab; instead it only uploads artifacts for inspection in the workflow run so you can verify the build and artifacts without creating a release.
+
+How to choose:
+- Use `release` when you want an official package published to Releases.
+- Use `test` when you want the build artifacts available for download from the workflow run but do not want to create a release entry.
+
+### CI libsodium note
+
+- The CI workflows require libsodium to be available in the build environment. Ensure the appropriate libsodium package or prebuilt library for the target platform/architecture is installed before the `cmake` configure step.
+  - Linux (Ubuntu/Debian): `libsodium-dev`
+  - macOS: `brew install libsodium` (for macOS runners)
+  - Windows: include the correct archive of libsodium under `dependencies/libsodium` that matches the MSVC toolset and target architecture.
+
+If CI logs show `libsodium not found`, add the `Install libsodium` step to the workflow before `cmake` configure (see `doc/LIBSODIUM_SETUP.md` for details).
+
+---
+
+## Repository sync note
+
+This `BUILD.md` was updated to reflect the current repository build behavior and workflows (sync date: 2025-11-29). Key points consolidated here:
+- Added explicit `release` vs `test` explanation.
+- Clarified libsodium requirement for CI and runtimes.
+- Artifact naming conventions and retention are kept as described earlier in the document.
+
+Please refer to the individual `doc/` files for module-specific documentation and setup instructions.
+
+**Last Updated:** 2025-11-29

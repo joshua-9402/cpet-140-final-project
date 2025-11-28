@@ -55,6 +55,19 @@ Once you've verified the build works in test mode, you can create an actual rele
   - Appropriate pre-release flag based on stage
   - Git tag matching the version
 
+## Release vs Test
+
+- Release mode will create a GitHub Release when the CI job is configured to do so and upload artifacts there.
+- Test mode runs identical build steps but only uploads artifacts to the workflow run (no release created). Use Test to verify builds before publishing.
+
+## CI libsodium reminder
+Ensure libsodium is installed/provided prior to CMake configure in CI when running Release or Test builds. See `doc/LIBSODIUM_SETUP.md`.
+
+---
+
+## Repository sync note
+Updated: 2025-11-29
+
 ## Version Examples
 
 ### Test a Beta Build
@@ -123,4 +136,3 @@ test-summary (if mode == 'test')
 ```
 
 Both `create-release` and `test-summary` will download all artifacts, but only `create-release` will create a GitHub release.
-

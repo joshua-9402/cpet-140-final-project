@@ -37,21 +37,19 @@ What the function does (high level)
   - STORE:
     - Generates a random nonce.
     - Encrypts the provided data using `crypto_secretbox_easy` with the derived master key.
-    - Appends an entry to the vault file in the following binary format:
-      [uint32_t idLen][identifier bytes][nonce][uint32_t ciphertext_len][ciphertext bytes]
+    - Appends an entry to the vault file. See the "On-disk format details" section below for the binary layout.
   - RETRIEVE:
     - Scans the vault file sequentially, reading entries as above and comparing identifiers.
     - When a matching identifier is found, decrypts the ciphertext with `crypto_secretbox_open_easy` using the derived master key and returns the plaintext.
 
 On-disk format details
 ----------------------
+
 Each stored entry appended to the vault file uses the following layout (all multi-byte integer fields are stored in native host byte-order as 32-bit unsigned integers):
 
-- uint32_t idLen          // number of bytes of the identifier
-- idLen bytes             // identifier string (not NUL-terminated)
-- nonce (crypto_secretbox_NONCEBYTES bytes)
-- uint32_t ctLen          // ciphertext length in bytes (includes MAC)
-- ctLen bytes             // ciphertext
+```text
+[uint32_t idLen][identifier bytes][nonce][uint32_t ciphertext_len][ciphertext bytes]
+```
 
 Security model & limitations
 ----------------------------
@@ -117,6 +115,16 @@ Troubleshooting
 ---------------
 - If `RETRIEVE` returns `ERROR: Identifier not found`, double-check the identifier string and ensure it was stored.
 - If you see `ERROR: Decryption failed - data corrupted`, the vault may be corrupted or the master key derivation has changed; check for changes to `systemSalt` or platform differences.
+
+Notes
+
+- The `vault` function is intended to encrypt/decrypt database files. It uses libsodium when available.
+- `systemSalt` used by the vault should match the version tag stored in `.github/workflows/release.yml` at build/release time to allow deterministic key derivation across releases.
+
+---
+
+## Repository sync note
+Updated to reflect repository behavior and build-time salt/version linking (sync date: 2025-11-29).
 
 License / attribution
 ---------------------

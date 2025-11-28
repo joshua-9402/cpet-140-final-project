@@ -51,8 +51,7 @@ I. Documentation
     - [Project Highlights](#project-highlights)
     - [Repository Structure](#repository-structure)
   - [Application Structure](#application-structure)
-    - [Module Responsibilities](#module-responsibilities)
-    - [Interfaces](#interfaces)
+    - [Modules & Interfaces](#modules--interfaces)
     - [Calling / Invoking Conventions](#calling--invoking-conventions)
 
 II. Getting Started
@@ -163,227 +162,90 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 
 ## Application Structure
 
-### Module Responsibilities
+### Modules & Interfaces
+
+Below each module is a concise responsibility summary, a short list of public functions/globals other modules call, and a link to the detailed, code-accurate module doc in `doc/modules/`.
+
 - `main.cpp`
-    - Responsibilities: program entry, basic diagnostics and configure and start the UI runner.
-    - Conventions: no logic, no direct DB schema work
+  - Responsibilities: program entry, startup diagnostics, dependency checks, and starting the UI runner via `ui::constructUI()`.
+  - Public interface: `main()` (startup orchestration)
+  - See: `doc/modules/` (startup flow is covered across the module docs)
 
+- `src/config/config.h` / `src/config/config.cpp` (`appConfig`)
+  - Responsibilities: global application configuration variables (titles, default paths, DB filenames, window sizes).
+  - Public interface (globals): `appConfig::g_auth`, `appConfig::g_testMode`, `appConfig::g_appTitle`, `appConfig::g_loginTitle`, `appConfig::g_errorTitle`, `appConfig::g_fontName`, `appConfig::g_dataDirectory`, `appConfig::g_projectDirectory`, `appConfig::g_payrollDirectory`, `appConfig::g_projectExpenseDirectory`, `appConfig::g_dbNamePayroll`, `appConfig::g_dbNameProject`, `appConfig::g_defaultWidth`, `appConfig::g_defaultHeight`, `appConfig::g_loginWidth`, `appConfig::g_loginHeight`, `appConfig::g_errorWidth`, `appConfig::g_errorHeight`.
+  - Full doc: [doc/modules/config-config.md](doc/modules/config-config.md)
 
-- `src/config/app_config.cpp` and `app_config.h`
-    - Responsibilities: load/save app configuration (file paths, UI settings).
-    - Conventions: simple getters/setters, no UI or DB logic.
+- `src/ui/ui.h` / `src/ui/ui.cpp` (`ui`)
+  - Responsibilities: immediate-mode UI using HelloImGui; registry of named UIs, font/assets loading, and main two-column layout (selector / active panel).
+  - Public interface: `ui::g_failedMessage`, `ui::g_userName`, `ui::g_position`, `ui::constructUI(const std::string&, const std::string&, int, int, const std::string&)`.
+  - Notes: UI handlers should call into `handler/*` and `security/*` APIs rather than performing raw DB/crypto work.
+  - Full doc: [doc/modules/ui-ui.md](doc/modules/ui-ui.md)
 
+- `src/handler/db.h` / `src/handler/db.cpp` (`db`)
+  - Responsibilities: lightweight SQLite helpers tailored to the project's payroll and projects schemas.
+  - Public interface: `db::isSQLiteAvailable()`, `db::createDatabase(const std::string&)`, `db::openDatabase(const std::string&)`, `db::appendDatabase(const std::string&, const std::string&)`, `db::updateDatabase(const std::string&, const std::string&, const std::string&)`.
+  - Security note: current implementation builds SQL via string concatenation; prefer prepared statements for user data.
+  - Full doc: [doc/modules/handler-db.md](doc/modules/handler-db.md)
 
-- `src/ui/UI.cpp` and `UI.h`
-    - Responsibilities: immediate-mode UI only — register UIs, load fonts, set HelloImGui params, invoke g_currentUI each frame.
-    - Conventions: register UI handlers, keep UIs small, avoid long inline logic, ShowGui should simply call the current UI.
+- `src/handler/system.h` / `src/handler/system.cpp` (`system`)
+  - Responsibilities: cross-platform filesystem helpers, time utilities, logging, file/directory creation/removal, copy, and shutdown/backup rotation.
+  - Public interface: `system::fetchTime(PartDateTime)`, `system::timeDateString()`, `system::logMessage(messageClassification, const std::string&)`, `system::createDirectory()`, `system::searchDirectory()`, `system::copyDirectory()`, `system::deleteDirectory()`, `system::createFile()`, `system::searchFile()`, `system::deleteFile()`, `system::appShutdown()`.
+  - Full doc: [doc/modules/handler-system.md](doc/modules/handler-system.md)
 
+- `src/security/auth.h` / `src/security/auth.cpp` (`auth`)
+  - Responsibilities: small, in-source demo/test authentication helpers used by the UI for test/admin flows.
+  - Public interface: `auth::testAuth()`, `auth::testDeployAuth()`, `auth::adminAuth()`, `auth::basicAuth()`.
+  - Warning: these are demonstrational checks and mutate UI globals; replace with a secure auth backend for production.
+  - Full doc: [doc/modules/security-auth.md](doc/modules/security-auth.md)
 
-- `src/handler/db.cpp` and `db.h`
-    - Responsibilities: availability checks, create/open/modify DB, execute statements, schema helpers.
-    - Conventions: keep DB helpers small, use RAII for connections, prefer prepared statements, and always check SQLite return codes.
+- `src/security/cryptography.h` / `src/security/cryptography.cpp` (`cryptography`)
+  - Responsibilities: libsodium wrapper for initialization, hashing, key generation, to-hex conversion, password/key salting, file encryption/decryption, and a small append-only vault.
+  - Public interface: `cryptography::checkSodium()`, `cryptography::hashKey()`, `cryptography::generateKey()`, `cryptography::toHex()`, `cryptography::saltKey()`, `cryptography::encryptFile()`, `cryptography::decryptFile()`, `cryptography::vault()`.
+  - Important behavior: `encryptFile` writes `filepath + ".enc"` with `salt||nonce||ciphertext`; `decryptFile` overwrites the input path with plaintext on success (keep backups). `vault` derives a master key from release/build metadata — changing release tags changes the master key.
+  - Full doc: [doc/modules/security-cryptography.md](doc/modules/security-cryptography.md)
 
+- `src/core/` (payroll, monitor)
+  - Responsibilities: domain logic for payroll calculations and project expense monitoring; call `db` helpers for persistence and produce data for the UI.
+  - Integration guidance: see the module docs above and the `src/core/` code comments.
 
-- `src/handler/auth.cpp` and `auth.h`
-    - Responsibilities: user authentication and authorization (login, logout, session management).
-    - Conventions: no UI or DB schema work — use `db::` helpers; prefer secure handling of credentials; small, testable lowerCamelCase functions; return explicit result types and add unit tests; avoid global state.
-
-
-- `src/handler/system.cpp` and `system.h`
-    - Responsibilities: system-level operations (file I/O, environment checks, logging).
-    - Conventions: no UI or DB schema work — use `db::` helpers; small, testable lowerCamelCase functions; return explicit result types and add unit tests; avoid global state.
-
-
-- `src/core/payroll.cpp` and `src/lib/payroll.h`
-  - Responsibilities: payroll logic (records, rates, time entries, deductions, taxes), CRUD (Create, Read, Update, and Delete) and payroll runs; validate inputs and produce deterministic calculations. Delegate persistence to `db`.
-  - Conventions: no UI or raw SQLite calls — use `db::` helpers; prefer RAII and integer/fixed\-point for money; small, testable lowerCamelCase functions; return explicit result types and add unit tests; avoid global state.
-
-
-- `src/core/monitor.cpp` and `monitor.h`
-  - Responsibilities: collect and expose domain-specific expense metrics (per-project expense totals, payroll/outflow summaries, invoice/payment status); aggregate and persist expense snapshots via `db::` helpers on demand; provide a synchronous, lightweight query API for the UI and `payroll` module; validate inputs and emit alerts/logs for threshold breaches.
-  - Conventions: no system monitoring (CPU/memory) and no background threads/polling/timers here; delegate persistence to `db::` helpers
-
-### Interfaces
-- From `main.cpp`
-    - `main()` function
-        - starts the whole application
-        - checking for dependencies and libraries
-        - constructs UI
-
-- From `config.h`
-    - `g_appTitle;` - global variable for application title
-    - `g_loginTitle;`- global variable for login UI title
-    - `g_errorTitle;` - global variable for error UI title
-    - `g_fontName;` - global variable for font file name
-    - `g_dataDirectory` - global variable for application data directory
-    - `g_projectDirectory` - global variable for project directory
-    - `g_dbNamePayroll;` - global variable for payroll database name
-    - `g_dbNameTracker;` - global variable for monitoring database name
-    - `g_dbNamePayroll` - global variable for payroll database name
-    - `g_dbNameTracker` - global variable for monitoring database name
-    - `g_defaultWidth;` - global variable for default window width
-    - `g_defaultHeight;`- global variable for default window height
-    - `g_loginWidth` - global variable for login window width
-    - `g_loginHeight` - global variable for login window height
-    - `g_errorWidth` - global variable for error window width
-    - `g_errorHeight` - global variable for error window height
-
-- From `ui.h`
-    - `g_failedMessage` variable
-        - holds the error message to be displayed in the failed UI
-    - `constructUI()` function
-        - sets up Hello ImGui
-        - loads fonts
-        - registers UIs
-
-- From `db.h`
-    - `createDatabase()` function
-        - creates a new database
-    - `openDatabase()` function
-        - opens an existing database
-    - `appendDatabase()` function
-        - appends data to the database
-    - `isSQLiteAvailable()` function
-        - checks if SQLite is available
-
-- From `system.h`
-    - `fetchTime()` function
-        - fetches the current system time
-    - `logMessage()` function
-        - logs a message to the system log
-    - `createDirectory()` function
-        - creates a new directory at the specified path
-    - `deleteDirectory()` function
-        - deletes the directory at the specified path
-    - `createFile()` function
-        - creates a new file at the specified path
-    - `deleteFile()` function
-        - deletes the file at the specified path
-
-- From `auth.h`
-    - `testAuth()` function
-        - tests user authentication
-    - `testDeployAuth()` function
-        - tests deployment authentication
-    - `adminAuth()` function
-        - handles admin authentication
-    - `basicAuth()` function
-        - handles  user authentication
-
-- From `cryptography.h`
-    - `checkSodium()` function
-        - checks if libsodium is available
-    - `generateKey()` function
-        - generates a cryptographic key
-    - `toHex()` function
-        - converts data to hexadecimal format
-    - `hashKey()` function
-        - hashes a password using Argon2
-    - `saltKey()` function
-        - generates a salt for hashing
-    - `encryptFile()` function
-        - encrypts data using symmetric encryption
-    - `decryptFile()` function
-        - decrypts data using symmetric encryption
-    - `vault()` function
-        - secures sensitive data
 
 ### Calling / Invoking Conventions
-This section documents how modules in the repository should be invoked, the minimal contracts (inputs/outputs), common error modes, and a few examples. The conventions are based on the current repository layout and naming conventions (globals start with `g`, local variables with `l`, etc.).
+This section documents calling conventions, minimal contracts, common error modes, and examples. Follow these conventions to keep code consistent and robust.
 
 1) General rules
-   - Prefer calling public API functions declared in headers (e.g., `db::`, `system::`, `auth::`, `cryptography::`, `ui::`).
-   - Always check return values and propagate errors to the UI via `g_failedMessage` or explicit out-parameters.
-   - Keep UI rendering and business logic separate; UI files must not perform raw DB or crypto operations.
-   - Do not modify off-limits UI internals (for example: `constructUI()` / internal `switchToUI()` handlers in `ui.cpp`).
+   - Use public APIs declared in headers (`db::`, `system::`, `auth::`, `cryptography::`, `ui::`).
+   - Always check return values; bubble errors to the UI via `ui::g_failedMessage` and log details with `system::logMessage()`.
+   - Keep UI handlers free of heavy logic (no direct DB writes or long-running crypto operations).
+   - Avoid editing `ui.cpp` internals (e.g., `constructUI()` and internal handler registry) — file issues / PRs for requested changes.
 
-2) Methods, functions or global variable/s (with conventions)
-   - db:: (in `handler/db.cpp` / `handler/db.h`)
-     - `db::isSQLiteAvailable()` -> bool
-       - Returns true if SQLite is present and usable.
-     - `db::createDatabase(const std::string &p_dbName)` -> bool
-       - Creates or opens DB file. Returns true on success.
-     - `db::openDatabase(const std::string &p_dbName)` -> bool
-       - Opens existing DB. Caller handles errors.
-     - `db::closeDatabase(const std::string &p_dbName)` -> bool
-       - Closes DB handles, returns true on success.
-     - `db::appendToDatabase(const std::string &p_dbName, const std::string &p_data)` -> bool
-       - Appends data; prefer prepared statements and check SQLite return codes.
-
-   - system:: (in `handler/system.cpp` / `handler/system.h`)
-     - `system::createDirectory(const std::string &directoryName)` -> bool
-       - Creates directory; treat "already exists" as success.
-     - `system::fetchTime(PartDateTime part)` -> int
-       - Returns requested date/time component.
-     - `system::logMessage(const std::string &msg)` -> void
-       - Log helpful debugging information before exposing shorter UI messages.
-
-   - auth:: (in `security/auth.cpp` / `security/auth.h`)
-     - `auth::authGateway(const std::string &username, const std::string &password, const std::string &source)` -> bool
-       - Authenticates credentials; returns true on success and sets session state or returns false on failure.
-
-   - cryptography:: (in `security/cryptography.cpp` / `security/cryptography.h`)
-     - `cryptography::checkSodium()` -> bool
-       - Verify libsodium is initialized and available.
-     - `cryptography::generateKey(size_t length)` -> std::vector<unsigned char>
-       - Generate a key of requested length. Do not enforce an arbitrary internal limit; return empty vector on invalid request.
-     - `cryptography::saltKey()` -> std::vector<unsigned char>
-       - Generate and return a secure salt for password hashing.
-     - `cryptography::hashKey(const std::string &password, const std::vector<unsigned char> &salt)` -> std::string
-       - Use Argon2 to produce a hash; return encoded string (hex/base64).
-     - `cryptography::encryptFile(const std::string &filepath, const std::vector<unsigned char> &key)` -> bool
-       - Encrypt file; writes `filepath + ".enc"` and returns true on success.
-     - `cryptography::decryptFileInPlace(const std::string &encPath, const std::vector<unsigned char> &key)` -> bool
-       - Decrypt and replace the encrypted file (in-place). On failure, leave encrypted file intact.
-
-   - ui:: (in `ui/ui.cpp` / `ui/ui.h`)
-     - `constructUI(const std::string &title, const std::string &fontLocation, int widthPx, int heightPx, const std::string &assetsFolder)` -> void
-       - Register UI handlers and load fonts/resources. Keep UI handlers small and free of heavy business logic.
+2) Key function conventions (examples)
+   - `db::isSQLiteAvailable()` -> bool — Check before using DB APIs.
+   - `db::createDatabase(p_dbName)` -> bool — Create schema by known filename; returns false for unrecognized names or errors.
+   - `db::appendDatabase(p_dbName, p_data)` -> bool — Append row; `p_data` must be a correctly quoted comma-separated SQL value list.
+   - `db::updateDatabase(p_dbName, p_id, p_data)` -> bool — Update row by id; `p_data` should be a valid SQL SET clause. Prefer prepared statements for user-supplied data.
+   - `system::createDirectory(path)` -> bool — Create parents as needed; treat already-existing as success.
+   - `system::searchFile(path)` / `system::searchDirectory(path)` -> bool — Existence checks with safe fallbacks.
+   - `cryptography::generateKey(bits)` -> std::vector<unsigned char> — Request key lengths that meet implementation limits (multiple of 8; within supported range).
+   - `cryptography::encryptFile(path, key)` / `cryptography::decryptFile(path, key, &err)` -> bool — Check returned bool and inspect `err` text if provided. `decryptFile` overwrites files in-place on success.
 
 3) Example call flows
-   - Startup (main.cpp):
-     - Load config globals (`g_*`).
-     - Validate critical dependencies: `db::isSQLiteAvailable()` and `cryptography::checkSodium()`; if missing, set `g_failedMessage` and show failed UI.
-     - Ensure app data directory via `system::createDirectory()`.
-     - Open or create DB via `db::createDatabase()`.
-     - Call `constructUI()` and start the UI loop.
+   - Startup:
+     - Validate cryptography and DB availability, ensure `data/` directory exists, create DB if missing, then start UI.
 
-   - Login flow (UI handler):
-     - If `username.empty() || password.empty()`:
-       - set `g_failedMessage = "Empty credentials"` and switch to `failedUI()`.
-     - Else: call `auth::authGateway(username, password, "loginUI")`.
-       - On success: switch to main UI. On failure: set `g_failedMessage` and show failed UI.
+   - Login UI handler:
+     - If username or password is empty: set `ui::g_failedMessage` and open failed modal.
+     - Otherwise call `auth::testAuth` / `auth::testDeployAuth` or your real auth backend; on success set `appConfig::g_auth` and proceed.
 
-4) Error and edge-case handling (recommended patterns)
-   - Log detailed errors via `system::logMessage()` before setting short, user-facing `g_failedMessage`.
-   - For filesystem operations, treat "already exists" as success unless replacement is intended.
-   - For DB operations, prefer prepared statements and validate inputs.
-   - For cryptography: validate key sizes and return empty/false results on invalid parameters; callers should translate to UI errors.
+4) Error & defensive patterns
+   - Log verbose errors with `system::logMessage()` and present concise, user-friendly messages in `ui::g_failedMessage`.
+   - Prefer non-throwing overloads (`std::filesystem` with `std::error_code`) for production code paths.
+   - Validate and sanitize any data passed into SQL construction; migrate to prepared statements when possible.
 
-5) Minimal examples
-   - Directory creation:
-
-         std::string path = "/path/to/appdata";
-         if (!system::createDirectory(path)) {
-             system::logMessage("createDirectory failed: " + path);
-             g_failedMessage = "Failed to prepare application data directory";
-             // switch to failed UI
-         }
-
-   - Login handler (conceptual):
-
-         if (username.empty() || password.empty()) {
-             g_failedMessage = "Empty credentials";
-             // switch to failed UI
-         } else if (!auth::authGateway(username, password, "loginUI")) {
-             g_failedMessage = "Authentication failed";
-             // switch to failed UI
-         }
-
-6) Quick checklist for contributors when calling modules
-   - Read the header of the module you call and prefer the public API.
-   - Check return codes and propagate errors to the caller/UI.
-   - Avoid modifying `ui.cpp` internals; file issues/PRs for UI changes.
+5) Quick checklist for contributors
+   - Read the header for the module you call and prefer the public API.
+   - Check return codes, log internally, and surface short messages to the UI.
+   - Avoid changing `ui.cpp` internals; file issues or PRs for UI changes.
 
 
 ## Build & Run (Desktop)
@@ -673,5 +535,3 @@ This section highlights common issues seen in local and CI builds and concrete f
    - Re-run the failing CI job locally if possible (same base image & packages). Reproducing CI locally makes it easier to iterate.
    - When fixing a linker error, examine which library provides the missing symbol and confirm that the correct architecture and runtime variant are used.
    - Log internal errors using `system::logMessage()` before setting `g_failedMessage` to keep user facing errors short.
-
----

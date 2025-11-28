@@ -188,23 +188,22 @@ int main() {
 
 ## Dependencies
 
-- SQLite3
-- `cryptography.h` (for SHA-256 hashing)
-- Standard C++ library
+- libsodium (used for hashing and encryption) — ensure it is installed on CI and build machines. See `doc/LIBSODIUM_SETUP.md`.
 
 ## Best Practices
 
-1. **Master Key Management**: Store the master key securely, never hardcode it
-2. **Regular Password Updates**: Encourage users to update passwords periodically
-3. **Secure Deletion**: When deleting sensitive data, overwrite before removal
-4. **Access Control**: Limit which parts of your application can access the secure store
-5. **Audit Logging**: Log access to sensitive data for security monitoring
+- Store only hashed passwords and never plaintext.
+- Use salts for password hashing (per-password random salt) and a system salt from build-time metadata where needed.
+- Back up encrypted database files, not unencrypted ones.
 
 ## Future Improvements
 
-- Implement AES-256-GCM encryption
-- Add key rotation support
-- Implement secure key derivation (PBKDF2/Argon2)
-- Add audit trail for data access
-- Support for hardware security modules
+- Rotate system salt via releases and store versioned metadata with encrypted blobs.
 
+---
+
+## Repository sync note
+
+This document was updated to reflect the current repository (sync date: 2025-11-29). Confirm any function names in `src/security/cryptography.*` when integrating.
+
+**Last Updated:** 2025-11-29

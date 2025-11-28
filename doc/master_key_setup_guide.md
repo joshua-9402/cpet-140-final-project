@@ -215,3 +215,11 @@ For questions or issues with master key management:
 - Check application logs in `security.log`
 - Verify file permissions and backup status
 
+## CI & Build Notes
+- Ensure libsodium is available during CI configure step. See `doc/LIBSODIUM_SETUP.md`.
+- The `systemSalt` used during build should reflect the release `version` tag if you want deterministic keys per release.
+
+---
+
+## Repository sync note
+Last updated: 2025-11-29
