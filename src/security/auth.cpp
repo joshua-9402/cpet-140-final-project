@@ -27,7 +27,7 @@
 
 
 bool auth::testAuth(const std::string& username, const std::string& password) {
-    if ( username == "test" || password == "test") {
+    if ( username == "test" && password == "test") {
         ui::g_userName = "INTERNAL TEST";
         ui::g_position = "INTERNAL TEST";
         return true;
@@ -38,7 +38,7 @@ bool auth::testAuth(const std::string& username, const std::string& password) {
 
 bool auth::testDeployAuth(const std::string& username, const std::string& password) {
     if ( username == "name" && password == "pass") {
-        ui::g_userName = "NAME";
+        ui::g_userName = "TESTDRIVE_POSITION";
         ui::g_position = "TESTDRIVE_POSITION";
         return true;
     }
@@ -48,6 +48,8 @@ bool auth::testDeployAuth(const std::string& username, const std::string& passwo
 
 bool auth::adminAuth(const std::string& username, const std::string& password) {
     if (username == "admin" && cryptography::saltKey(cryptography::hashKey(password)) == "76rtdychgnih") {
+        ui::g_userName = "ADMIN";
+        ui::g_position = "ADMIN";
         return true;
     }
     return false;
