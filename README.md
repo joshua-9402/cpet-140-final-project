@@ -65,12 +65,10 @@ II. Getting Started
       - [Linux Builds](#linux-builds)
       - [Release Builds (All Platforms)](#release-builds-all-platforms)
       - [Downloading Pre-built Binaries](#downloading-pre-built-binaries)
-    - [Commands (building from repository's root)](#commands-building-from-repositorys-root)
   - [Build and Run (Mobile)](#build-and-run-mobile)
   - [Dependencies](#dependencies)
 
 III. Quality & Contributions
-  - [Testing & Validation](#testing--validation)
   - [Contribution Guidelines](#contribution-guidelines)
     - [Whitespace and Formatting](#whitespace-and-formatting)
     - [Naming Conventions](#naming-conventions)
@@ -108,8 +106,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │       ├── README-macos-arm64.md
       │       ├── README-macos-intel.md
       │       ├── README-windows-arm64.md
-      │       ├── README-windows-x86_64.md
-      │       ├── LIBSODIUM_CI_SUMMARY.md
+      │       ├── README-windows-x86_64.m
       │       ├── build-linux.yml
       │       ├── build-linux-rpm.yml
       │       ├── build-linux-suse.yml
@@ -401,7 +398,7 @@ This section documents how modules in the repository should be invoked, the mini
 ### Automated Builds (CI/CD)
 
 - This project uses GitHub Actions for continuous integration and provides both automated and manual build workflows across multiple platforms.
-- For detailed CI/CD documentation, build configuration, and troubleshooting, see [BUILD.md](.github/BUILD.md).
+- For detailed CI/CD documentation, build configuration, and troubleshooting, see [BUILD.md](.github/workflows/BUILD.md).
 
 #### Manual Build
 
@@ -424,7 +421,7 @@ Windows README files:
 
 macOS README files:
    - [README-macos-arm64.md](.github/workflows/README-macos-arm64.md)
-   - [README-macos-x86_64.md](.github/workflows/README-macos-x86_64.md)
+   - [README-macos-x86_64.md](.github/workflows/README-macos-intel.md)
 
 | Workflow  | Target Hardware             | Architecture | Target macOS Versions | C++ Std | Asset Name                                        |
 |-----------|-----------------------------|--------------|-----------------------|---------|---------------------------------------------------|
@@ -633,7 +630,7 @@ The participation of everyone is needed to make this project a success. Please f
 - Follow the project's coding conventions and guidelines. Any significant deviations should be explained in the PR description, or it will be rejected.
 - Ensure all tests pass before submitting the PR. Submitted PRs will undergo for a review and also include the test results.
 
-### Troubleshooting & Debugging Tips (updated)
+### Troubleshooting & Debugging Tips
 This section highlights common issues seen in local and CI builds and concrete fixes that reflect recent changes.
 
 1) libsodium / cryptography issues
