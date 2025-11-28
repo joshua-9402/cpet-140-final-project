@@ -274,7 +274,14 @@ void system::appShutdown() {
     }
 
     if (directories.size() > 20) {
-        std::ranges::partial_sort(directories, directories.begin() + 2);
+        // Partial sort the directories vector so the two oldest (smallest timestamp)
+        // elements are at indices 0 and 1. Use std::partial_sort with a comparator
+        // that compares the file_time_type (pair.first). This is more portable
+        // than std::ranges::partial_sort on older libstdc++.
+        std::partial_sort(directories.begin(), directories.begin() + 2, directories.end(),
+                          [](auto const &a, auto const &b) { return a.first < b.first; });
+
+        // Remove the two oldest backup directories
         std::filesystem::remove_all(directories[0].second);
         std::filesystem::remove_all(directories[1].second);
     }
