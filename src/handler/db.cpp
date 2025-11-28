@@ -35,7 +35,7 @@
  * For Payroll System:
  * This is the template and for every month, there will be new folder and every folder contains four database files (base_payroll.db)
  * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
- * | Employee ID | Name           | Position  | Location | Salary (hour per PHP)   | Hours Worked (per week)  | Advance        |
+ * | EMPLOYEE_ID | NAME           | Position  | Location | Salary (hour per PHP)   | Hours Worked (per week)  | Advance        |
  * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
  * | 000001      | Juan Dela Cruz | Secretary | Manila   | 70.00                   | 192  (24 * 8)            | 0.00           |
  * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
@@ -50,7 +50,7 @@
  *
  * For tracking employees' worked hours for a week:
  * |------------------|-----|-----|-----|-----|-----|-----|-----|
- * | Employee ID      | Mon | Tue | Wed | Thu | Fri | Sat | Sun |
+ * | EMPLOYEE_ID      | Mon | Tue | Wed | Thu | Fri | Sat | Sun |
  * |------------------|-----|-----|-----|-----|-----|-----|-----|
  * | 000001           | 08  | 08  | 08  | 08  | 08  | 00  | 00  |
  * |------------------|-----|-----|-----|-----|-----|-----|-----|
@@ -110,85 +110,6 @@
 #include <fstream>
 
 
-bool db::createDatabase(const std::string& p_dbName) {
-    sqlite3* dbPtr; // Pointer to the SQLite database connection
-
-    int database = sqlite3_open(p_dbName.c_str(), &dbPtr);
-
-    if (database) { if (dbPtr) sqlite3_close(dbPtr); return false; }
-
-    if (p_dbName == appConfig::g_dbNamePayroll) {
-        const std::string databaseTable =
-            "CREATE TABLE IF NOT EXISTS EMPLOYEES ("
-            "ID INTEGER PRIMARY KEY AUTOINCREMENT,"
-            "Name TEXT NOT NULL,"
-            "Position TEXT NOT NULL,"
-            "Location TEXT NOT NULL,"
-            "Salary REAL NOT NULL,"
-            "HoursWork REAL NOT NULL"
-            ",Advance REAL NOT NULL"
-            ");";
-        database = sqlite3_exec(dbPtr, databaseTable.c_str(), nullptr, nullptr, nullptr);
-    }
-    else if (p_dbName == appConfig::g_dbNameProject) {
-        const std::string databaseTable =
-            "CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
-            "ProjectID INTEGER PRIMARY KEY AUTOINCREMENT,"
-            "ProjectName TEXT NOT NULL,"
-            "Status TEXT NOT NULL,"
-            "StartDate TEXT NOT NULL,"
-            ");";
-        database = sqlite3_exec(dbPtr, databaseTable.c_str(), nullptr, nullptr, nullptr);
-    }
-    else if (p_dbName == "PRJ-001" " .db") {
-        const std::string databaseTable =
-            "CREATE TABLE IF NOT EXISTS MATERIALS ("
-            "Material-ID TEXT NOT NULL,"
-            "Material-Name TEXT NOT NULL,"
-            "Quantity TEXT NOT NULL,"
-            "PRICE-PER-UNIT TEXT NOT NULL,"
-            ");";
-        database = sqlite3_exec(dbPtr, databaseTable.c_str(), nullptr, nullptr, nullptr);
-    }
-    else {
-        sqlite3_close(dbPtr);
-        return false; // Unknown database name
-    }
-
-    if (database != SQLITE_OK) { if (dbPtr) sqlite3_close(dbPtr); return false; }
-
-    // Close the database connection
-    sqlite3_close(dbPtr);
-
-    return true;
-}
-
-
-bool db::openDatabase(const std::string& p_dbName) {
-    sqlite3* dbPtr = nullptr; // Database connection object
-
-    if (const int database = sqlite3_open(p_dbName.c_str(), &dbPtr); database == SQLITE_OK) {
-        if (dbPtr) sqlite3_close(dbPtr);
-        return true;
-    }
-    return false;
-}
-
-
-bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) {
-    // Simple wrapper - execute given SQL
-    sqlite3* dbPtr = nullptr;
-    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
-        if (dbPtr) sqlite3_close(dbPtr);
-        return false;
-    }
-    char* err = nullptr;
-    const int rc = sqlite3_exec(dbPtr, p_data.c_str(), nullptr, nullptr, &err);
-    if (err) sqlite3_free(err);
-    sqlite3_close(dbPtr);
-    return rc == SQLITE_OK;
-}
-
 bool db::isSQLiteAvailable() {
     // Check if SQLite library is available by verifying the version
     if (const char* version = sqlite3_libversion(); version == nullptr || version[0] == '\0') {
@@ -204,4 +125,121 @@ bool db::isSQLiteAvailable() {
 
     if (testDb) sqlite3_close(testDb);
     return false;
+}
+
+
+bool db::createDatabase(const std::string& p_dbName) {
+    sqlite3* dbPointer = nullptr;
+
+    // Open (or create) database file
+    if (const int returnCode = sqlite3_open_v2(p_dbName.c_str(), &dbPointer,SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr); returnCode != SQLITE_OK) {
+        if (dbPointer) sqlite3_close(dbPointer);
+        return false;
+    }
+
+    std::string databaseTable;
+
+    // Normalize to filename only so callers can pass full paths
+    std::string filename = p_dbName;
+    if (const size_t pos = filename.find_last_of("/\\"); pos != std::string::npos) {
+        filename = filename.substr(pos + 1);
+    }
+
+    // Use column names that match the rest of the code (insert/update)
+    if (filename == appConfig::g_dbNamePayroll || p_dbName == appConfig::g_dbNamePayroll) {
+        databaseTable =
+            "CREATE TABLE IF NOT EXISTS EMPLOYEES ("
+            "EMPLOYEE_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "NAME TEXT NOT NULL,"
+            "POSITION TEXT NOT NULL,"
+            "SITE_LOCATION TEXT NOT NULL,"
+            "SALARY REAL NOT NULL,"
+            "HOURS_WORK REAL NOT NULL,"
+            "ADVANCE REAL NOT NULL"
+            ");";
+    }
+    else if (filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
+        databaseTable =
+            "CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
+            "PROJECT_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "PROJECT_NAME TEXT NOT NULL,"
+            "STATUS TEXT NOT NULL,"
+            "START_DATE TEXT NOT NULL"
+            ");";
+    }
+    else {
+        sqlite3_close(dbPointer);
+        return false;
+    }
+
+    char* err = nullptr;
+    if (const int execRc = sqlite3_exec(dbPointer, databaseTable.c_str(), nullptr, nullptr, &err); execRc != SQLITE_OK) {
+        if (err) sqlite3_free(err);
+        sqlite3_close(dbPointer);
+        return false;
+    }
+
+    sqlite3_close(dbPointer);
+    return true;
+}
+
+
+bool db::openDatabase(const std::string& p_dbName) {
+    sqlite3* dbPtr = nullptr;
+
+    if (const int database = sqlite3_open(p_dbName.c_str(), &dbPtr); database == SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return true;
+    }
+    return false;
+}
+
+
+// p_data should contain comma-separated values matching the column order (e.g., "'John Doe', 'Manager', 'Manila', 100.0, 160.0, 0.0").
+bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) {
+    sqlite3* dbPointer = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPointer) != SQLITE_OK) {
+        if (dbPointer) sqlite3_close(dbPointer);
+        return false;
+    }
+
+    std::string sqlite;
+    if (p_dbName == appConfig::g_dbNamePayroll) {
+        sqlite = "INSERT INTO EMPLOYEES (NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE) VALUES (" + p_data + ");";
+    } else if (p_dbName == appConfig::g_dbNameProject) {
+        sqlite = "INSERT INTO PROJECT_LIST (PROJECT_NAME, STATUS, START_DATE) VALUES (" + p_data + ");";
+    } else {
+        return false;
+    }
+
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPointer, sqlite.c_str(), nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPointer);
+    return rc == SQLITE_OK;
+}
+
+
+// p_id is the ID/ProjectID to update, p_data contains SET clause values (e.g., "Name='John Smith', Position='Senior Manager', Salary=150.0")
+bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, const std::string& p_data) {
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return false;
+    }
+
+    std::string sql;
+    if (p_dbName == appConfig::g_dbNamePayroll) {
+        sql = "UPDATE EMPLOYEES SET " + p_data + " WHERE ID = " + p_id + ";";
+    } else if (p_dbName == appConfig::g_dbNameProject) {
+        sql = "UPDATE PROJECT_LIST SET " + p_data + " WHERE ProjectID = " + p_id + ";";
+    } else {
+        return false;
+    }
+
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPtr);
+    return rc == SQLITE_OK;
 }
