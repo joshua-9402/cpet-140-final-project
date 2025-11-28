@@ -35,7 +35,7 @@ class system {
 
         // Creates a directory with the specified name.
         // Returns true on success, false on failure.
-        static bool createDirectory(const std::string& p_directoryName);
+        static bool createDirectory(const std::string &p_directoryName);
 
         // Check whether a directory exists at the given path. Returns true if
         // the path exists and is a directory.

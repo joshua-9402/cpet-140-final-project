@@ -22,7 +22,6 @@
 #include <filesystem>
 #include <fstream>
 #include "hello_imgui/hello_imgui.h"
-// Platform-specific includes for directory creation
 #ifdef _WIN32
     #include <direct.h>  // For _mkdir on Windows
     #include <sys/stat.h>  // For _stat on Windows
@@ -108,26 +107,21 @@ void system::logMessage(const messageClassification classification, const std::s
 }
 
 
-bool system::createDirectory(const std::string& p_directoryName) {
-    const char* folderName = p_directoryName.c_str();
+bool system::createDirectory(const std::string &p_directoryName) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
 
-    // Use platform-specific mkdir
-    if (MKDIR(folderName) == 0) {
-        return true;
-    }
+    // If already exists and is a directory, we're done.
+    if (fs::exists(p_directoryName, ec) && fs::is_directory(p_directoryName, ec)) return true;
 
-    // Check if directory already exists (this is okay)
-    #ifdef _WIN32
-        struct _stat info;
-        if (_stat(folderName, &info) == 0 && (info.st_mode & _S_IFDIR)) {
-            return true;  // Directory already exists
-        }
-    #else
-        struct stat info{};
-        if (stat(folderName, &info) == 0 && S_ISDIR(info.st_mode)) {
-            return true;  // Directory already exists
-        }
-    #endif
+    // Try to create directories (creates parents as needed)
+    if (fs::create_directories(p_directoryName, ec) && !ec) return true;
+
+    // Fallback to platform mkdir if std::filesystem failed for some reason
+    if (const char* folderName = p_directoryName.c_str(); MKDIR(folderName) == 0) return true;
+
+    // Final check: maybe directory now exists (race condition)
+    if (fs::exists(p_directoryName, ec) && fs::is_directory(p_directoryName, ec)) return true;
 
     return false;
 }
