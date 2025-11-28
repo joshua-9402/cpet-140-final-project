@@ -95,6 +95,8 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 - Architecture: modular with clear separation of concerns (UI, DB, core logic, system)
 - Target platforms: Desktop (Win/macOS/Linux), Mobile (Android/iOS)
 
+- Recent repository updates: several small, backwards-compatible fixes and CI improvements were applied to keep builds stable across platforms (notably: `system::createDirectory` now returns `bool`, `system::appShutdown` uses a portable partial_sort variant, and cryptography helper types were clarified to use byte vectors for keys/salts and in-place decryption semantics). For full details and troubleshooting steps (libsodium, freetype, Windows linking, macOS toolchain), see the "Troubleshooting & Debugging Tips" section below.
+
 ### Repository Structure
       cpet-140-final-project/
       ├── .github/
@@ -631,37 +633,48 @@ The participation of everyone is needed to make this project a success. Please f
 - Follow the project's coding conventions and guidelines. Any significant deviations should be explained in the PR description, or it will be rejected.
 - Ensure all tests pass before submitting the PR. Submitted PRs will undergo for a review and also include the test results.
 
-### Troubleshooting & Debugging Tips
+### Troubleshooting & Debugging Tips (updated)
+This section highlights common issues seen in local and CI builds and concrete fixes that reflect recent changes.
 
-- For `src/main.cpp`
-    - Ensure dependency checks run early:
-        - `db::isSQLiteAvailable()` must return true.
-        - `cryptography::checkSodium()` must succeed.
-    - Validate application globals (`g_*`) and ensure correct arguments are passed to `ui::constructUI(const std::string&, const std::string&, int, int, const std::string&)`.
-    - Typical startup flow: create app data directory via `system::createDirectory()`, create/open DB via `db::createDatabase()`, then call `ui::constructUI()` and start the UI loop.
+1) libsodium / cryptography issues
+   - Symptom: Linker errors (undefined symbols like `sodium_init`, `crypto_aead_xchacha20poly1305_ietf_encrypt`, etc.) or runtime `crypto` failures.
+   - Fixes:
+     - Ensure libsodium is installed for the platform and matches the target architecture (x64 vs ARM64). In CI add a step to install libsodium BEFORE CMake configure. Example (GitHub Actions):
 
-- For `src/ui/ui.cpp` module
-    - Files: `src/ui/ui.cpp` and `src/ui/ui.h`.
-    - Off-limits internals: `constructUI()` and internal UI handlers such as private `switchToUI()`, `mainUI()`, `payrollUI()`, `monitorUI()`, `failedUI()` implementations. Do not modify without maintainer approval.
-    - Keep UI handlers lightweight: UI code must not perform raw DB or crypto operations; instead call `db::`, `auth::`, `cryptography::` helpers.
+       - For Linux (Debian/Ubuntu): `sudo apt-get install -y libsodium-dev`
+       - For macOS (Homebrew): `brew install libsodium`
+       - For Windows: download the proper prebuilt libsodium matching your MSVC toolset and place in `dependencies/libsodium` or install via vcpkg with the correct triplet.
 
-- For `src/handler/db.cpp` and database-related modules
-    - Files: `src/handler/db.cpp` and `src/handler/db.h` are OFF-LIMITS for direct edits unless approved.
-    - Use RAII for DB connections, prepared statements, and always check SQLite return codes.
-    - Enable verbose SQLite logging during development (use `sqlite3_log`) and reproduce issues with a temporary DB when debugging.
-    - When debugging SQL issues: log the statement, parameters, and return code; add unit/regression tests once fixed.
+     - When linking on macOS, ensure the linker can find the `libsodium.dylib` (use -L/opt/homebrew/lib and set rpath if necessary). The CMake configuration already attempts to find libsodium; adjust runner environment if the library is installed in a non-default location.
+     - On Windows ensure the libsodium lib's machine type and runtime (v142/v143) match the build target. Use the proper libsodium subfolder (x64/ARM64/Win32) in `dependencies/libsodium` if bundling the library.
 
-- For `src/security` (auth / cryptography)
-    - Files: `src/security/auth.cpp`, `src/security/auth.h`, `src/security/cryptography.cpp`, `src/security/cryptography.h`.
-    - Validate key sizes and inputs for `cryptography::generateKey`, `cryptography::saltKey`, `cryptography::hashKey`, `cryptography::encryptFile`, and `cryptography::decryptFileInPlace`. On invalid parameters, these functions should return empty/false results and callers should surface user-friendly errors.
-    - For authentication failures, log detailed context with `system::logMessage()` (in `src/handler/system.cpp`) before setting `g_failedMessage`.
+2) Freetype version failing in CI
+   - Symptom: CMake: "Could NOT find Freetype: Found unsuitable version ... but required is at least 2.12"
+   - Fix: Install or provide a newer Freetype for the runner (use distro package or build a compatible version in CI). For Debian/Ubuntu use a newer image or build Freetype from source as a pre-step in CI.
 
-- For `src/core` modules (`src/core/payroll.cpp`, `src/core/monitor.cpp`)
-    - Keep business logic here; delegate persistence to `db::` helpers. Validate inputs and add unit tests for calculations and aggregation logic.
-    - Do not add long-running background threads in these modules; keep APIs synchronous and testable.
+3) File API / system changes
+   - `system::createDirectory()` changed return type to `bool`. Callers were updated to build paths as strings and call `searchDirectory()` and `createDirectory()` separately (see `main.cpp` for example). If you encounter compile errors complaining about binding a bool to a string, update your call-site to use an explicit path string and not pass the function call as a parameter where a string is expected.
 
-- General tips & patterns
-    - Always log detailed internal errors with `system::logMessage()` before assigning short, user-facing `g_failedMessage`.
-    - Treat "already exists" for filesystem operations as success unless you explicitly intend replacement.
-    - For build/debug on macOS: ensure CMake and required dev headers are installed; Apple Clang may have partial C++26 support — target C++20 in CI/builds unless explicitly configured otherwise.
-    - When reporting a bug: include the failing module path (for example, `src/handler/db.cpp`), function name, exact steps to reproduce, sample inputs, and relevant logs.
+4) Backup cleanup and sorting
+   - `system::appShutdown()` now uses a portable `std::partial_sort` comparator instead of `std::ranges::partial_sort` to maintain compatibility with older standard library versions used in some CI environments.
+
+5) Windows linking / architecture mismatches
+   - Symptom: LNK2019 unresolved external symbols or machine-type conflicts (warnings like library machine type 'ARM64' conflicts with target machine type 'x64').
+   - Fix: Use libsodium build artifacts that match the MSVC target architecture and toolset chosen by the CI workflow. If using `dependencies/libsodium`, ensure you add the correct subfolder (Win32/x64/ARM64) with matching runtime and MSVC version.
+
+6) Decryption / encryption behavior
+   - Decryption in-place: the cryptography helper `decryptFileInPlace()` will replace the encrypted file with the decrypted version on success. If decryption fails, the encrypted file remains untouched. Check the logs (use `system::logMessage`) for detailed reasons. Key generation now returns a vector and functions validate key size; errors like "Key generation failed or wrong size" mean the caller passed an invalid size — adjust caller or remove artificial limits.
+
+7) UI runtime issues (selector / quick disappearing windows)
+   - Symptom: clicking UI buttons briefly changes view but reverts instantly, or secondary windows (payroll/monitor) appear then disappear.
+   - Checklist to debug:
+     - Verify `g_currentUI`/UI state is set and not overwritten every frame by `constructUI()` or by a subsequent UI handler call.
+     - Make sure login handlers populate `appConfig::g_auth` only on successful authentication and the main loop in `main.cpp` respects that flag.
+     - For selector toggles, ensure you update existing DB rows (UPDATE) instead of always INSERT-ing duplicates. The core CRUD functions were updated to support modify/update flows — prefer using them.
+
+8) General advice when debugging builds
+   - Re-run the failing CI job locally if possible (same base image & packages). Reproducing CI locally makes it easier to iterate.
+   - When fixing a linker error, examine which library provides the missing symbol and confirm that the correct architecture and runtime variant are used.
+   - Log internal errors using `system::logMessage()` before setting `g_failedMessage` to keep user facing errors short.
+
+---
