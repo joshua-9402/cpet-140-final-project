@@ -278,6 +278,7 @@ void system::appShutdown() {
         // elements are at indices 0 and 1. Use std::partial_sort with a comparator
         // that compares the file_time_type (pair.first). This is more portable
         // than std::ranges::partial_sort on older libstdc++.
+        // ReSharper disable once CppUseRangeAlgorithm
         std::partial_sort(directories.begin(), directories.begin() + 2, directories.end(),
                           [](auto const &a, auto const &b) { return a.first < b.first; });
 
