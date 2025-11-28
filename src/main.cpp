@@ -45,21 +45,21 @@ void systemCheck() {
     if (!system::searchDirectory("logs")) {system::createDirectory("logs");}
     if (!system::searchDirectory("backup")) {system::createDirectory("backup");}
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
+
+    if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory);}
+    if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/")) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/");}
+
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory);}
+    if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory);}
 
-    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_dbNamePayroll)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_dbNamePayroll);}
-    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_dbNameTracker)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_dbNameTracker);}
+    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll);}
+    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject);}
 }
 
-
-void authenticationCheck() {
-
-}
 
 int main() {
     // Perform checks before starting the application
     systemCheck();
-    authenticationCheck();
 
     // Main application loop
     while (true) {
