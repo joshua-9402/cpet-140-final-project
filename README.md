@@ -235,7 +235,7 @@ This section documents calling conventions, minimal contracts, common error mode
 
    - Login UI handler:
      - If username or password is empty: set `ui::g_failedMessage` and open failed modal.
-     - Otherwise call `auth::testAuth` / `auth::testDeployAuth` or your real auth backend; on success set `appConfig::g_auth` and proceed.
+     - Otherwise, call `auth::testAuth` / `auth::testDeployAuth` or your real auth backend; on success set `appConfig::g_auth` and proceed.
 
 4) Error & defensive patterns
    - Log verbose errors with `system::logMessage()` and present concise, user-friendly messages in `ui::g_failedMessage`.
