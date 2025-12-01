@@ -61,14 +61,17 @@ int main() {
     // Perform checks before starting the application
     systemCheck();
 
-    // Main application loop
+    // Main loop: rearrange employee IDs if needed and run the main UI
     while (true) {
         if (!appConfig::g_auth) {
-            ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth"); // Show authentication UI
-            if (!appConfig::g_auth) {break;} // If user didn't log in (closed the window), exit the application
+            ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth");
+            if (!appConfig::g_auth) {return 0;}
         }
-        ui::constructUI(appConfig::g_appTitle, appConfig::g_fontName, appConfig::g_defaultWidth, appConfig::g_defaultHeight, "main"); // Show main UI
-    }
 
-    return 0;
+        if (db::checkEmployeeChanges()) {
+            db::rearrangeEmployeeIDs();
+        }
+
+        ui::constructUI(appConfig::g_appTitle, appConfig::g_fontName, appConfig::g_defaultWidth, appConfig::g_defaultHeight, "main");
+    }
 }
