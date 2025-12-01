@@ -18,8 +18,12 @@ class db {
         // Database operations
         static bool createDatabase(const std::string& p_dbName);
         static bool openDatabase(const std::string& p_dbName);
+        static bool closeDatabase();
         static bool appendDatabase(const std::string& p_dbName, const std::string& p_data);
         static bool updateDatabase(const std::string& p_dbName, const std::string& p_id, const std::string& p_data);
         static bool isSQLiteAvailable();
+        static bool deleteRow(const std::string &p_dbName, const std::string &p_TableRow);
+        static bool checkEmployeeChanges();
+        static bool rearrangeEmployeeIDs();
 };
 #endif // DB_H

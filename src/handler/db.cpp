@@ -34,10 +34,10 @@
 
  * For Payroll System:
  * This is the template and for every month, there will be new folder and every folder contains four database files (base_payroll.db)
- * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
- * | EMPLOYEE_ID | NAME           | Position  | Location | Salary (hour per PHP)   | Hours Worked (per week)  | Advance        |
- * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
- * | 000001      | Juan Dela Cruz | Secretary | Manila   | 70.00                   | 192  (24 * 8)            | 0.00           |
+ * |-------------|----------------|-----------|---------------|-------------------------|--------------------------|----------------|
+ * | EMPLOYEE_ID | NAME           | Position  | SITE_LOCATION | SALARY   | HOURS_WORKED  | ADVANCE       |
+ * |-------------|----------------|-----------|---------------|-------------------------|--------------------------|----------------|
+ * | 000001      | Juan Dela Cruz | Secretary | Manila   | 70.00                   | 192            | 0.00           |
  * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
  * | 000002      | Maria Santos   | Manager   | Cavite   | 100.00                  | 208  (26 * 8)            | 5000.00        |
  * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
@@ -195,6 +195,15 @@ bool db::openDatabase(const std::string& p_dbName) {
 }
 
 
+bool db::closeDatabase() {
+    // If a persistent sqlite3\* connection member (e.g., m_db) is added later, close it here:
+    //     if (m_db) { sqlite3_close(m_db); m_db = nullptr; }
+    // As a best-effort cleanup, shut down the SQLite library to free resources.
+    const int rc = sqlite3_shutdown();
+    return rc == SQLITE_OK;
+}
+
+
 // p_data should contain comma-separated values matching the column order (e.g., "'John Doe', 'Manager', 'Manila', 100.0, 160.0, 0.0").
 bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) {
     sqlite3* dbPointer = nullptr;
@@ -204,9 +213,9 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
     }
 
     std::string sqlite;
-    if (p_dbName == appConfig::g_dbNamePayroll) {
+    if (p_dbName == appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll) {
         sqlite = "INSERT INTO EMPLOYEES (NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE) VALUES (" + p_data + ");";
-    } else if (p_dbName == appConfig::g_dbNameProject) {
+    } else if (p_dbName == appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject) {
         sqlite = "INSERT INTO PROJECT_LIST (PROJECT_NAME, STATUS, START_DATE) VALUES (" + p_data + ");";
     } else {
         return false;
@@ -234,6 +243,7 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
     } else if (p_dbName == appConfig::g_dbNameProject) {
         sql = "UPDATE PROJECT_LIST SET " + p_data + " WHERE ProjectID = " + p_id + ";";
     } else {
+        sqlite3_close(dbPtr);
         return false;
     }
 
@@ -243,3 +253,144 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
     sqlite3_close(dbPtr);
     return rc == SQLITE_OK;
 }
+
+// Delete a row by employee ID or project ID
+bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
+    // Validate input is numeric
+    if (p_id.empty() || !std::all_of(p_id.begin(), p_id.end(),
+        [](char c) { return std::isdigit(static_cast<unsigned char>(c)); })) {
+        return false;
+    }
+
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return false;
+    }
+
+    // Determine table and primary key column
+    std::string filename = p_dbName;
+    if (const size_t pos = filename.find_last_of("/\\"); pos != std::string::npos) {
+        filename = filename.substr(pos + 1);
+    }
+
+    std::string sql;
+    if (filename == appConfig::g_dbNamePayroll) {
+        sql = "DELETE FROM EMPLOYEES WHERE EMPLOYEE_ID = ?;";
+    } else if (filename == appConfig::g_dbNameProject) {
+        sql = "DELETE FROM PROJECT_LIST WHERE PROJECT_ID = ?;";
+    } else {
+        sqlite3_close(dbPtr);
+        return false;
+    }
+
+    // Prepare and execute statement
+    sqlite3_stmt* stmt = nullptr;
+    bool success = false;
+
+        if (sqlite3_prepare_v2(dbPtr, sql.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, std::stoll(p_id));
+        success = (sqlite3_step(stmt) == SQLITE_DONE);
+        sqlite3_finalize(stmt);
+    }
+
+    sqlite3_close(dbPtr);
+    return success;
+}
+
+// Check if there are gaps in employee IDs that need rearranging
+bool db::checkEmployeeChanges() {
+    const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(dbPath.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return false;
+    }
+
+    // Query to check if there are gaps in employee IDs
+    const char* sql = "SELECT EMPLOYEE_ID FROM EMPLOYEES ORDER BY EMPLOYEE_ID;";
+    sqlite3_stmt* stmt = nullptr;
+    bool hasGaps = false;
+
+    if (sqlite3_prepare_v2(dbPtr, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+        int expectedId = 1;
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            const int currentId = sqlite3_column_int(stmt, 0);
+            if (currentId != expectedId) {
+                hasGaps = true;
+                break;
+            }
+            expectedId++;
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    sqlite3_close(dbPtr);
+    return hasGaps;
+}
+
+// Rearrange employee IDs to eliminate gaps (1, 2, 3, ... n)
+bool db::rearrangeEmployeeIDs() {
+    const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(dbPath.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return false;
+    }
+
+    // Start a transaction for data consistency
+    char* err = nullptr;
+    if (sqlite3_exec(dbPtr, "BEGIN TRANSACTION;", nullptr, nullptr, &err) != SQLITE_OK) {
+        if (err) sqlite3_free(err);
+        sqlite3_close(dbPtr);
+        return false;
+    }
+
+    // Create a temporary table with sequential IDs
+    const char* createTemp =
+        "CREATE TEMPORARY TABLE TEMP_EMPLOYEES AS "
+        "SELECT ROW_NUMBER() OVER (ORDER BY EMPLOYEE_ID) AS NEW_ID, "
+        "NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE "
+        "FROM EMPLOYEES;";
+
+    if (sqlite3_exec(dbPtr, createTemp, nullptr, nullptr, &err) != SQLITE_OK) {
+        if (err) sqlite3_free(err);
+        sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
+        sqlite3_close(dbPtr);
+        return false;
+    }
+
+    // Delete all rows from original table
+    if (sqlite3_exec(dbPtr, "DELETE FROM EMPLOYEES;", nullptr, nullptr, &err) != SQLITE_OK) {
+        if (err) sqlite3_free(err);
+        sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
+        sqlite3_close(dbPtr);
+        return false;
+    }
+
+    // Copy data back with new sequential IDs
+    const char* copyBack =
+        "INSERT INTO EMPLOYEES (EMPLOYEE_ID, NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE) "
+        "SELECT NEW_ID, NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE FROM TEMP_EMPLOYEES;";
+
+    if (sqlite3_exec(dbPtr, copyBack, nullptr, nullptr, &err) != SQLITE_OK) {
+        if (err) sqlite3_free(err);
+        sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
+        sqlite3_close(dbPtr);
+        return false;
+    }
+
+    // Commit the transaction
+    if (sqlite3_exec(dbPtr, "COMMIT;", nullptr, nullptr, &err) != SQLITE_OK) {
+        if (err) sqlite3_free(err);
+        sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
+        sqlite3_close(dbPtr);
+        return false;
+    }
+
+    sqlite3_close(dbPtr);
+    return true;
+}
+
