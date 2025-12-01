@@ -38,6 +38,9 @@ hello_imgui_add_app(
         src/handler/db.cpp
         src/handler/db.h
 
+        src/handler/print.cpp
+        src/handler/print.h
+
         src/handler/system.cpp
         src/handler/system.h
 
