@@ -28,10 +28,13 @@
 #include "ui.h"
 
 #include "hello_imgui/hello_imgui.h"
+#include "../handler/db.h"
 #include "../handler/system.h"
 #include "../config/config.h"
 #include "../security/cryptography.h"
 #include "../security/auth.h"
+// forward-declare the exporter to avoid including implementation here
+void exportPayslipsHtml(const std::string& outFile, const std::string& logoPath);
 
 
 // UI registry and UI management
@@ -387,6 +390,70 @@ void testUI() {
             ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", decryptionStatus.c_str());
         }
     }
+
+    // TEST FOR DB
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("DB Test");
+
+    static char nameBuf[128] = "";
+    static char positionBuf[128] = "";
+    static char locationBuf[128] = "";
+    static char salaryBuf[128] = "";
+    static char hoursWorkedBuf[128] = "";
+    static char advanceBuf[128] = "";
+
+    ImGui::Text("Username");
+    ImGui::InputText("##name", nameBuf, IM_ARRAYSIZE(nameBuf));
+
+    ImGui::Text("Position");
+    ImGui::InputText("##position", positionBuf, IM_ARRAYSIZE(positionBuf));
+
+    ImGui::Text("Location Site");
+    ImGui::InputText("##location", locationBuf, IM_ARRAYSIZE(locationBuf));
+
+    ImGui::Text("Salary");
+    ImGui::InputText("##salary", salaryBuf, IM_ARRAYSIZE(salaryBuf));
+
+    ImGui::Text("Hours Worked");
+    ImGui::InputText("##hoursWorked", hoursWorkedBuf, IM_ARRAYSIZE(hoursWorkedBuf));
+
+    ImGui::Text("Advance Payment");
+    ImGui::InputText("##advance", advanceBuf, IM_ARRAYSIZE(advanceBuf));
+
+    const std::string nameStr(nameBuf);
+    const std::string positionStr(positionBuf);
+    const std::string locationStr(locationBuf);
+    const std::string salaryStr(salaryBuf);
+    const std::string hoursWorkedStr(hoursWorkedBuf);
+    const std::string advanceStr(advanceBuf);
+
+    if (ImGui::Button("Add New Employee")) {
+        if (db::appendDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, "'" + nameStr + "', '" + positionStr + "', '" + locationStr + "', " + salaryStr + ", " + hoursWorkedStr + ", " + advanceStr)) {
+            system::logMessage(system::messageClassification::INFO, "DB Test: New employee added successfully.\n");
+        } else {
+            system::logMessage(system::messageClassification::INFO, "DB Test: Failed to add new employee.\n");
+        }
+    }
+
+    static char employeeId[8] = "";
+    ImGui::Text("Employee ID");
+    ImGui::InputText("##employeeId", employeeId, IM_ARRAYSIZE(employeeId));
+    const std::string employeeIdStr(employeeId);
+
+    if (ImGui::Button("Delete Employee")) {
+        if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeId)) {
+            system::logMessage(system::messageClassification::INFO, "DB Test: Employee deleted successfully.\n");
+        } else {
+                std::string message = std::string("DB Test: Failed to delete EMPLOYEE_ID") + employeeId + ".\n";
+                system::logMessage(system::messageClassification::INFO, message);
+        }
+    }
+
+    // --- Payslip printing test UI (added) ---
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Payslip Printing Test");
 }
 
 
