@@ -2,6 +2,7 @@
 #define CPET_140_FINAL_PROJECT_SYS_H
 
 #include <string>
+#include <vector>
 
 
 class system {
@@ -55,6 +56,10 @@ class system {
 
         // Delete the file at the given path.
         static bool deleteFile(const std::string& p_filePath);
+
+        // Print payslips for the specified employee IDs from the database.
+        // Returns true on success, false on failure.
+        static bool printPayslips(const std::string& dbPath, const std::string& logoPath, const std::vector<int>& employeeIds);
 
         // Application shutdown routine to clean up resources.
         static void appShutdown();

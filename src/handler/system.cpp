@@ -18,6 +18,8 @@
 
 
 #include "system.h"
+#include "print.h"
+#include "../config/config.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -262,6 +264,19 @@ bool system::deleteFile(const std::string& p_filePath) {
         if (unlink(p_filePath.c_str()) == 0) return true;
     #endif
     return false;
+}
+
+bool system::printPayslips(const std::string& dbPath, const std::string& logoPath, const std::vector<int>& employeeIds) {
+    // For now, we ignore employeeIds and print all employees from the database
+    // The print module will fetch all employees from the database
+    (void)dbPath; // dbPath is used by the print module internally
+    (void)employeeIds; // Future enhancement: filter by specific IDs
+
+    // Generate output path in data directory
+    const std::string outputPath = appConfig::g_dataDirectory + "payslips_output.html";
+
+    // Call the print module to export payslips
+    return exportPayslipsHtml(outputPath, logoPath);
 }
 
 
