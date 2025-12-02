@@ -238,9 +238,9 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
     }
 
     std::string sql;
-    if (p_dbName == appConfig::g_dbNamePayroll) {
-        sql = "UPDATE EMPLOYEES SET " + p_data + " WHERE ID = " + p_id + ";";
-    } else if (p_dbName == appConfig::g_dbNameProject) {
+    if (p_dbName == appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll) {
+        sql = "UPDATE EMPLOYEES SET " + p_data + " WHERE EMPLOYEE_ID = " + p_id + ";";
+    } else if (p_dbName == appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject) {
         sql = "UPDATE PROJECT_LIST SET " + p_data + " WHERE ProjectID = " + p_id + ";";
     } else {
         sqlite3_close(dbPtr);
@@ -257,8 +257,7 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
 // Delete a row by employee ID or project ID
 bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
     // Validate input is numeric
-    if (p_id.empty() || !std::all_of(p_id.begin(), p_id.end(),
-        [](char c) { return std::isdigit(static_cast<unsigned char>(c)); })) {
+    if (p_id.empty() || !std::ranges::all_of(p_id,[](const char c) { return std::isdigit(static_cast<unsigned char>(c)); })) {
         return false;
     }
 
