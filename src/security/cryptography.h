@@ -12,7 +12,6 @@ namespace cryptography {
     std::string saltKey(const std::string& key);
     bool encryptFile(const std::string &filePath, const std::vector<unsigned char> &key);
     bool decryptFile(const std::string &filePath, const std::vector<unsigned char> &key, std::string* errorMsg = nullptr);
-    std::string vault(const std::string& operation, const std::string& identifier, const std::string& data);
 };
 
 
