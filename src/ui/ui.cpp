@@ -436,24 +436,52 @@ void testUI() {
         }
     }
 
+    ImGui::Separator();
+    ImGui::Spacing();
+
     static char employeeId[8] = "";
     ImGui::Text("Employee ID");
     ImGui::InputText("##employeeId", employeeId, IM_ARRAYSIZE(employeeId));
     const std::string employeeIdStr(employeeId);
 
+    static char column[64] = "";
+    ImGui::Text("Column Name");
+    ImGui::InputText("##column", column, IM_ARRAYSIZE(column));
+    const std::string columnStr(column);
+
+    static char newValue[128] = "";
+    ImGui::Text("New Value");
+    ImGui::InputText("##newValue", newValue, IM_ARRAYSIZE(newValue));
+    const std::string newValueStr(newValue);
+
     if (ImGui::Button("Delete Employee")) {
         if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeId)) {
             system::logMessage(system::messageClassification::INFO, "DB Test: Employee deleted successfully.\n");
         } else {
-                std::string message = std::string("DB Test: Failed to delete EMPLOYEE_ID") + employeeId + ".\n";
-                system::logMessage(system::messageClassification::INFO, message);
+            system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to delete employee.\n");
         }
     }
 
-    // --- Payslip printing test UI (added) ---
+    if (ImGui::Button("Change Data")) {
+        if (const std::string setClause = columnStr + " = '" + newValueStr + "'"; db::updateDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeIdStr, setClause)) {
+            system::logMessage(system::messageClassification::INFO, "DB Test: Data updated successfully.\n");
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to update data.\n");
+        }
+    }
+
+    // Payslip printing test
     ImGui::Separator();
     ImGui::Spacing();
     ImGui::Text("Payslip Printing Test");
+
+    if (ImGui::Button("Print Payslips")) {
+        if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); system::printPayslips("", logoPath, {})) {
+            system::logMessage(system::messageClassification::INFO, "Payslip Test: Payslips exported successfully.\n");
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "Payslip Test: Failed to export payslips.\n");
+        }
+    }
 }
 
 
