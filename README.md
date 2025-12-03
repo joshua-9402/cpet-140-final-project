@@ -1,7 +1,7 @@
 <p align="center">icon</p>
 <h1 align="center">StructuraCost</h1>
 
-<h6 align="center">This repository is the final project for CpET 140 - Computer Programming 1 </h6>
+<h6 align="center">This repository is the final project for CpET 140—Computer Programming 1 </h6>
 
 <h3 align="center">Members</h3>
 
@@ -64,7 +64,6 @@ II. Getting Started
       - [Linux Builds](#linux-builds)
       - [Release Builds (All Platforms)](#release-builds-all-platforms)
       - [Downloading Pre-built Binaries](#downloading-pre-built-binaries)
-  - [Build and Run (Mobile)](#build-and-run-mobile)
   - [Dependencies](#dependencies)
 
 III. Quality & Contributions
@@ -196,7 +195,7 @@ Below each module is a concise responsibility summary, a short list of public fu
 - `src/security/auth.h` / `src/security/auth.cpp` (`auth`)
   - Responsibilities: small, in-source demo/test authentication helpers used by the UI for test/admin flows.
   - Public interface: `auth::testAuth()`, `auth::testDeployAuth()`, `auth::adminAuth()`, `auth::basicAuth()`.
-  - Warning: these are demonstrational checks and mutate UI globals; replace with a secure auth backend for production.
+  - Warning: these are demonstrational checks and mutate UI globals; replace it with a secure auth backend for production.
   - Full doc: [doc/modules/security-auth.md](doc/modules/security-auth.md)
 
 - `src/security/cryptography.h` / `src/security/cryptography.cpp` (`cryptography`)
@@ -252,7 +251,7 @@ This section documents calling conventions, minimal contracts, common error mode
 
 ### Prerequisites (For Development Computer Only)
 - C++20 or later
-> - It should be at C++26 but Apple Clang partially support C++26 
+> - It should be at C++26 but Apple Clang partially supports C++26 
 - CMake 3.22 or later
 - sqlite3 3.50.4
 - Hello ImGui
@@ -346,7 +345,7 @@ For platform-specific or legacy builds:
     - `Linux (Debian/Ubuntu)`
     - `Linux (Fedora/Red Hat)`
     - `Linux (SUSE Family)`
-3. Click **Run workflow** button (top right)
+3. Click the **Run workflow** button (top right)
 4. Configure build options if prompted
 5. Wait for the build to complete (status changes to green checkmark)
 6. Download the artifact from the workflow run page:
@@ -373,11 +372,6 @@ For release build (version tagging and automatic release):
 
 **Note:** Release binaries are permanent and recommended for production use.
 
-## Build and Run (Mobile)
-
-- There is a separate <a href="https://github.com/joshua-9402/cpet-140-final-project-mobile"> repository </a> for the Android and iOS version with appropriate setup and build instructions for both Android and iOS.
-
-
 ## Dependencies
 
 - sqlite3 (runtime + development headers)
@@ -400,13 +394,13 @@ The participation of everyone is needed to make this project a success. Please f
 > - The use of other languages other than English is not allowed unless specified.
 
 ### Whitespace and Formatting
-- Use 4 spaces or 1 tab for indentation .
+- Use four spaces or one tab for indentation.
 - Limit lines to a maximum of 20 words (comments only) for better readability.
   - This restriction applies only to inline comments within source files
   - Header comments, top-of-function/method comments, and documentation files are exempted.
 - Use blank lines to separate logical sections of code.
   - For spaces in function / methods:
-    - give two line for each function / method definition and implementation.
+    - give two lines for each function / method definition and implementation.
 
 ### Naming Conventions
 - Types and Classes:
@@ -458,10 +452,10 @@ The participation of everyone is needed to make this project a success. Please f
     - `improve` - enhancement of existing functionality / performance / UX
     - `refactor` - code restructuring without changing behavior
     - `chore` - maintenance tasks (build scripts, CI config, etc.)
-    - `build` - changes to build process or dependencies
+    - `build` - changes to a build process or dependencies
       - this is different from `chore` since it directly affects the build process or dependencies
       - this option is only available for `CMakeLists.txt` or build scripts
-    - the only exception is `initial commit` and the few subsequent commits in the repository and `README.md`
+    - the only exception is `initial commit` and the few later commits in the repository and `README.md`
       - `README.md` follows a different convention since it is a documentation file.
         - `docs` - update README.md, add technical overview, fix typos, etc.
   - For description, use a concise summary of the change.
@@ -477,7 +471,7 @@ The participation of everyone is needed to make this project a success. Please f
 - Use clear, descriptive titles.
 - Provide detailed descriptions, including steps to reproduce, expected vs. actual behavior, and screenshot or the error logs.
 - Assign appropriate labels:
-  - `bug` - something is not working as expected
+  - `bug` - nothing is working as expected
   - `documentation` - improvements or additions to documentation
   - `enhancement` - new feature or request
   - `help wanted` - assistance needed
@@ -486,7 +480,7 @@ The participation of everyone is needed to make this project a success. Please f
 
 
 ### Filing Pull Requests
-- Ensure your branch is up-to-date with the main branch before creating a PR.
+- Ensure your branch is up to date with the main branch before creating a PR.
 - Provide a clear title and description of the changes made.
 - Reference any related issues.
 - Follow the project's coding conventions and guidelines. Any significant deviations should be explained in the PR description, or it will be rejected.
@@ -498,7 +492,7 @@ This section highlights common issues seen in local and CI builds and concrete f
 1) libsodium / cryptography issues
    - Symptom: Linker errors (undefined symbols like `sodium_init`, `crypto_aead_xchacha20poly1305_ietf_encrypt`, etc.) or runtime `crypto` failures.
    - Fixes:
-     - Ensure libsodium is installed for the platform and matches the target architecture (x64 vs ARM64). In CI add a step to install libsodium BEFORE CMake configure. Example (GitHub Actions):
+     - Ensure libsodium is installed for the platform and matches the target architecture (x64 vs. ARM64). In CI add a step to install libsodium BEFORE CMake configure. Example (GitHub Actions):
 
        - For Linux (Debian/Ubuntu): `sudo apt-get install -y libsodium-dev`
        - For macOS (Homebrew): `brew install libsodium`
@@ -522,16 +516,16 @@ This section highlights common issues seen in local and CI builds and concrete f
    - Fix: Use libsodium build artifacts that match the MSVC target architecture and toolset chosen by the CI workflow. If using `dependencies/libsodium`, ensure you add the correct subfolder (Win32/x64/ARM64) with matching runtime and MSVC version.
 
 6) Decryption / encryption behavior
-   - Decryption in-place: the cryptography helper `decryptFileInPlace()` will replace the encrypted file with the decrypted version on success. If decryption fails, the encrypted file remains untouched. Check the logs (use `system::logMessage`) for detailed reasons. Key generation now returns a vector and functions validate key size; errors like "Key generation failed or wrong size" mean the caller passed an invalid size — adjust caller or remove artificial limits.
+   - Decryption in-place: the cryptography helper `decryptFileInPlace()` will replace the encrypted file with the decrypted version on success. If decryption fails, the encrypted file remains untouched. Check the logs (use `system::logMessage`) for detailed reasons. Key generation now returns a vector, and functions validate key size; errors like "Key generation failed or wrong size" mean the caller passed an invalid size — adjust caller or remove artificial limits.
 
 7) UI runtime issues (selector / quick disappearing windows)
-   - Symptom: clicking UI buttons briefly changes view but reverts instantly, or secondary windows (payroll/monitor) appear then disappear.
+   - Symptom: clicking UI buttons briefly changes the view but reverts instantly, or secondary windows (payroll/monitor) appear to then disappear.
    - Checklist to debug:
-     - Verify `g_currentUI`/UI state is set and not overwritten every frame by `constructUI()` or by a subsequent UI handler call.
+     - Verify `g_currentUI`/UI state is set and not overwritten every frame by `constructUI()` or by a later UI handler call.
      - Make sure login handlers populate `appConfig::g_auth` only on successful authentication and the main loop in `main.cpp` respects that flag.
      - For selector toggles, ensure you update existing DB rows (UPDATE) instead of always INSERT-ing duplicates. The core CRUD functions were updated to support modify/update flows — prefer using them.
 
 8) General advice when debugging builds
-   - Re-run the failing CI job locally if possible (same base image & packages). Reproducing CI locally makes it easier to iterate.
+   - Re-run the failing CI job locally if possible (same base image and packages). Reproducing CI locally makes it easier to iterate.
    - When fixing a linker error, examine which library provides the missing symbol and confirm that the correct architecture and runtime variant are used.
    - Log internal errors using `system::logMessage()` before setting `g_failedMessage` to keep user facing errors short.
