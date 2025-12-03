@@ -1,57 +1,13 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <vector>
 #include <filesystem>
 
 #include <sqlite3.h>
 
 #include "../config/config.h"
-
-// Base64 encoding table
-static constexpr char base64_chars[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz"
-    "0123456789+/";
-
-// Convert binary data to base64 string
-static std::string base64_encode(const unsigned char* bytes_to_encode, size_t in_len) {
-    std::string ret;
-    int i = 0;
-    unsigned char char_array_3[3];
-    unsigned char char_array_4[4];
-
-    while (in_len--) {
-        char_array_3[i++] = *(bytes_to_encode++);
-        if (i == 3) {
-            char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-            char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-            char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-            char_array_4[3] = char_array_3[2] & 0x3f;
-
-            for(i = 0; i < 4; i++)
-                ret += base64_chars[char_array_4[i]];
-            i = 0;
-        }
-    }
-
-    if (i) {
-        for(int j = i; j < 3; j++)
-            char_array_3[j] = '\0';
-
-        char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-        char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-        char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-
-        for (int j = 0; j < i + 1; j++)
-            ret += base64_chars[char_array_4[j]];
-
-        while(i++ < 3)
-            ret += '=';
-    }
-
-    return ret;
-}
 
 // Convert image file to base64 data URI
 static std::string imageToDataUri(const std::string& imagePath) {
@@ -61,7 +17,6 @@ static std::string imageToDataUri(const std::string& imagePath) {
         return "";
     }
 
-    // Read file into vector
     std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     file.close();
 
@@ -69,18 +24,28 @@ static std::string imageToDataUri(const std::string& imagePath) {
         return "";
     }
 
-    // Encode to base64
-    std::string base64 = base64_encode(buffer.data(), buffer.size());
+    // Base64 encoding
+    static constexpr char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string result;
+    result.reserve(((buffer.size() + 2) / 3) * 4);
 
-    // Determine MIME type from extension
-    std::string mimeType = "image/png";
-    if (imagePath.ends_with(".jpg") || imagePath.ends_with(".jpeg")) {
-        mimeType = "image/jpeg";
-    } else if (imagePath.ends_with(".gif")) {
-        mimeType = "image/gif";
+    for (size_t i = 0; i < buffer.size(); i += 3) {
+        const uint32_t b = (buffer[i] << 16) | ((i + 1 < buffer.size() ? buffer[i + 1] : 0) << 8) | (i + 2 < buffer.size() ? buffer[i + 2] : 0);
+        result += chars[(b >> 18) & 0x3F];
+        result += chars[(b >> 12) & 0x3F];
+        result += (i + 1 < buffer.size()) ? chars[(b >> 6) & 0x3F] : '=';
+        result += (i + 2 < buffer.size()) ? chars[b & 0x3F] : '=';
     }
 
-    return "data:" + mimeType + ";base64," + base64;
+    // Determine MIME type
+    std::string mime = "image/png";
+    if (imagePath.ends_with(".jpg") || imagePath.ends_with(".jpeg")) {
+        mime = "image/jpeg";
+    } else if (imagePath.ends_with(".gif")) {
+        mime = "image/gif";
+    }
+
+    return "data:" + mime + ";base64," + result;
 }
 
 struct SimpleEmp {
@@ -143,30 +108,55 @@ std::string makePayslipHtml(const SimpleEmp& data, const std::string& logo) {
     const double total = gross - data.advance - data.others;
 
     std::ostringstream o;
-    o << "<div class=\"payslip\" style=\"min-height:170px; box-sizing:border-box; overflow:visible; font-size:12px;\">\n";
-    o << " <div class=\"header\" style=\"min-height:30px; display:flex; align-items:center;\">\n";
-    o << "  <img src=\"" << logo << "\" class=\"logo\" style=\"width:96px; margin-right:10px;\">\n";
-    o << "  <div class=\"title\" style=\"font-size:24px; font-weight:bold; color:#d88c28;\">OFFICIAL PAYSLIP</div>\n";
+    o << "<div class=\"payslip\">\n";
+
+    o << " <div class=\"payslip-header\">\n";
+    o << "  <img src=\"" << logo << "\" class=\"company-logo\">\n";
+    o << "  <div class=\"company-info\"><div class=\"payslip-title\">OFFICIAL PAYSLIP</div></div>\n";
     o << " </div>\n";
 
-    // Fields area: left column = employee info, right column = financials (aligned)
-    o << " <div class=\"fields\" style=\"display:flex; gap:6px; align-items:flex-start; font-size:15px; margin-top:5px;\">\n";
-    o << "  <div style=\"flex:1; line-height:1.3em; overflow:hidden;\">\n";
-    o << "   <div style=\"white-space:nowrap;text-overflow:ellipsis;overflow:hidden;\"><strong>Employee No:</strong> " << data.id << "</div>\n";
-    if (!data.date.empty()) o << "   <div style=\"white-space:nowrap;text-overflow:ellipsis;overflow:hidden;\"><strong>Date:</strong> " << data.date << "</div>\n";
-    o << "   <div style=\"white-space:nowrap;text-overflow:ellipsis;overflow:hidden;\"><strong>Employee Name:</strong> " << data.name << "</div>\n";
-    o << "   <div style=\"white-space:nowrap;text-overflow:ellipsis;overflow:hidden;\"><strong>Position:</strong> " << data.position << "</div>\n";
-    o << "   <div style=\"white-space:nowrap;text-overflow:ellipsis;overflow:hidden;\"><strong>Location:</strong> " << data.location << "</div>\n";
-    o << "   <div style=\"white-space:nowrap;text-overflow:ellipsis;overflow:hidden;\"><strong>Salary (rate):</strong> " << data.salary << "</div>\n";
-    o << "   <div style=\"white-space:nowrap;text-overflow:ellipsis;overflow:hidden;\"><strong>Hours Worked:</strong> " << data.hoursWorked << "</div>\n";
-    o << "  </div>\n";
-    o << "  <div style=\"width:160px; line-height:1.3em; overflow:hidden; text-align:right;\">\n";
-    o << "   <div><strong>Advance:</strong> " << data.advance << "</div>\n";
-    o << "   <div><strong>Others:</strong> " << data.others << "</div>\n";
-    o << "   <div><strong>Gross:</strong> " << gross << "</div>\n";
-    o << "   <div style=\"font-weight:bold; font-size:20px; margin-top:4px;\"><strong>Total Payable:</strong> <strong>" << total << "</strong></div>\n";
+    o << " <div class=\"info-section\">\n";
+    o << "  <div class=\"info-columns\">\n";
+    o << "   <div class=\"info-column\">\n";
+    o << "    <div><span class=\"info-label\">Employee No:</span> " << data.id << "</div>\n";
+    o << "    <div><span class=\"info-label\">Name:</span> " << data.name << "</div>\n";
+    if (!data.date.empty()) {
+        o << "    <div><span class=\"info-label\">Pay Period:</span> " << data.date << "</div>\n";
+    }
+    o << "   </div>\n";
+    o << "   <div class=\"info-column\">\n";
+    o << "    <div><span class=\"info-label\">Position:</span> " << data.position << "</div>\n";
+    o << "    <div><span class=\"info-label\">Site Location:</span> " << data.location << "</div>\n";
+    o << "   </div>\n";
     o << "  </div>\n";
     o << " </div>\n";
+
+    o << " <table class=\"pay-table\">\n";
+    o << "  <tr><th colspan=\"2\">Earnings</th><th colspan=\"2\">Deductions</th></tr>\n";
+    o << "  <tr>\n";
+    o << "   <td>Rate per Hour:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << data.salary << "</td>\n";
+    o << "   <td>Advance:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << data.advance << "</td>\n";
+    o << "  </tr>\n";
+    o << "  <tr>\n";
+    o << "   <td>Hours Worked:</td><td class=\"amount\">" << data.hoursWorked << " hrs</td>\n";
+    o << "   <td>Others:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << data.others << "</td>\n";
+    o << "  </tr>\n";
+    o << "  <tr class=\"total-row\">\n";
+    o << "   <td><strong>Gross Pay:</strong></td><td class=\"amount\"><strong>₱" << std::fixed << std::setprecision(2) << gross << "</strong></td>\n";
+    o << "   <td><strong>Total Deductions:</strong></td><td class=\"amount\"><strong>₱" << std::fixed << std::setprecision(2) << (data.advance + data.others) << "</strong></td>\n";
+    o << "  </tr>\n";
+    o << " </table>\n";
+
+    o << " <div class=\"net-pay\">\n";
+    o << "  <div class=\"net-pay-label\">NET PAY:</div>\n";
+    o << "  <div class=\"net-pay-amount\">₱" << std::fixed << std::setprecision(2) << total << "</div>\n";
+    o << " </div>\n";
+
+    o << " <div class=\"signature-section\">\n";
+    o << "  <div class=\"signature-box\"><div class=\"signature-line\"></div><div class=\"signature-label\">Employee Signature</div></div>\n";
+    o << "  <div class=\"signature-box\"><div class=\"signature-line\"></div><div class=\"signature-label\">Authorized By</div></div>\n";
+    o << " </div>\n";
+
     o << "</div>\n";
     return o.str();
 }
@@ -174,10 +164,8 @@ std::string makePayslipHtml(const SimpleEmp& data, const std::string& logo) {
 // Export payslips to HTML. outFile can be absolute or relative. logoPath is a path that will be embedded in the HTML (relative file:// works).
 // Returns true on success, false on failure (no file written).
 bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath) {
-    // build full payroll DB path from appConfig
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
 
-    // If DB file does not exist, fail with message (UI can create sample DB first)
     if (std::error_code errorCode; !std::filesystem::exists(dbPath, errorCode)) {
         std::cerr << "exportPayslipsHtml: payroll DB not found at " << dbPath << "\n";
         return false;
@@ -185,22 +173,20 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
 
     const auto employees = fetchAllEmployees(dbPath);
     if (employees.empty()) {
-        std::cerr << "exportPayslipsHtml: no employees found in payroll DB (" << dbPath << "). Nothing to export.\n";
+        std::cerr << "exportPayslipsHtml: no employees found in payroll DB (" << dbPath << ").\n";
         return false;
     }
 
-    // Convert logo to data URI for embedding
     std::string logoDataUri;
     if (!logoPath.empty() && std::filesystem::exists(logoPath)) {
         logoDataUri = imageToDataUri(logoPath);
     }
 
-    // Ensure output directory exists
     try {
-        if (const auto parent = std::filesystem::path(outFile).parent_path(); !parent.empty()) std::filesystem::create_directories(parent);
-    } catch (...) {
-        // ignore
-    }
+        if (const auto parent = std::filesystem::path(outFile).parent_path(); !parent.empty()) {
+            std::filesystem::create_directories(parent);
+        }
+    } catch (...) {}
 
     std::ofstream f(outFile);
     if (!f.is_open()) {
@@ -214,50 +200,116 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
 <meta charset="utf-8">
 <title>Payslips</title>
 <style>
-  body { margin:20px; font-family:Arial, sans-serif; }
-  .page { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(4,auto); gap:20px; margin-bottom:40px; page-break-after:always; }
-  .payslip { border:2px solid #d88c28; padding:15px; border-radius:6px; }
-  .header { display:flex; align-items:center; }
-  .logo { width:110px; margin-right:20px; }
-  .title { font-size:26px; font-weight:bold; color:#d88c28; }
-  .fields { margin-top:10px; font-size:14px; line-height:1.5em; }
-  .weekly-table { width:100%; border-collapse:collapse; margin-top:10px; }
-  .weekly-table th, .weekly-table td { border:1px solid #d88c28; padding:4px; font-size:12px; text-align:center; }
-  .footer-fields { margin-top:10px; font-size:14px; }
-  @media print { body{margin:0;padding:0;} .page{page-break-after:always;} }
+  @page { size: 8.5in 13in; margin: 0.3in 0.25in; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .container { width: 8in; height: 12.45in; margin: 0 auto; padding-top: 0.1in; }
+
+  .page {
+    display: grid;
+    grid-template: repeat(6, 1fr) / 1fr 1fr;
+    gap: 0.05in;
+    padding: 0.05in 0;
+    height: 100%;
+  }
+
+  .payslip {
+    border: 2px solid #d88c28;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 7px;
+    background: white;
+  }
+
+  .payslip-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding-bottom: 3px;
+    border-bottom: 2px solid #d88c28;
+    margin-bottom: 3px;
+  }
+
+  .company-logo { width: 35px; height: 35px; object-fit: contain; }
+  .company-info { flex: 1; text-align: center; }
+  .payslip-title { font-size: 12px; font-weight: bold; color: #d88c28; }
+
+  .info-section { margin: 4px 0 4px; }
+  .info-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .info-column { display: flex; flex-direction: column; gap: 2px; }
+  .info-label { font-weight: bold; color: #555; }
+
+  .pay-table { width: 100%; border-collapse: collapse; margin: 1px 0 2px; font-size: 7px; }
+  .pay-table th { background: #d88c28; color: white; padding: 2px; border: 1px solid #d88c28; font-size: 7px; }
+  .pay-table td { padding: 2px 3px; border: 1px solid #ddd; }
+  .pay-table td.amount { text-align: right; }
+  .pay-table tr.total-row { background: #f9f3e8; }
+  .pay-table tr.total-row td { border-top: 2px solid #d88c28; }
+
+  .net-pay {
+    display: flex;
+    justify-content: space-between;
+    background: #d88c28;
+    color: white;
+    padding: 3px 4px;
+    margin-bottom: 2px;
+    border-radius: 2px;
+  }
+  .net-pay-label { font-size: 8px; font-weight: bold; }
+  .net-pay-amount { font-size: 9px; font-weight: bold; }
+
+  .signature-section { display: flex; gap: 8px; margin-top: 15px; }
+  .signature-box { flex: 1; text-align: center; }
+  .signature-line { border-top: 1px solid #333; margin: 4px 0 1px; }
+  .signature-label { font-size: 6.5px; color: #666; }
+
+  @media print {
+    .container { width: auto; height: auto; }
+    .payslip { break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
+<div class="container">
 )";
 
-    int count = 0;
-    f << "<div class=\"page\">\n";
-    for (size_t i = 0; i < employees.size(); ++i) {
-        f << makePayslipHtml(employees[i], logoDataUri) << "\n";
-        ++count;
-        if (count == 8 && i + 1 < employees.size()) {
-            f << "</div>\n<div class=\"page\">\n";
-            count = 0;
+    // Render pages explicitly to avoid leaving a trailing blank page.
+    constexpr size_t perPage = 12;
+    const size_t total = employees.size();
+    const size_t totalPages = (total + perPage - 1) / perPage;
+
+    for (size_t p = 0; p < totalPages; ++p) {
+        const bool isLast = (p + 1 == totalPages);
+        f << "<div class=\"page" << (isLast ? " last-page" : "") << "\">\n";
+
+        const size_t start = p * perPage;
+        const size_t end = std::min(start + perPage, total);
+        for (size_t i = start; i < end; ++i) {
+            f << makePayslipHtml(employees[i], logoDataUri) << "\n";
         }
+
+        f << "</div>\n";
     }
+
     f << "</div>\n</body>\n</html>\n";
     f.close();
 
     std::cout << "Exported payslips to " << outFile << "\n";
 
-    // Auto-open the HTML file in default browser
     const std::string absPath = std::filesystem::absolute(outFile).string();
 
 #ifdef _WIN32
-    // Windows: use 'start' command
     std::string command = "start \"\" \"" + absPath + "\"";
     std::system(command.c_str());
 #elif __APPLE__
-    // macOS: use 'open' command
     std::string command = "open \"" + absPath + "\"";
     std::system(command.c_str());
 #else
-    // Linux: use 'xdg-open' command
     std::string command = "xdg-open \"" + absPath + "\"";
     std::system(command.c_str());
 #endif
