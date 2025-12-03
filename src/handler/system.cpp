@@ -305,5 +305,6 @@ void system::appShutdown() {
     copyDirectory("data", "backup/data-" + timeDateString());
     copyDirectory("logs", "backup/logs-" + timeDateString());
 
+    logMessage(messageClassification::INFO, "Main Application Shutting Down.\n");
     HelloImGui::GetRunnerParams()->appShallExit = true;
 }

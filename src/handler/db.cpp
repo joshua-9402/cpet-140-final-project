@@ -111,7 +111,7 @@
 
 
 bool db::isSQLiteAvailable() {
-    // Check if SQLite library is available by verifying the version
+    // Check if the SQLite library is available by verifying the version
     if (const char* version = sqlite3_libversion(); version == nullptr || version[0] == '\0') {
         return false;
     }
@@ -131,7 +131,7 @@ bool db::isSQLiteAvailable() {
 bool db::createDatabase(const std::string& p_dbName) {
     sqlite3* dbPointer = nullptr;
 
-    // Open (or create) database file
+    // Open (or create) a database file
     if (const int returnCode = sqlite3_open_v2(p_dbName.c_str(), &dbPointer,SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr); returnCode != SQLITE_OK) {
         if (dbPointer) sqlite3_close(dbPointer);
         return false;
@@ -229,7 +229,7 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
 }
 
 
-// p_id is the ID/ProjectID to update, p_data contains SET clause values (e.g., "Name='John Smith', Position='Senior Manager', Salary=150.0")
+// p_id is the ID/ProjectID to update; p_data contains SET clause values (e.g., "Name='John Smith', Position='Senior Manager', Salary=150.0")
 bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, const std::string& p_data) {
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
@@ -283,7 +283,7 @@ bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
         return false;
     }
 
-    // Prepare and execute statement
+    // Prepare and execute a statement
     sqlite3_stmt* stmt = nullptr;
     bool success = false;
 
@@ -361,7 +361,7 @@ bool db::rearrangeEmployeeIDs() {
         return false;
     }
 
-    // Delete all rows from original table
+    // Delete all rows from the original table
     if (sqlite3_exec(dbPtr, "DELETE FROM EMPLOYEES;", nullptr, nullptr, &err) != SQLITE_OK) {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);

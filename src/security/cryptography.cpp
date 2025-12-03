@@ -32,7 +32,7 @@ bool cryptography::checkSodium() {
 
 
 // Generates a cryptographically secure random key.
-// keyBits: size of key in *bits* (32 to 8192)
+// keyBits: size of a key in *bits* (32 to 8192)
 // returns: vector of random bytes
 std::vector<unsigned char> cryptography::generateKey(const size_t keyBits) {
     if (keyBits < 32 || keyBits > 8192 || (keyBits % 8) != 0) return {};
@@ -137,16 +137,16 @@ bool cryptography::encryptFile(const std::string &filePath, const std::vector<un
 
     // Write: salt || nonce || ciphertext
     const std::string outPath = filePath + ".enc";
-    std::ofstream fout(outPath, std::ios::binary | std::ios::trunc);
-    if (!fout.is_open()) {
+    std::ofstream ofstream(outPath, std::ios::binary | std::ios::trunc);
+    if (!ofstream.is_open()) {
         sodium_memzero(derivedKey.data(), derivedKey.size());
         return false;
     }
 
-    fout.write(reinterpret_cast<const char*>(salt.data()), static_cast<std::streamsize>(salt.size()));
-    fout.write(reinterpret_cast<const char*>(nonce), static_cast<std::streamsize>(sizeof(nonce)));
-    fout.write(reinterpret_cast<const char*>(ciphertext.data()), static_cast<std::streamsize>(ciphertext.size()));
-    fout.close();
+    ofstream.write(reinterpret_cast<const char*>(salt.data()), static_cast<std::streamsize>(salt.size()));
+    ofstream.write(reinterpret_cast<const char*>(nonce), static_cast<std::streamsize>(sizeof(nonce)));
+    ofstream.write(reinterpret_cast<const char*>(ciphertext.data()), static_cast<std::streamsize>(ciphertext.size()));
+    ofstream.close();
 
     sodium_memzero(derivedKey.data(), derivedKey.size());
     return true;
@@ -166,7 +166,11 @@ bool cryptography::decryptFile(const std::string& filePath, const std::vector<un
     const auto fileSize = in.tellg();
     in.seekg(0, std::ios::beg);
 
-    if (fileSize < static_cast<std::streamoff>(saltLen + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES + crypto_aead_xchacha20poly1305_ietf_ABYTES)) {
+    // compute a minimum valid encrypted file size in the same type as fileSize
+    constexpr std::streamoff minValid = static_cast<std::streamoff>(saltLen)
+                                        + static_cast<std::streamoff>(crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
+                                        + static_cast<std::streamoff>(crypto_aead_xchacha20poly1305_ietf_ABYTES);
+    if (fileSize < minValid) {
         if (errorMsg) *errorMsg = "File too small to be valid encrypted file";
         return false;
     }
@@ -222,4 +226,3 @@ bool cryptography::decryptFile(const std::string& filePath, const std::vector<un
     sodium_memzero(derivedKey.data(), derivedKey.size());
     return true;
 }
-

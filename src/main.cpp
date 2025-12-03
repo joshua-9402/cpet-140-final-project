@@ -31,17 +31,21 @@
 void systemCheck() {
     // System check: Ensure libsodium is initialized properly
     if (!cryptography::checkSodium()) {
+        system::logMessage(system::messageClassification::ERROR, "libsodium initialization failed.\n");
         ui::g_failedMessage = "Error: libsodium initialization failed.";
         ui::constructUI(appConfig::g_errorTitle, appConfig::g_fontName, appConfig::g_errorWidth, appConfig::g_defaultHeight, "failed");
     }
+    system::logMessage(system::messageClassification::INFO, "libsodium initialized successfully.\n");
 
     // Database check: Ensure SQLite is available
     if (!db::isSQLiteAvailable()) {
+        system::logMessage(system::messageClassification::ERROR, "sqlite initialization failed.\n");
         ui::g_failedMessage = "Error: sqlite initialization failed.";
         ui::constructUI(appConfig::g_errorTitle, appConfig::g_fontName, appConfig::g_errorWidth, appConfig::g_defaultHeight, "failed");
     }
+    system::logMessage(system::messageClassification::INFO, "sqlite initialized successfully.\n");
 
-    // Create necessary directories and database files
+    // Create the necessary directories and database files
     if (!system::searchDirectory("logs")) {system::createDirectory("logs");}
     if (!system::searchDirectory("backup")) {system::createDirectory("backup");}
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
@@ -59,13 +63,18 @@ void systemCheck() {
 
 int main() {
     // Perform checks before starting the application
+    system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Initiated.\n");
     systemCheck();
+    system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Completed Successfully.\n");
+    system::logMessage(system::messageClassification::INFO, "Main Application Starting.\n");
 
     // Main loop: rearrange employee IDs if needed and run the main UI
     while (true) {
         if (!appConfig::g_auth) {
             ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth");
-            if (!appConfig::g_auth) {return 0;}
+            if (!appConfig::g_auth) {
+                return 0;
+            }
         }
 
         if (db::checkEmployeeChanges()) {

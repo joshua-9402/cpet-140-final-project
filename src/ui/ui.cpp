@@ -8,14 +8,14 @@
  * Purpose
  * - Immediate-mode UI built with HelloImGui/ImGui. Manages a registry of UIs, switching between them, font loading,
  *   and window setup.
- * - Provides the main two-column layout with navigation on the left and active panel on the right.
+ * - Provides the main two-column layout with navigation on the left and an active panel on the right.
  *
  * Boundaries
  * - Presentation only. No business logic or persistence here. Call payroll.cpp and monitor.cpp modules for operations.
  *
  * Notes
  * - UI switching is immediate (case-insensitive). App exit uses HelloImGui runner.
- * - This part is OFF LIMITS especially to constructUI(), the global variables, and to the UI registry/map.
+ * - This part is OFF LIMITS, especially to constructUI(), the global variables, and to the UI registry/map.
  */
 
 #include <string>
@@ -40,7 +40,7 @@ void exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
 // UI registry and UI management
 static std::unordered_map<std::string, std::function<void()>> g_uiMap;
 static std::function<void()> g_currentUI = nullptr;
-static std::function<void()> g_rightUI = nullptr; // Right panel active UI (shown in main two-column layout)
+static std::function<void()> g_rightUI = nullptr; // Right panel active UI (shown in the main two-column layout)
 auto g_buttonSizePxSelector = ImVec2(270, 40); // x for width, y for height of buttons
 std::string ui::g_failedMessage; // Global failed message for failedUI
 std::string ui::g_userName;
@@ -64,7 +64,7 @@ void setButtonCenter(const char* text, const ImVec2& size){
     const float windowWidth = ImGui::GetWindowSize().x;
     const float buttonWidth = size.x;
 
-    // Move to center position
+    // Move to the center position
     ImGui::SetCursorPosX((windowWidth - buttonWidth) * 0.5f);
     ImGui::Button(text, size);
 }
@@ -74,7 +74,7 @@ void setTextCenter(const char* text){
     const float windowWidth = ImGui::GetWindowSize().x;
     const float textWidth = ImGui::CalcTextSize(text).x;
 
-    // Move to center position
+    // Move to the center position
     ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
     ImGui::Text("%s", text);
 }
@@ -84,7 +84,7 @@ void setTextRight(const char* text){
     const float windowWidth = ImGui::GetWindowSize().x;
     const float textWidth = ImGui::CalcTextSize(text).x;
 
-    // Position the cursor so that text ends at the right edge
+    // Position the cursor so that the text ends at the right edge
     ImGui::SetCursorPosX(windowWidth - textWidth - ImGui::GetStyle().WindowPadding.x);
     ImGui::Text("%s", text);
 }
@@ -144,7 +144,7 @@ static void loginUI() {
     ImGui::SetCursorPos(ImVec2(25.0f, 310.0f));
     if (setButtonCenter("Log In", fullWidthButtonSize(35)), ImGui::IsItemClicked()){
 
-        // First, validate inputs are provided. Show failed popup when either field is empty.
+        // First, validate inputs are provided. Show a failed popup when either field is empty.
         if (username[0] == '\0' || password[0] == '\0') {
             username[0] = '\0';
             password[0] = '\0';
@@ -170,7 +170,7 @@ static void loginUI() {
             password[0] = '\0';
             system::appShutdown();
         } else {
-            // Invalid credentials: show failed UI modal (reuse same mechanism)
+            // Invalid credentials: show the failed UI modal (reuse the same mechanism)
             ui::g_failedMessage = "Error: Invalid username or password.";
             appConfig::g_auth = false;
 
@@ -189,7 +189,7 @@ static void loginUI() {
             ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
         }
 
-        // Pass pointer so ImGui will clear flag when modal is closed by user actions
+        // Pass pointer so ImGui will clear a flag when modal is closed by user actions
         if (ImGui::BeginPopupModal("Failed##login", &g_failedPopupOpen, flags)) {
             failedUI();
             ImGui::Spacing();
@@ -206,7 +206,7 @@ static void loginUI() {
 }
 
 static void accountUI() {
-    // Load business logo only once on first call
+    // Load business logo only once on the first call
     loadImage("icons/business_logo.png", 0.1f, 10.0f, 70.1f);
     loadImage("icons/user_icon.png", 0.8f, 10.0f, 60.0f);
 
@@ -242,7 +242,7 @@ static void selectorUI() {
     ImGui::SetCursorPos(ImVec2(20.0f, 10.0f));
     setTextCenter("appLogo"); // Placeholder for logo
 
-    ImGui::SetCursorPos(ImVec2(20.0f, 80.0f)); // x = padding from left, y = small padding from top
+    ImGui::SetCursorPos(ImVec2(20.0f, 80.0f)); // x = padding from left, y = small padding from the top
     ImGui::SetWindowFontScale(1.7f); // Larger greeting
     ImGui::Text("%s", l_greetings.c_str());
     ImGui::SetWindowFontScale(1.0f); // Reset font scale
@@ -485,9 +485,9 @@ void testUI() {
 }
 
 
-// Main two-column layout: left = selector (with account), right = active panel (summary/payroll/monitor)
+// Main two-column layout: left = selector (with an account), right = active panel (summary/payroll/monitor)
 static void mainUI() {
-    // Only set default right panel on first call, not every frame
+    // Only set a default right panel on the first call, not every frame
     static bool initialized = false;
     if (!initialized) {
         if (appConfig::g_testMode) {
@@ -498,16 +498,16 @@ static void mainUI() {
         initialized = true;
     }
 
-    // Full-viewport, borderless root so the main UI is in the app window itself
+    // Full-viewport, borderless root, so the main UI is in the app window itself
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    // Use work area to avoid overlapping HelloImGui menu/dockspace areas
+    // Use work area to avoid overlapping HelloImGui menu/dock space areas
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);
     constexpr ImGuiWindowFlags rootFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                                            ImGuiWindowFlags_NoSavedSettings |
                                            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-                                           ImGuiWindowFlags_NoDocking; // prevent docking overlay from capturing inputs
+                                           ImGuiWindowFlags_NoDocking; // to prevent docking overlay from capturing inputs,
     // Nudge focus to our root window for the first frames to ensure interactivity
     static int s_focusFrames = 30;
     if (s_focusFrames > 0) { ImGui::SetNextWindowFocus(); --s_focusFrames; }
@@ -543,10 +543,10 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     }
 
     // Ensure HelloImGui does not create a DockSpace: keep the default full-screen window
-    // (ProvideFullScreenWindow). No explicit docking toggle available in this version.
+    // (ProvideFullScreenWindow). No explicit docking toggle is available in this version.
     params.imGuiWindowParams.defaultImGuiWindowType = HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
 
-    // populate UI registry (ensure it's available before selecting current UI)
+    // populate the UI registry (ensure it's available before selecting the current UI)
     g_uiMap.clear();
     g_uiMap.reserve(7);
     g_uiMap["auth"] = loginUI;
@@ -558,7 +558,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     g_uiMap["failed"] = failedUI;
 
     // Load a custom font with only the default ASCII character set to save memory.
-    // By providing this callback, we take control of font loading.
+    // By providing this callback, we take control of the font loading.
     params.callbacks.LoadAdditionalFonts = [a_fontLocation]() {
         const ImGuiIO& io = ImGui::GetIO();
         // Clear any existing fonts to ensure we only load what we need.
@@ -578,7 +578,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
         }
     };
 
-    // Determine start key and select initial UI
+    // Determine a start key and select the initial UI
 
     if (const std::string startKey = a_window.empty() ? "main" : toLower(a_window); startKey == "auth") {
         g_currentUI = loginUI;
