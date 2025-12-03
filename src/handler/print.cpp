@@ -1,3 +1,27 @@
+/*
+ * CpET 140 Final Project — Print Module
+ * StructuraCost - Handler - Print Module
+*
+* Contributors:
+*  Joshua Literal
+*
+* Purpose
+ *  - Generate and export employee payslips to HTML format
+ *  - Fetch employee data from the payroll database
+ *  - Convert company logos to embedded data URIs for offline viewing
+*
+* Boundaries
+ *  - Interacts with SQLite database for employee data retrieval
+ *  - Handles file system operations for HTML export and logo embedding
+ *  - Platform-specific system calls for opening generated HTML files
+*
+* Notes
+ *  - Generates print-ready HTML with embedded styling and logos
+ *  - Supports automatic pagination for multiple payslips
+ *  - Cross-platform file opening (Windows, macOS, Linux)
+*/
+
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -8,6 +32,20 @@
 #include <sqlite3.h>
 
 #include "../config/config.h"
+
+
+struct employee {
+    int id{};
+    std::string name;
+    std::string position;
+    std::string location;
+    double salary{0.0};
+    double hoursWorked{0.0};
+    double advance{0.0};
+    double others{0.0};
+    std::string date;
+};
+
 
 // Convert image file to base64 data URI
 static std::string imageToDataUri(const std::string& imagePath) {
@@ -48,17 +86,6 @@ static std::string imageToDataUri(const std::string& imagePath) {
     return "data:" + mime + ";base64," + result;
 }
 
-struct SimpleEmp {
-    int id{};
-    std::string name;
-    std::string position;
-    std::string location;
-    double salary{0.0};
-    double hoursWorked{0.0};
-    double advance{0.0};
-    double others{0.0};
-    std::string date;
-};
 
 // Helper: safely read text column (maybe null)
 static std::string colTextSafe(sqlite3_stmt* stmt, const int col) {
@@ -66,9 +93,10 @@ static std::string colTextSafe(sqlite3_stmt* stmt, const int col) {
     return t ? reinterpret_cast<const char*>(t) : std::string();
 }
 
+
 // Fetch employees from the payroll DB (uses provided dbPath)
-std::vector<SimpleEmp> fetchAllEmployees(const std::string &dbPath) {
-    std::vector<SimpleEmp> list;
+std::vector<employee> fetchAllEmployees(const std::string &dbPath) {
+    std::vector<employee> list;
 
     sqlite3* db = nullptr;
     sqlite3_stmt* stmt = nullptr;
@@ -86,7 +114,7 @@ std::vector<SimpleEmp> fetchAllEmployees(const std::string &dbPath) {
     }
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        SimpleEmp e;
+        employee e;
         e.id = sqlite3_column_int(stmt, 0);
         e.name = colTextSafe(stmt, 1);
         e.position = colTextSafe(stmt, 2);
@@ -103,7 +131,8 @@ std::vector<SimpleEmp> fetchAllEmployees(const std::string &dbPath) {
     return list;
 }
 
-std::string makePayslipHtml(const SimpleEmp& data, const std::string& logo) {
+
+std::string makePayslipHtml(const employee& data, const std::string& logo) {
     const double gross = data.salary * data.hoursWorked;
     const double total = gross - data.advance - data.others;
 
@@ -160,6 +189,7 @@ std::string makePayslipHtml(const SimpleEmp& data, const std::string& logo) {
     o << "</div>\n";
     return o.str();
 }
+
 
 // Export payslips to HTML. outFile can be absolute or relative. logoPath is a path that will be embedded in the HTML (relative file:// works).
 // Returns true on success, false on failure (no file written).
