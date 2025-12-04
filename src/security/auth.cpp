@@ -46,16 +46,6 @@ bool auth::testDeployAuth(const std::string& username, const std::string& passwo
 }
 
 
-bool auth::adminAuth(const std::string& username, const std::string& password) {
-    if (username == "admin" && cryptography::saltKey(cryptography::hashKey(password)) == "76rtdychgnih") {
-        ui::g_userName = "ADMIN";
-        ui::g_position = "ADMIN";
-        return true;
-    }
-    return false;
-}
-
-
 bool auth::basicAuth(const std::string& username, const std::string& password) {
     if (username == "basicUser" && password == "basicPass") {
         return true;
