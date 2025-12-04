@@ -39,3 +39,67 @@
  */
 
 #include "payroll.h"
+
+
+// Gross Pay
+double Payroll::computeGross(const Employee& emp) {
+    return emp.hourlyRate * emp.hoursWorked;
+}
+
+
+// Government Contributions
+double Payroll::computeSSS(const double gross) {
+    return gross * 0.045; // 4.5% employee share
+}
+
+
+double Payroll::computePhilHealth(const double gross) {
+    return gross * 0.025; // 2.5% employee share
+}
+
+
+double Payroll::computePagIbig(const double gross) {
+    return std::min(gross * 0.02, 100.0); // 2%, capped at 100
+}
+
+
+// TRAIN Law tax (weekly pay)
+double Payroll::computeTax(const double weeklyGrossAfterDeductions) {
+    double annual = weeklyGrossAfterDeductions * 52; // annualized
+    double tax = 0.0;
+
+    if (annual <= 250000)
+        tax = 0.0;
+    else if (annual <= 400000)
+        tax = (annual - 250000) * 0.20;
+    else if (annual <= 800000)
+        tax = 30000 + (annual - 400000) * 0.25;
+    else if (annual <= 2000000)
+        tax = 130000 + (annual - 800000) * 0.30;
+    else if (annual <= 8000000)
+        tax = 490000 + (annual - 2000000) * 0.32;
+    else
+        tax = 2410000 + (annual - 8000000) * 0.35;
+
+    return tax / 52.0; // weekly tax
+}
+
+
+// Compute everything
+PayrollResult Payroll::computePayroll(const Employee& emp) {
+    PayrollResult result{};
+
+    result.grossPay = computeGross(emp);
+    result.sss = computeSSS(result.grossPay);
+    result.philHealth = computePhilHealth(result.grossPay);
+    result.pagIbig = computePagIbig(result.grossPay);
+
+    // Taxable amount = gross - contributions
+    double taxableWeekly = result.grossPay - (result.sss + result.philHealth + result.pagIbig);
+    result.tax = computeTax(taxableWeekly);
+
+    // Net pay
+    result.netPay = result.grossPay - (result.sss + result.philHealth + result.pagIbig + result.tax);
+
+    return result;
+}

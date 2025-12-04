@@ -296,7 +296,29 @@ static void summaryUI() {
 
 
 static void payrollUI() {
-    ImGui::Text("This is the Payroll UI");
+    ImGui::Text("Payroll Management");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Load employees from the database
+    auto employees = db::getEmployees();
+
+    // Create a table layout
+    ImGui::Columns(4, "employee_table");
+    ImGui::Text("ID"); ImGui::NextColumn();
+    ImGui::Text("Name"); ImGui::NextColumn();
+    ImGui::Text("Hourly Rate"); ImGui::NextColumn();
+    ImGui::Text("Hours Worked"); ImGui::NextColumn();
+    ImGui::Separator();
+
+    for (auto& emp : employees) {
+        ImGui::Text("%d", emp.id); ImGui::NextColumn();
+        ImGui::Text("%s", emp.name.c_str()); ImGui::NextColumn();
+        ImGui::Text("%.2f", emp.hourlyRate); ImGui::NextColumn();
+        ImGui::Text("%.2f", emp.hoursWorked); ImGui::NextColumn();
+    }
+
+    ImGui::Columns(1);
 }
 
 
