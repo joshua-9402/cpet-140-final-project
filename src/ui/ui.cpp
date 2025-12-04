@@ -46,9 +46,6 @@ std::string ui::g_failedMessage; // Global failed message for failedUI
 std::string ui::g_userName;
 std::string ui::g_position;
 
-// Track whether the failed login modal is open
-static bool g_failedPopupOpen = false;
-
 
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s) {
@@ -113,8 +110,12 @@ static void failedUI() {
 
 
 static void loginUI() {
+    const std::string displayUsername = "Username: ";
+    const std::string displayPassword = "Password: ";
     static char username[128] = "";
     static char password[128] = "";
+    static std::string loginErrorMessage;
+
     constexpr int textboxPaddingX = 8;
     constexpr int textboxPaddingY = 5;
     constexpr float textboxWidth = 460.0f;
@@ -124,83 +125,90 @@ static void loginUI() {
     ImGui::Text("Welcome, please log in to continue");
 
     ImGui::SetCursorPos(ImVec2(24.0f, 150.0f));
-    ImGui::Text("Username");
+    ImGui::Text("%s", displayUsername.c_str());
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(textboxPaddingX, textboxPaddingY)); // custom padding
     ImGui::SetCursorPos(ImVec2(18.0f, 180.0f));
     ImGui::SetNextItemWidth(textboxWidth); // width in pixels
-    ImGui::InputText("##username", username, IM_ARRAYSIZE(username));
+    const bool usernameChanged = ImGui::InputText("##username", username, IM_ARRAYSIZE(username));
     ImGui::PopStyleVar();
 
     ImGui::SetCursorPos(ImVec2(24.0f, 220.0f));
-    ImGui::Text("Password");
+    ImGui::Text("%s", displayPassword.c_str());
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(textboxPaddingX, textboxPaddingY)); // custom padding
     ImGui::SetCursorPos(ImVec2(18.0f, 250.0f));
     ImGui::SetNextItemWidth(textboxWidth); // width in pixels
-    ImGui::InputText("##password", password, IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
+    const bool passwordChanged = ImGui::InputText("##password", password, IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
     ImGui::PopStyleVar();
+
+    // Clear any shown login error when the user edits either field
+    if (usernameChanged || passwordChanged) {
+        loginErrorMessage.clear();
+    }
+
+    // Show an inline error message (red) if there is one — render at a position that depends on the error
+    if (!loginErrorMessage.empty()) {
+        float errorMessagePosX = 120.0f;
+        float errorMessagePosY = 150.0f; // default
+
+        if (loginErrorMessage == "Please enter username.") {
+            // place just under the username input (username input at y=180, password label at y=220)
+            errorMessagePosY = 150.0f;
+        } else if (loginErrorMessage == "Please enter password.") {
+            // place just under the password input (password input at y=250)
+            errorMessagePosY = 220.0f;
+        } else if (loginErrorMessage == "Please enter username and password.") {
+            // both missing - place between the inputs area
+            errorMessagePosX = 20.0f;
+            errorMessagePosY = 120.0f;
+        } else if (loginErrorMessage == "Username and/or password are incorrect.") {
+            errorMessagePosY = 345.0f;
+        }
+
+        ImGui::SetCursorPos(ImVec2(errorMessagePosX, errorMessagePosY));
+        ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "%s", loginErrorMessage.c_str());
+    }
 
     ImGui::SetCursorPos(ImVec2(25.0f, 310.0f));
     if (setButtonCenter("Log In", fullWidthButtonSize(35)), ImGui::IsItemClicked()){
 
-        // First, validate inputs are provided. Show a failed popup when either field is empty.
-        if (username[0] == '\0' || password[0] == '\0') {
-            username[0] = '\0';
-            password[0] = '\0';
-            ui::g_failedMessage = "Error: Username and password are required.";
-            appConfig::g_auth = false;
+        // Validate inputs and provide precise feedback
+        const bool usernameEmpty = (username[0] == '\0');
+        const bool passwordEmpty = (password[0] == '\0');
 
-            // Mark the modal open and instruct ImGui to open it
-            g_failedPopupOpen = true;
-            ImGui::OpenPopup("Failed##login");
-        }
+        // Default to not-authenticated; only enable auth on successful checks
+        appConfig::g_auth = false;
 
-        // Inputs present — proceed with authentication checks
-        if (auth::testAuth(username, password)) {
-            appConfig::g_auth = true;
-            appConfig::g_testMode = true;
-            username[0] = '\0';
-            password[0] = '\0';
-            system::appShutdown();
-        } else if (auth::testDeployAuth(username, password)) {
-            appConfig::g_auth = true;
-            appConfig::g_testMode = false;
-            username[0] = '\0';
-            password[0] = '\0';
-            system::appShutdown();
+        if (usernameEmpty && passwordEmpty) {
+            loginErrorMessage = "Please enter username and password.";
+        } else if (usernameEmpty) {
+            loginErrorMessage = "Please enter username.";
+        } else if (passwordEmpty) {
+            loginErrorMessage = "Please enter password.";
         } else {
-            // Invalid credentials: show the failed UI modal (reuse the same mechanism)
-            ui::g_failedMessage = "Error: Invalid username or password.";
-            appConfig::g_auth = false;
-
-            g_failedPopupOpen = true;
-            ImGui::OpenPopup("Failed##login");
-        }
-    }
-
-    // Render the failed modal if it's open. This must be called every frame so the popup stays visible
-    {
-        constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
-
-        if (g_failedPopupOpen || ImGui::IsPopupOpen("Failed##login")) {
-            // Ensure the window size/pos are set for when the popup opens
-            ImGui::SetNextWindowSize(ImVec2(420.0f, 180.0f), ImGuiCond_Appearing);
-            ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-        }
-
-        // Pass pointer so ImGui will clear a flag when modal is closed by user actions
-        if (ImGui::BeginPopupModal("Failed##login", &g_failedPopupOpen, flags)) {
-            failedUI();
-            ImGui::Spacing();
-            if (ImGui::Button("Close")) {
-                ImGui::CloseCurrentPopup();
-                g_failedPopupOpen = false;
+            // Both fields provided: attempt authentication
+            if (auth::testAuth(username, password)) {
+                appConfig::g_auth = true;
+                appConfig::g_testMode = true;
+                loginErrorMessage.clear();
+                // Clear sensitive inputs on success
+                username[0] = '\0';
+                password[0] = '\0';
+                system::appShutdown();
+            } else if (auth::testDeployAuth(username, password)) {
+                appConfig::g_auth = true;
+                appConfig::g_testMode = false;
+                loginErrorMessage.clear();
+                username[0] = '\0';
+                password[0] = '\0';
+                system::appShutdown();
+            } else {
+                // Invalid credentials — show helpful feedback and keep inputs so user can correct them
+                loginErrorMessage = "Username and/or password are incorrect.";
             }
-            ImGui::EndPopup();
         }
     }
-
     ImGui::SetCursorPos(ImVec2(25.0f, 360.0f));
     if (setButtonCenter("Exit App", fullWidthButtonSize(35)), ImGui::IsItemClicked()) {system::appShutdown();}
 }
