@@ -115,9 +115,6 @@ static void loginUI() {
     static char username[128] = "";
     static char password[128] = "";
     static std::string loginErrorMessage;
-
-    constexpr int textboxPaddingX = 8;
-    constexpr int textboxPaddingY = 5;
     constexpr float textboxWidth = 460.0f;
 
     loadImage("icons/business_logo.png", 0.05f, 10.1f, 70.0f);
@@ -127,88 +124,41 @@ static void loginUI() {
     ImGui::SetCursorPos(ImVec2(24.0f, 150.0f));
     ImGui::Text("%s", displayUsername.c_str());
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(textboxPaddingX, textboxPaddingY)); // custom padding
+
     ImGui::SetCursorPos(ImVec2(18.0f, 180.0f));
     ImGui::SetNextItemWidth(textboxWidth); // width in pixels
-    const bool usernameChanged = ImGui::InputText("##username", username, IM_ARRAYSIZE(username));
-    ImGui::PopStyleVar();
+    ImGui::InputText("##username", username, IM_ARRAYSIZE(username));
 
     ImGui::SetCursorPos(ImVec2(24.0f, 220.0f));
     ImGui::Text("%s", displayPassword.c_str());
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(textboxPaddingX, textboxPaddingY)); // custom padding
     ImGui::SetCursorPos(ImVec2(18.0f, 250.0f));
     ImGui::SetNextItemWidth(textboxWidth); // width in pixels
-    const bool passwordChanged = ImGui::InputText("##password", password, IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
-    ImGui::PopStyleVar();
-
-    // Clear any shown login error when the user edits either field
-    if (usernameChanged || passwordChanged) {
-        loginErrorMessage.clear();
-    }
-
-    // Show an inline error message (red) if there is one — render at a position that depends on the error
-    if (!loginErrorMessage.empty()) {
-        float errorMessagePosX = 120.0f;
-        float errorMessagePosY = 150.0f; // default
-
-        if (loginErrorMessage == "Please enter username.") {
-            // place just under the username input (username input at y=180, password label at y=220)
-            errorMessagePosY = 150.0f;
-        } else if (loginErrorMessage == "Please enter password.") {
-            // place just under the password input (password input at y=250)
-            errorMessagePosY = 220.0f;
-        } else if (loginErrorMessage == "Please enter username and password.") {
-            // both missing - place between the inputs area
-            errorMessagePosX = 20.0f;
-            errorMessagePosY = 120.0f;
-        } else if (loginErrorMessage == "Username and/or password are incorrect.") {
-            errorMessagePosY = 345.0f;
-        }
-
-        ImGui::SetCursorPos(ImVec2(errorMessagePosX, errorMessagePosY));
-        ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "%s", loginErrorMessage.c_str());
-    }
+    ImGui::InputText("##password", password, IM_ARRAYSIZE(password), ImGuiInputTextFlags_Password);
 
     ImGui::SetCursorPos(ImVec2(25.0f, 310.0f));
     if (setButtonCenter("Log In", fullWidthButtonSize(35)), ImGui::IsItemClicked()){
+        if (auth::testAuth(username, password)) {
+            appConfig::g_auth = true;
+            appConfig::g_testMode = true;
 
-        // Validate inputs and provide precise feedback
-        const bool usernameEmpty = (username[0] == '\0');
-        const bool passwordEmpty = (password[0] == '\0');
+            system::appShutdown();
+        } else if (auth::testDeployAuth(username, password)) {
+            appConfig::g_auth = true;
+            appConfig::g_testMode = false;
 
-        // Default to not-authenticated; only enable auth on successful checks
-        appConfig::g_auth = false;
+            system::appShutdown();
+        } else if (auth::basicAuth(username, password)) {
+            appConfig::g_auth = true;
+            appConfig::g_testMode = false;
 
-        if (usernameEmpty && passwordEmpty) {
-            loginErrorMessage = "Please enter username and password.";
-        } else if (usernameEmpty) {
-            loginErrorMessage = "Please enter username.";
-        } else if (passwordEmpty) {
-            loginErrorMessage = "Please enter password.";
-        } else {
-            // Both fields provided: attempt authentication
-            if (auth::testAuth(username, password)) {
-                appConfig::g_auth = true;
-                appConfig::g_testMode = true;
-                loginErrorMessage.clear();
-                // Clear sensitive inputs on success
-                username[0] = '\0';
-                password[0] = '\0';
-                system::appShutdown();
-            } else if (auth::testDeployAuth(username, password)) {
-                appConfig::g_auth = true;
-                appConfig::g_testMode = false;
-                loginErrorMessage.clear();
-                username[0] = '\0';
-                password[0] = '\0';
-                system::appShutdown();
-            } else {
-                // Invalid credentials — show helpful feedback and keep inputs so user can correct them
-                loginErrorMessage = "Username and/or password are incorrect.";
-            }
+            ui::g_userName = std::string(username);
+            ui::g_position = "";
+
+            system::appShutdown();
         }
     }
+
     ImGui::SetCursorPos(ImVec2(25.0f, 360.0f));
     if (setButtonCenter("Exit App", fullWidthButtonSize(35)), ImGui::IsItemClicked()) {system::appShutdown();}
 }
@@ -297,28 +247,28 @@ static void summaryUI() {
 
 static void payrollUI() {
     ImGui::Text("Payroll Management");
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    // Load employees from the database
-    auto employees = db::getEmployees();
-
-    // Create a table layout
-    ImGui::Columns(4, "employee_table");
-    ImGui::Text("ID"); ImGui::NextColumn();
-    ImGui::Text("Name"); ImGui::NextColumn();
-    ImGui::Text("Hourly Rate"); ImGui::NextColumn();
-    ImGui::Text("Hours Worked"); ImGui::NextColumn();
-    ImGui::Separator();
-
-    for (auto& emp : employees) {
-        ImGui::Text("%d", emp.id); ImGui::NextColumn();
-        ImGui::Text("%s", emp.name.c_str()); ImGui::NextColumn();
-        ImGui::Text("%.2f", emp.hourlyRate); ImGui::NextColumn();
-        ImGui::Text("%.2f", emp.hoursWorked); ImGui::NextColumn();
-    }
-
-    ImGui::Columns(1);
+    // ImGui::Separator();
+    // ImGui::Spacing();
+    //
+    // // Load employees from the database
+    // auto employees = db::getEmployees();
+    //
+    // // Create a table layout
+    // ImGui::Columns(4, "employee_table");
+    // ImGui::Text("ID"); ImGui::NextColumn();
+    // ImGui::Text("Name"); ImGui::NextColumn();
+    // ImGui::Text("Hourly Rate"); ImGui::NextColumn();
+    // ImGui::Text("Hours Worked"); ImGui::NextColumn();
+    // ImGui::Separator();
+    //
+    // for (auto& emp : employees) {
+    //     ImGui::Text("%d", emp.id); ImGui::NextColumn();
+    //     ImGui::Text("%s", emp.name.c_str()); ImGui::NextColumn();
+    //     ImGui::Text("%.2f", emp.hourlyRate); ImGui::NextColumn();
+    //     ImGui::Text("%.2f", emp.hoursWorked); ImGui::NextColumn();
+    // }
+    //
+    // ImGui::Columns(1);
 }
 
 
