@@ -21,7 +21,6 @@
 #include <string>
 
 #include "auth.h"
-
 #include "../security/cryptography.h"
 #include "../ui/ui.h"
 
@@ -47,8 +46,18 @@ bool auth::testDeployAuth(const std::string& username, const std::string& passwo
 
 
 bool auth::basicAuth(const std::string& username, const std::string& password) {
-    if (username == "basicUser" && password == "basicPass") {
+    if (username == "user" && password == "pass") {
+        ui::g_userName = "STANDARD USER";
+        ui::g_position = "STANDARD USER";
         return true;
     }
     return false;
 }
+
+
+bool auth::adminAuth(const std::string& username, const std::string& password) {
+    if (username == "admin" && password == "admin") return true;
+    return false;
+}
+
+
