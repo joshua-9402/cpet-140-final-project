@@ -82,10 +82,7 @@ double Payroll::computeTax(const double weeklyGrossAfterDeductions) {
         tax = 2410000 + (annual - 8000000) * 0.35;
 
     return tax / 52.0; // weekly tax
-}
-
-
-// Compute everything
+}// Compute everything
 PayrollResult Payroll::computePayroll(const Employee& emp) {
     PayrollResult result{};
 
@@ -103,3 +100,6 @@ PayrollResult Payroll::computePayroll(const Employee& emp) {
 
     return result;
 }
+
+
+
