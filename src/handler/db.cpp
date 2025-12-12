@@ -108,6 +108,7 @@
 #include <sqlite3.h>
 #include <string>
 #include <fstream>
+#include <algorithm>
 
 
 bool db::isSQLiteAvailable() {
