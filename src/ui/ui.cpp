@@ -33,6 +33,8 @@
 #include "../config/config.h"
 #include "../security/cryptography.h"
 #include "../security/auth.h"
+
+
 // forward-declare the exporter to avoid including implementation here
 void exportPayslipsHtml(const std::string& outFile, const std::string& logoPath);
 
@@ -148,7 +150,7 @@ static void loginUI() {
             appConfig::g_testMode = false;
 
             system::appShutdown();
-        } else if (auth::basicAuth(username, password)) {
+        } else if (auth::mainAuth(username, password)) {
             appConfig::g_auth = true;
             appConfig::g_testMode = false;
 
@@ -246,7 +248,7 @@ static void summaryUI() {
 
 
 static void payrollUI() {
-    ImGui::Text("Payroll Management");
+    // ImGui::Text("Payroll Management");
     // ImGui::Separator();
     // ImGui::Spacing();
     //
@@ -279,6 +281,31 @@ static void monitorUI() {
 
 void testUI() {
     ImGui::Text("THIS IS ONLY FOR TESTING/DEBUGGING PURPOSE ONLY");
+
+    static char passkey[128] = "";
+    static std::string hashedPasskey;
+    static std::string salt;
+    static bool passkeyHashed = false;
+
+    ImGui::Text("Passkey");
+    ImGui::InputText("##passkey", passkey, IM_ARRAYSIZE(passkey));
+
+    if (ImGui::Button("Hash and Salt Passkey")) {
+        std::string passkeyStr(passkey);
+        hashedPasskey = cryptography::toHex(std::vector<unsigned char>(passkeyStr.begin(), passkeyStr.end()));
+        passkeyHashed = true;
+    }
+
+
+    if (passkeyHashed) {
+        ImGui::Spacing();
+        const float wrapWidth = ImGui::GetContentRegionAvail().x;
+        const float height = ImGui::GetTextLineHeightWithSpacing() +
+                             ImGui::CalcTextSize(hashedPasskey.c_str(), nullptr, false, wrapWidth).y;
+        ImGui::BeginChild("PasskeyDisplayPanel", ImVec2(0.0f, height), true);
+        ImGui::TextWrapped("Hashed Passkey: %s", hashedPasskey.c_str());
+        ImGui::EndChild();
+    }
 
     static int keySizeBits = 128; // Default key size
     ImGui::InputInt("Key Size (bits)", &keySizeBits, 8, 64);
