@@ -61,8 +61,7 @@ std::string cryptography::hashKey(const std::string& key) {
     constexpr size_t hashLen = crypto_generichash_BYTES;
     std::vector<unsigned char> hash(hashLen);
 
-    const unsigned char* data = key.empty() ? nullptr : reinterpret_cast<const unsigned char*>(key.data());
-    if (crypto_generichash(hash.data(), hashLen, data, key.size(), nullptr, 0) != 0) {
+    if (const unsigned char* data = key.empty() ? nullptr : reinterpret_cast<const unsigned char*>(key.data()); crypto_generichash(hash.data(), hashLen, data, key.size(), nullptr, 0) != 0) {
         sodium_memzero(hash.data(), hash.size());
         return {};
     }
