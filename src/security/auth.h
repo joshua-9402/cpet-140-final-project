@@ -12,7 +12,7 @@ class auth {
 
         static bool adminAuth(const std::string& username, const std::string& password);
 
-        static bool basicAuth(const std::string &username, const std::string &password);
+        static bool mainAuth(const std::string &username, const std::string &password);
 };
 
 
