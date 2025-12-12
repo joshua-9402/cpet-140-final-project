@@ -11,7 +11,7 @@
  *  - per-project expense totals, payroll/outflow summaries, and invoice/payment status
  *
  * Boundaries
- * - No UI rendering and no DB, or I/O operations.
+ * - No UI rendering and n DB, or I/O operations.
  * - Persistence or queries must go through the db adapter (db.h) or other handler / service modules.
  * - No system-level monitoring (CPU/memory) here.
  *

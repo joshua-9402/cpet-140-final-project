@@ -13,12 +13,4 @@
 #ifndef MONITOR_H
 #define MONITOR_H
 
-#include <string>
-#include <vector>
-#include <map>
-
-class monitor {
-};
-
-#endif // MONITOR_H
-
+#endif
