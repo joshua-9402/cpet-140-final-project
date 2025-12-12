@@ -257,7 +257,7 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
 // Delete a row by employee ID or project ID
 bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
     // Validate input is numeric
-    if (p_id.empty() || !std::ranges::all_of(p_id,[](const char c) { return std::isdigit(static_cast<unsigned char>(c)); })) {
+    if (p_id.empty() || !std::all_of(p_id.begin(), p_id.end(), [](const char c) { return std::isdigit(static_cast<unsigned char>(c)); })) {
         return false;
     }
 
@@ -308,15 +308,13 @@ bool db::checkEmployeeChanges() {
     }
 
     // Query to check if there are gaps in employee IDs
-    const char* sql = "SELECT EMPLOYEE_ID FROM EMPLOYEES ORDER BY EMPLOYEE_ID;";
     sqlite3_stmt* stmt = nullptr;
     bool hasGaps = false;
 
-    if (sqlite3_prepare_v2(dbPtr, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+    if (const auto sql = "SELECT EMPLOYEE_ID FROM EMPLOYEES ORDER BY EMPLOYEE_ID;"; sqlite3_prepare_v2(dbPtr, sql, -1, &stmt, nullptr) == SQLITE_OK) {
         int expectedId = 1;
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-            const int currentId = sqlite3_column_int(stmt, 0);
-            if (currentId != expectedId) {
+            if (const int currentId = sqlite3_column_int(stmt, 0); currentId != expectedId) {
                 hasGaps = true;
                 break;
             }
