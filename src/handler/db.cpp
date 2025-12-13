@@ -22,7 +22,7 @@
       └── data/
           ├── payroll/
           │   ├── 2025/
-          │   │   └── 11/17-22.db
+          │   │   └── 11/17-22/2025.db
           │   └── base_payroll.db
           └── projects/
               ├── expense/
@@ -80,7 +80,7 @@
  * |------------|--------------------------------------------|-------------|--------------------|-----------------------------------|
  *
  *
- * For Tracker/Monitoring System Building Materials (Per Project) (expense/${PROJECT_ID}.db, e.g., expense/PRJ-0001.db):
+ * For Tracker/Monitoring System Building Materials (Per Project) (expense/${PROJECT_ID}.db, e.g., expense/PRJ-00001.db):
  *  - MAT-{number} - a predefined material ID.
  *  - MAT-CS-{number} - custom/special order material ID.
  *
@@ -109,6 +109,8 @@
 #include <string>
 #include <fstream>
 #include <algorithm>
+#include <vector>
+#include <sstream>
 
 
 bool db::isSQLiteAvailable() {
@@ -158,17 +160,40 @@ bool db::createDatabase(const std::string& p_dbName) {
             "HOURS_WORK REAL NOT NULL,"
             "ADVANCE REAL NOT NULL"
             ");";
-    }
-    else if (filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
+    } else if (filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
         databaseTable =
             "CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
             "PROJECT_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
             "PROJECT_NAME TEXT NOT NULL,"
             "STATUS TEXT NOT NULL,"
-            "START_DATE TEXT NOT NULL"
+            "START_DATE TEXT NOT NULL,"
+            "NOTE TEXT"
             ");";
-    }
-    else {
+    } else if (
+        filename.find("PRJ") != std::string::npos &&
+        filename.find(".db") != std::string::npos){
+        databaseTable =
+            "CREATE TABLE IF NOT EXISTS MATERIALS ("
+            "MATERIAL_ID TEXT PRIMARY KEY,"
+            "MATERIAL_NAME TEXT NOT NULL,"
+            "QUANTITY REAL NOT NULL,"
+            "UNIT_PRICE REAL NOT NULL"
+            ");";
+    } else if (
+        filename.find("20") != std::string::npos &&
+        filename.find(".db") != std::string::npos) {
+        databaseTable =
+            "CREATE TABLE IF NOT EXISTS TIMESHEET ("
+            "EMPLOYEE_ID INTEGER PRIMARY KEY,"
+            "MON REAL NOT NULL,"
+            "TUE REAL NOT NULL,"
+            "WED REAL NOT NULL,"
+            "THU REAL NOT NULL,"
+            "FRI REAL NOT NULL,"
+            "SAT REAL NOT NULL,"
+            "SUN REAL NOT NULL"
+            ");";
+    } else {
         sqlite3_close(dbPointer);
         return false;
     }
@@ -392,3 +417,62 @@ bool db::rearrangeEmployeeIDs() {
     return true;
 }
 
+
+// Example usage (as a code comment):
+// std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+// // Fetch NAME for first employee: row=1, col=2 (1-based indices)
+// std::string name = db::fetchCell(dbPath, 1, 2);
+// if (name.empty()) {
+//     // empty string means either the cell is NULL/empty OR an error occured (e.g., row/col out-of-range)
+//     // To disambiguate, you might check the ID column:
+//     // std::string id = db::fetchCell(dbPath, 1, 1);
+//     // if (id.empty()) { /* row doesn't exist or error */ } else { /* name is empty */ }
+// } else {
+//     // use 'name'
+// }
+
+// Fetch a single cell value by 1-based row and column indices
+std::string db::fetchCell(const std::string& p_dbName, const size_t p_row, const size_t p_col) {
+    if (p_row == 0 || p_col == 0) return "";
+
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return "";
+    }
+
+    std::string sql = "SELECT * FROM ";
+    if (p_dbName == appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll) {
+        sql += "EMPLOYEES";
+    } else if (p_dbName == appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject) {
+        sql += "PROJECT_LIST";
+    } else {
+        sqlite3_close(dbPtr);
+        return "";
+    }
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(dbPtr, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        sqlite3_close(dbPtr);
+        return "";
+    }
+
+    if (p_col - 1 >= static_cast<size_t>(sqlite3_column_count(stmt))) {
+        sqlite3_finalize(stmt);
+        sqlite3_close(dbPtr);
+        return "";
+    }
+
+    std::string result;
+    for (size_t row = 0; sqlite3_step(stmt) == SQLITE_ROW && ++row <= p_row;) {
+        if (row == p_row) {
+            const auto cell = reinterpret_cast<const char*>(sqlite3_column_text(stmt, static_cast<int>(p_col - 1)));
+            result = cell ? cell : "";
+            break;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(dbPtr);
+    return result;
+}
