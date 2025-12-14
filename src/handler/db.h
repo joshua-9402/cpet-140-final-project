@@ -26,6 +26,8 @@ class db {
         static bool deleteRow(const std::string &p_dbName, const std::string &p_TableRow);
         static bool checkEmployeeChanges();
         static bool rearrangeEmployeeIDs();
+        static bool checkProjectChanges();
+        static bool rearrangeProjectIDs();
 
         // Fetch a single cell value. p_row and p_col are 1-based indices.
         // Returns the cell value as a string, or empty string on error.
