@@ -2,15 +2,12 @@
 
 ## Overview
 
-This workflow builds the **structuracost** application specifically for **macOS Big Sur (11.0+) on Intel x86_64** processors.
+This workflow builds the **structuracost** application specifically for **macOS Sequoia (15.0+) on Intel x86_64** processors.
 
 ## Supported Configurations
 
 ### macOS Versions
-- **macOS Sonoma (14.x)** - Intel Macs
-- **macOS Ventura (13.x)** - Intel Macs
-- **macOS Monterey (12.x)** - Intel Macs
-- **macOS Big Sur (11.x)** - Intel Macs (minimum)
+- **macOS Sequoia (15.x)** - Intel Macs (minimum)
 
 ### Architectures
 - **x86_64** (Intel 64-bit)
@@ -27,7 +24,7 @@ This workflow builds the **structuracost** application specifically for **macOS 
 ## Key Features
 
 - ✅ **Manual trigger only** - Runs only when you explicitly trigger it
-- ✅ **macOS Big Sur compatible** - Targets macOS 11.0+ (Big Sur and newer)
+- ✅ **macOS Sequoia compatible** - Targets macOS 15.0+ (Sequoia and newer)
 - ✅ **Intel x86_64 native** - Built specifically for Intel processors
 - ✅ **Configurable** - Choose Release or Debug build
 - ✅ **Optional LTO** - Enable/disable Link-Time Optimization
@@ -37,10 +34,7 @@ This workflow builds the **structuracost** application specifically for **macOS 
 ## Compatibility
 
 This build works on:
-- ✅ **macOS Big Sur (11.x)** - Intel Macs
-- ✅ **macOS Monterey (12.x)** - Intel Macs
-- ✅ **macOS Ventura (13.x)** - Intel Macs
-- ✅ **macOS Sonoma (14.x)** - Intel Macs
+- ✅ **macOS Sequoia (15.x)** - Intel Macs
 - ❌ **Apple Silicon Macs** - Use the ARM64 workflow instead
 
 ## How to Trigger a Build
