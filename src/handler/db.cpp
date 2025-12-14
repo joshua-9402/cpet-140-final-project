@@ -160,13 +160,8 @@ bool db::createDatabase(const std::string& p_dbName) {
             "ADVANCE REAL NOT NULL"
             ");";
     } else if (filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
-        // Drop the old table if it exists (to migrate from INTEGER to TEXT PRIMARY KEY)
-        char* dropErr = nullptr;
-        sqlite3_exec(dbPointer, "DROP TABLE IF EXISTS PROJECT_LIST;", nullptr, nullptr, &dropErr);
-        if (dropErr) sqlite3_free(dropErr);
-
         databaseTable =
-            "CREATE TABLE PROJECT_LIST ("
+            "CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
             "PROJECT_ID TEXT PRIMARY KEY,"
             "PROJECT_NAME TEXT NOT NULL,"
             "STATUS TEXT NOT NULL,"
