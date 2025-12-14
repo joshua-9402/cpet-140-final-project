@@ -267,7 +267,6 @@ bool system::deleteFile(const std::string& p_filePath) {
 }
 
 bool system::printPayslips(const std::string& dbPath, const std::string& logoPath, const std::vector<int>& employeeIds) {
-    // For now, we ignore employeeIds and print all employees from the database
     // The print module will fetch all employees from the database
     (void)dbPath; // dbPath is used by the print module internally
     (void)employeeIds; // Future enhancement: filter by specific IDs
@@ -277,6 +276,20 @@ bool system::printPayslips(const std::string& dbPath, const std::string& logoPat
 
     // Call the print module to export payslips
     return exportPayslipsHtml(outputPath, logoPath);
+}
+
+
+bool system::printProjectReport(const std::string& projectId, const std::string& logoPath) {
+    if (projectId.empty()) {
+        logMessage(messageClassification::ERROR, "printProjectReport: project ID is empty\n");
+        return false;
+    }
+
+    // Generate output path in data directory
+    const std::string outputPath = appConfig::g_dataDirectory + "project_report_" + projectId + ".html";
+
+    // Call the print module to export project report
+    return exportProjectReportHtml(projectId, outputPath, logoPath);
 }
 
 

@@ -61,6 +61,10 @@ class system {
         // Returns true on success, false on failure.
         static bool printPayslips(const std::string& dbPath, const std::string& logoPath, const std::vector<int>& employeeIds);
 
+        // Print project report for the specified project ID.
+        // Returns true on success, false on failure.
+        static bool printProjectReport(const std::string& projectId, const std::string& logoPath);
+
         // Application shutdown routine to clean up resources.
         static void appShutdown();
 };
