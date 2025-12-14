@@ -12,5 +12,12 @@
 
 #ifndef MONITOR_H
 #define MONITOR_H
-
+namespace monitor {
+    bool addProject(
+        const std::string& p_projectName,
+        const std::string& p_status,
+        const std::string& p_startDate,
+        const std::string& p_note = ""
+    );
+}
 #endif
