@@ -20,6 +20,7 @@
 
 
 #include <string>
+#include <thread>
 
 #include "ui/ui.h"
 #include "config/config.h"
@@ -68,19 +69,27 @@ int main() {
     system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Completed Successfully.\n");
     system::logMessage(system::messageClassification::INFO, "Main Application Starting.\n");
 
-    // Main loop: rearrange employee IDs if needed and run the main UI
-    while (true) {
-        if (!appConfig::g_auth) {
-            ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth");
-            if (!appConfig::g_auth) {
-                return 0;
+    // Background thread to monitor and rearrange employee IDs periodically.
+    static std::atomic s_runBackground{true};
+    std::thread([] {
+        while (s_runBackground.load(std::memory_order_relaxed)) {
+            if (db::checkEmployeeChanges()) {
+                db::rearrangeEmployeeIDs();
             }
+            std::this_thread::sleep_for(std::chrono::seconds(5));
         }
+    }).detach();
 
-        if (db::checkEmployeeChanges()) {
-            db::rearrangeEmployeeIDs();
+    // UI loop: repeat showing login then main UI depending on authentication state.
+    if (!appConfig::g_auth) {
+        ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth");
+        // When the Run returns, check if authentication was set. If not, user chose to exit — stop the app.
+        if (!appConfig::g_auth) {
+            s_runBackground.store(false, std::memory_order_relaxed);
+            system::logMessage(system::messageClassification::INFO, "Application exiting.\n");
+            system::appShutdown();
         }
-
-        ui::constructUI(appConfig::g_appTitle, appConfig::g_fontName, appConfig::g_defaultWidth, appConfig::g_defaultHeight, "main");
     }
+    ui::constructUI(appConfig::g_appTitle, appConfig::g_fontName, appConfig::g_defaultWidth, appConfig::g_defaultHeight, "main");
+    return 0;
 }
