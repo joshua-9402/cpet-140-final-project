@@ -62,6 +62,32 @@ void systemCheck() {
     db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject);
 }
 
+static std::atomic s_runBackground{true};
+
+void runUIFlow() {
+    // Show login if not authenticated
+    if (!appConfig::g_auth) {
+        ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth");
+        // When the Run returns, check if authentication was set. If not, user chose to exit — stop the app.
+        if (!appConfig::g_auth) {
+            s_runBackground.store(false, std::memory_order_relaxed);
+            system::logMessage(system::messageClassification::INFO, "Application exiting.\n");
+            return;
+        }
+    }
+
+    // Store auth state before showing main UI
+    const bool wasAuthenticated = appConfig::g_auth;
+
+    // Show main UI
+    ui::constructUI(appConfig::g_appTitle, appConfig::g_fontName, appConfig::g_defaultWidth, appConfig::g_defaultHeight, "main");
+
+    // After main UI closes, check if we should restart (logout was pressed)
+    if (wasAuthenticated && !appConfig::g_auth) {
+        // User logged out - restart the UI flow
+        runUIFlow();
+    }
+}
 
 int main() {
     // Perform checks before starting the application
@@ -71,7 +97,6 @@ int main() {
     system::logMessage(system::messageClassification::INFO, "Main Application Starting.\n");
 
     // Background thread to monitor and rearrange employee IDs and project IDs periodically.
-    static std::atomic s_runBackground{true};
     std::thread([] {
         while (s_runBackground.load(std::memory_order_relaxed)) {
             if (db::checkEmployeeChanges()) {
@@ -84,16 +109,11 @@ int main() {
         }
     }).detach();
 
-    // UI loop: repeat showing login then main UI depending on authentication state.
-    if (!appConfig::g_auth) {
-        ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth");
-        // When the Run returns, check if authentication was set. If not, user chose to exit — stop the app.
-        if (!appConfig::g_auth) {
-            s_runBackground.store(false, std::memory_order_relaxed);
-            system::logMessage(system::messageClassification::INFO, "Application exiting.\n");
-            system::appShutdown();
-        }
-    }
-    ui::constructUI(appConfig::g_appTitle, appConfig::g_fontName, appConfig::g_defaultWidth, appConfig::g_defaultHeight, "main");
+    // Start the UI flow
+    runUIFlow();
+
+    // Perform cleanup after UI flow exits
+    system::appShutdown();
+
     return 0;
 }
