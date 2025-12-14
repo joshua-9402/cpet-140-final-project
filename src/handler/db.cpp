@@ -28,8 +28,6 @@
               ├── expense/
               │   ├── PRJ-0001.db
               │   └── PRJ-0002.db
-              ├── materials.db
-              ├── materials-custom.db
               └── base_projects.db
 
  * For Payroll System:
