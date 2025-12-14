@@ -356,7 +356,7 @@ jobs:
     if: inputs.macos != 'skip'
     strategy:
       matrix:
-        include: ${{ fromJSON(inputs.macos == 'both' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"},{"target":"intel","runner":"macos-13","deployment":"11.0"}]' || inputs.macos == 'arm64' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"}]' || '[{"target":"intel","runner":"macos-13","deployment":"11.0"}]') }}
+        include: ${{ fromJSON(inputs.macos == 'both' && '[{"target":"arm64","runner":"macos-15","deployment":"14.0"},{"target":"intel","runner":"macos-15","deployment":"11.0"}]' || inputs.macos == 'arm64' && '[{"target":"arm64","runner":"macos-14","deployment":"14.0"}]' || '[{"target":"intel","runner":"macos-13","deployment":"11.0"}]') }}
 
     steps:
     - name: Checkout code
