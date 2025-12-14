@@ -125,7 +125,9 @@ static void loadImage(const std::string& p_location, const float p_locationXPx, 
 static void failedUI() {
     ImGui::Text("%s", ui::g_failedMessage.c_str());
     if (ImGui::Button("Exit")) {
-        system::appShutdown();
+        if (auto* params = HelloImGui::GetRunnerParams()) {
+            params->appShallExit = true;
+        }
     }
 }
 
@@ -163,25 +165,44 @@ static void loginUI() {
             appConfig::g_auth = true;
             appConfig::g_testMode = true;
 
-            system::appShutdown();
+            username[0] = '\0';
+            password[0] = '\0';
+
+            if (auto* params = HelloImGui::GetRunnerParams()) {
+                params->appShallExit = true;
+            }
         } else if (auth::testDeployAuth(username, password)) {
             appConfig::g_auth = true;
             appConfig::g_testMode = false;
 
-            system::appShutdown();
+            username[0] = '\0';
+            password[0] = '\0';
+
+            if (auto* params = HelloImGui::GetRunnerParams()) {
+                params->appShallExit = true;
+            }
         } else if (auth::mainAuth(username, password)) {
             appConfig::g_auth = true;
             appConfig::g_testMode = false;
 
+            username[0] = '\0';
+            password[0] = '\0';
+
             ui::g_userName = std::string(username);
             ui::g_position = "";
 
-            system::appShutdown();
+            if (auto* params = HelloImGui::GetRunnerParams()) {
+                params->appShallExit = true;
+            }
         }
     }
 
     ImGui::SetCursorPos(ImVec2(25.0f, 360.0f));
-    if (setButtonCenter("Exit App", fullWidthButtonSize(35)), ImGui::IsItemClicked()) {system::appShutdown();}
+    if (setButtonCenter("Exit App", fullWidthButtonSize(35)), ImGui::IsItemClicked()) {
+        if (auto* params = HelloImGui::GetRunnerParams()) {
+            params->appShallExit = true;
+        }
+    }
 }
 
 static void accountUI() {
@@ -201,12 +222,13 @@ static void accountUI() {
         ui::g_userName = "";
         ui::g_position = "";
         // Force the runner to use the login window size on next run, then request the current Run to exit.
-        if (HelloImGui::GetRunnerParams()) {
-            HelloImGui::GetRunnerParams()->appWindowParams.windowGeometry.size = { std::clamp(appConfig::g_loginWidth, 50, 3840), std::clamp(appConfig::g_loginHeight, 50, 2160) };
+        if (auto* params = HelloImGui::GetRunnerParams()) {
+            params->appWindowParams.windowGeometry.size = { std::clamp(appConfig::g_loginWidth, 50, 3840), std::clamp(appConfig::g_loginHeight, 50, 2160) };
             // Ensure the runner applies the resize when it exits the current Run
-            HelloImGui::GetRunnerParams()->appWindowParams.windowGeometry.resizeAppWindowAtNextFrame = true;
+            params->appWindowParams.windowGeometry.resizeAppWindowAtNextFrame = true;
+            // Request app to quit so HelloImGui::Run returns and we can restart at login
+            params->appShallExit = true;
         }
-        system::appShutdown();
     }
 }
 
@@ -1640,7 +1662,12 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
         unsigned char* pixels = stbi_load(iconPath.c_str(), &w, &h, &comps, 4);
         if (!pixels) return;
 
-        auto bp = HelloImGui::GetRunnerParams()->backendPointers;
+        auto* params = HelloImGui::GetRunnerParams();
+        if (!params) {
+            stbi_image_free(pixels);
+            return;
+        }
+        auto bp = params->backendPointers;
 
     #ifdef UI_HAVE_GLFW
         if (bp.glfwWindow) {
