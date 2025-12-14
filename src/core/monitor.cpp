@@ -188,24 +188,24 @@ public:
 // -----------------------------
 // Main Program
 // -----------------------------
-int main() {
-    MonitoringSystem system;
-
-    // Sample data (you can replace with real inputs)
-    system.addExpense("Office Supplies", 4500.75);
-    system.addExpense("Utilities", 12000.00);
-    system.addExpense("Maintenance", 3500.25);
-
-    system.addPayroll("Alice Santos", 30000, 2500);
-    system.addPayroll("Mark Dela Cruz", 28000, 2000);
-    system.addPayroll("Jessa Ramirez", 32000, 3000);
-
-    // Display metrics
-    system.showExpenseMetrics();
-    system.showPayrollMetrics();
-
-    // Display summaries
-    system.showSummary();
-
-    return 0;
-}
+// int main() {
+//     MonitoringSystem system;
+//
+//     // Sample data (you can replace with real inputs)
+//     system.addExpense("Office Supplies", 4500.75);
+//     system.addExpense("Utilities", 12000.00);
+//     system.addExpense("Maintenance", 3500.25);
+//
+//     system.addPayroll("Alice Santos", 30000, 2500);
+//     system.addPayroll("Mark Dela Cruz", 28000, 2000);
+//     system.addPayroll("Jessa Ramirez", 32000, 3000);
+//
+//     // Display metrics
+//     system.showExpenseMetrics();
+//     system.showPayrollMetrics();
+//
+//     // Display summaries
+//     system.showSummary();
+//
+//     return 0;
+// }
