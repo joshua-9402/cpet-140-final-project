@@ -287,7 +287,7 @@ macOS README files:
 | Workflow  | Target Hardware             | Architecture | Target macOS Versions | C++ Std | Asset Name                                        |
 |-----------|-----------------------------|--------------|-----------------------|---------|---------------------------------------------------|
 | **macOS** | Apple Silicon (M1/M2/M3/M4) | ARM64        | macOS Sequoia 15.0    | C++20   | `structuracost-mac-arm64-${version}-${dev_stage}` |
-| **macOS** | Intel Macs                  | x86_64       | macOS Ventura 13.0    | C++20   | `structuracost-mac-intel-${version}-${dev_stage}` |
+| **macOS** | Intel Macs                  | x86_64       | macOS Sequoia 15.0    | C++20   | `structuracost-mac-intel-${version}-${dev_stage}` |
 
 #### Linux Builds
 
