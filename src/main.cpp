@@ -52,13 +52,14 @@ void systemCheck() {
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
 
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory);}
+    if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_payrollAttendanceDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_payrollAttendanceDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/")) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/");}
 
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory);}
 
     if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll);}
-    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject);}
+    db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject);
 }
 
 
@@ -69,14 +70,17 @@ int main() {
     system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Completed Successfully.\n");
     system::logMessage(system::messageClassification::INFO, "Main Application Starting.\n");
 
-    // Background thread to monitor and rearrange employee IDs periodically.
+    // Background thread to monitor and rearrange employee IDs and project IDs periodically.
     static std::atomic s_runBackground{true};
     std::thread([] {
         while (s_runBackground.load(std::memory_order_relaxed)) {
             if (db::checkEmployeeChanges()) {
                 db::rearrangeEmployeeIDs();
             }
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+            if (db::checkProjectChanges()) {
+                db::rearrangeProjectIDs();
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }).detach();
 
