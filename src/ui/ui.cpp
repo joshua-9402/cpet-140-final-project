@@ -255,7 +255,7 @@ static void selectorUI() {
     ImGui::SetWindowFontScale(1.7f); // Larger greeting
     ImGui::Text("%s", l_greetings.c_str());
     ImGui::SetWindowFontScale(1.0f); // Reset font scale
-    ImGui::SetCursorPos(ImVec2(40.0f, 135.0f));
+    ImGui::SetCursorPos(ImVec2(40.0f, 145.0f));
     ImGui::Text("%s", ui::g_userName.c_str());
 
     // Navigation buttons control the right pane
@@ -292,92 +292,452 @@ static void selectorUI() {
 
 
 static void summaryUI() {
-    ImGui::Text("Summary Panel");
+    ImGui::SetWindowFontScale(1.7f);
+    ImGui::Text("Dashboard Overview");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Count total employees
+    int totalEmployees = 0;
+    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+    for (int row = 1; row <= 1000; ++row) {
+        if (db::fetchCell(employeeDB, static_cast<size_t>(row), 1).empty()) break;
+        ++totalEmployees;
+    }
+
+    // Count total projects
+    int totalProjects = 0;
+    int activeProjects = 0;
+    const std::string projectDB = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
+    for (int row = 1; row <= 1000; ++row) {
+        const std::string projectID = db::fetchCell(projectDB, static_cast<size_t>(row), 1);
+        if (projectID.empty()) break;
+        ++totalProjects;
+        const std::string status = db::fetchCell(projectDB, static_cast<size_t>(row), 3);
+        if (status == "Active" || status == "In Progress") {
+            ++activeProjects;
+        }
+    }
+
+    // Statistics Cards
+    const float cardWidth = 280.0f;
+    const float cardHeight = 120.0f;
+    const ImVec4 cardColor = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    const ImVec4 accentColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, cardColor);
+
+    // Employee Count Card
+    ImGui::BeginChild("EmployeeCard", ImVec2(cardWidth, cardHeight), true);
+    ImGui::SetCursorPosY(15.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextColored(accentColor, "Total Employees");
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("%d", totalEmployees);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetCursorPosY(cardHeight - 30.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextDisabled("Active in payroll");
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Project Count Card
+    ImGui::BeginChild("ProjectCard", ImVec2(cardWidth, cardHeight), true);
+    ImGui::SetCursorPosY(15.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextColored(accentColor, "Total Projects");
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("%d", totalProjects);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetCursorPosY(cardHeight - 30.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextDisabled("Managed projects");
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Active Projects Card
+    ImGui::BeginChild("ActiveCard", ImVec2(cardWidth, cardHeight), true);
+    ImGui::SetCursorPosY(15.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextColored(accentColor, "Active Projects");
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("%d", activeProjects);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetCursorPosY(cardHeight - 30.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextDisabled("In progress/active");
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // System Status Card
+    ImGui::BeginChild("SystemCard", ImVec2(cardWidth, cardHeight), true);
+    ImGui::SetCursorPosY(15.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextColored(accentColor, "System Status");
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::SetCursorPosY(50.0f);
+    ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "ONLINE");
+    ImGui::SetCursorPosY(cardHeight - 30.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextDisabled("All systems operational");
+    ImGui::EndChild();
+
+    ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Recent Projects Section
+    ImGui::SetWindowFontScale(1.1f);
+    ImGui::Text("Recent Projects");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Spacing();
+
+    ImGui::BeginChild("RecentProjects", ImVec2(0, 250), true);
+
+    // Table headers
+    ImGui::Columns(5, "ProjectTable");
+    ImGui::Separator();
+    ImGui::Text("Project ID"); ImGui::NextColumn();
+    ImGui::Text("Project Name"); ImGui::NextColumn();
+    ImGui::Text("Status"); ImGui::NextColumn();
+    ImGui::Text("Start Date"); ImGui::NextColumn();
+    ImGui::Text("Notes"); ImGui::NextColumn();
+    ImGui::Separator();
+
+    // Display all projects (up to 1000)
+    int displayedProjects = 0;
+    for (int row = 1; row <= 1000; ++row) {
+        const std::string projectID = db::fetchCell(projectDB, static_cast<size_t>(row), 1);
+        if (projectID.empty()) break;
+
+        const std::string projectName = db::fetchCell(projectDB, static_cast<size_t>(row), 2);
+        const std::string status = db::fetchCell(projectDB, static_cast<size_t>(row), 3);
+        const std::string startDate = db::fetchCell(projectDB, static_cast<size_t>(row), 4);
+        const std::string notes = db::fetchCell(projectDB, static_cast<size_t>(row), 5);
+
+        // Color code by status
+        ImVec4 statusColor = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
+        if (status == "Active" || status == "In Progress") {
+            statusColor = ImVec4(0.2f, 0.8f, 0.2f, 1.0f);
+        } else if (status == "Completed") {
+            statusColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
+        } else if (status == "On-Hold") {
+            statusColor = ImVec4(0.8f, 0.6f, 0.2f, 1.0f);
+        }
+
+        ImGui::Text("%s", projectID.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", projectName.c_str()); ImGui::NextColumn();
+        ImGui::TextColored(statusColor, "%s", status.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", startDate.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", notes.c_str()); ImGui::NextColumn();
+        ImGui::Separator();
+
+        ++displayedProjects;
+    }
+
+    if (displayedProjects == 0) {
+        ImGui::Columns(1);
+        ImGui::TextDisabled("No projects available");
+    }
+
+    ImGui::Columns(1);
+    ImGui::EndChild();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Employee Overview Section
+    ImGui::SetWindowFontScale(1.1f);
+    ImGui::Text("List of Employees");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Spacing();
+
+    ImGui::BeginChild("RecentEmployees", ImVec2(0, 250), true);
+
+    // Table headers
+    ImGui::Columns(4, "EmployeeTable");
+    ImGui::Separator();
+    ImGui::Text("Employee No."); ImGui::NextColumn();
+    ImGui::Text("Name"); ImGui::NextColumn();
+    ImGui::Text("Position"); ImGui::NextColumn();
+    ImGui::Text("Site Location"); ImGui::NextColumn();
+    ImGui::Separator();
+
+    // Display all employees (up to 1000)
+    int displayedEmployees = 0;
+    for (int row = 1; row <= 1000; ++row) {
+        const std::string employeeNo = db::fetchCell(employeeDB, static_cast<size_t>(row), 1);
+        if (employeeNo.empty()) break;
+
+        const std::string name = db::fetchCell(employeeDB, static_cast<size_t>(row), 2);
+        const std::string position = db::fetchCell(employeeDB, static_cast<size_t>(row), 3);
+        const std::string location = db::fetchCell(employeeDB, static_cast<size_t>(row), 4);
+
+        ImGui::Text("%s", employeeNo.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", name.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", position.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", location.c_str()); ImGui::NextColumn();
+        ImGui::Separator();
+
+        ++displayedEmployees;
+    }
+
+    if (displayedEmployees == 0) {
+        ImGui::Columns(1);
+        ImGui::TextDisabled("No employees available");
+    }
+
+    ImGui::Columns(1);
+    ImGui::EndChild();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    // Footer with current date/time
+    const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
+    const int currentMonth = system::fetchTime(system::PartDateTime::MONTH);
+    const int currentDay = system::fetchTime(system::PartDateTime::DAY);
+    const int currentHour = system::fetchTime(system::PartDateTime::HOUR);
+    const int currentMinute = system::fetchTime(system::PartDateTime::MINUTE);
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Last Updated: %04d-%02d-%02d %02d:%02d",
+                        currentYear, currentMonth, currentDay, currentHour, currentMinute);
 }
 
 
 static void payrollUI() {
+    ImGui::SetWindowFontScale(1.7f);
     ImGui::Text("Payroll Management");
-    // ImGui::Separator();
-    // ImGui::Spacing();
-    //
-    // // Load employees from the database
-    // auto employees = db::getEmployees();
-    //
-    // // Create a table layout
-    // ImGui::Columns(4, "employee_table");
-    // ImGui::Text("ID"); ImGui::NextColumn();
-    // ImGui::Text("Name"); ImGui::NextColumn();
-    // ImGui::Text("Hourly Rate"); ImGui::NextColumn();
-    // ImGui::Text("Hours Worked"); ImGui::NextColumn();
-    // ImGui::Separator();
-    //
-    // for (auto& emp : employees) {
-    //     ImGui::Text("%d", emp.id); ImGui::NextColumn();
-    //     ImGui::Text("%s", emp.name.c_str()); ImGui::NextColumn();
-    //     ImGui::Text("%.2f", emp.hourlyRate); ImGui::NextColumn();
-    //     ImGui::Text("%.2f", emp.hoursWorked); ImGui::NextColumn();
-    // }
-    //
-    // ImGui::Columns(1);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+
+    // Count total employees
+    int totalEmployees = 0;
+    double totalSalaryExpense = 0.0;
+    double totalAdvances = 0.0;
+
+    for (int row = 1; row <= 1000; ++row) {
+        if (db::fetchCell(employeeDB, static_cast<size_t>(row), 1).empty()) break;
+        ++totalEmployees;
+
+        const std::string salaryStr = db::fetchCell(employeeDB, static_cast<size_t>(row), 5);
+        const std::string hoursStr = db::fetchCell(employeeDB, static_cast<size_t>(row), 6);
+        const std::string advanceStr = db::fetchCell(employeeDB, static_cast<size_t>(row), 7);
+
+        try {
+            const double salary = salaryStr.empty() ? 0.0 : std::stod(salaryStr);
+            const double hours = hoursStr.empty() ? 0.0 : std::stod(hoursStr);
+            const double advance = advanceStr.empty() ? 0.0 : std::stod(advanceStr);
+            totalSalaryExpense += salary * hours;
+            totalAdvances += advance;
+        } catch (...) {
+            // Skip invalid numeric values
+        }
+    }
+
+    // Statistics Cards
+    const float cardWidth = 380.0f;
+    const float cardHeight = 120.0f;
+    const ImVec4 cardColor = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    const ImVec4 accentColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, cardColor);
+
+    // Total Employees Card
+    ImGui::BeginChild("PayrollEmployeeCard", ImVec2(cardWidth, cardHeight), true);
+    ImGui::SetCursorPosY(15.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextColored(accentColor, "Total Employees");
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("%d", totalEmployees);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetCursorPosY(cardHeight - 30.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextDisabled("Active employees");
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Total Salary Expense Card
+    ImGui::BeginChild("SalaryExpenseCard", ImVec2(cardWidth, cardHeight), true);
+    ImGui::SetCursorPosY(15.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextColored(accentColor, "Total Salary Expense");
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("%.2f", totalSalaryExpense);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetCursorPosY(cardHeight - 30.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextDisabled("Total payroll cost");
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Total Advances Card
+    ImGui::BeginChild("AdvancesCard", ImVec2(cardWidth, cardHeight), true);
+    ImGui::SetCursorPosY(15.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextColored(accentColor, "Total Advances");
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("%.2f", totalAdvances);
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetCursorPosY(cardHeight - 30.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextDisabled("Employee advances");
+    ImGui::EndChild();
+
+    ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Employee Payroll Table
+    ImGui::SetWindowFontScale(1.1f);
+    ImGui::Text("All Employee Payroll Records");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Spacing();
+
+    ImGui::BeginChild("PayrollTable", ImVec2(0, 0), true);
+
+    // Table headers
+    ImGui::Columns(7, "PayrollColumns");
+    ImGui::Separator();
+    ImGui::Text("Employee No."); ImGui::NextColumn();
+    ImGui::Text("Name"); ImGui::NextColumn();
+    ImGui::Text("Position"); ImGui::NextColumn();
+    ImGui::Text("Site Location"); ImGui::NextColumn();
+    ImGui::Text("Hourly Rate"); ImGui::NextColumn();
+    ImGui::Text("Hours Worked"); ImGui::NextColumn();
+    ImGui::Text("Advance"); ImGui::NextColumn();
+    ImGui::Separator();
+
+    // Display all employees (up to 1000)
+    int displayedEmployees = 0;
+    for (int row = 1; row <= 1000; ++row) {
+        const std::string employeeNo = db::fetchCell(employeeDB, static_cast<size_t>(row), 1);
+        if (employeeNo.empty()) break;
+
+        const std::string name = db::fetchCell(employeeDB, static_cast<size_t>(row), 2);
+        const std::string position = db::fetchCell(employeeDB, static_cast<size_t>(row), 3);
+        const std::string location = db::fetchCell(employeeDB, static_cast<size_t>(row), 4);
+        const std::string salary = db::fetchCell(employeeDB, static_cast<size_t>(row), 5);
+        const std::string hoursWorked = db::fetchCell(employeeDB, static_cast<size_t>(row), 6);
+        const std::string advance = db::fetchCell(employeeDB, static_cast<size_t>(row), 7);
+
+        ImGui::Text("%s", employeeNo.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", name.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", position.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", location.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", salary.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", hoursWorked.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", advance.c_str()); ImGui::NextColumn();
+        ImGui::Separator();
+
+        ++displayedEmployees;
+    }
+
+    if (displayedEmployees == 0) {
+        ImGui::Columns(1);
+        ImGui::TextDisabled("No employee payroll records available");
+    } else {
+        ImGui::Columns(1);
+        ImGui::Separator();
+        ImGui::TextDisabled("Showing %d employee(s)", displayedEmployees);
+    }
+
+    ImGui::EndChild();
 }
 
 
 static void monitorUI() {
     static char name[128], position[128], employeeID[128], location[128], salary[128], hoursWorked[128], advance[128];
-    constexpr float yAxis = 95.0f;
-    constexpr float textboxWidth = 300.0f;
 
     ImGui::SetWindowFontScale(1.7f);
-    ImGui::Text("Monitoring Management");
+    ImGui::Text("Data Management & Monitoring");
     ImGui::SetWindowFontScale(1.0f);
     ImGui::Separator();
     ImGui::Spacing();
+
+    // ==============================================
+    // EMPLOYEE MANAGEMENT SECTION
+    // ==============================================
+    ImGui::SetWindowFontScale(1.1f);
+    ImGui::TextColored(ImVec4(0.2f, 0.6f, 0.8f, 1.0f), "Employee Management");
+    ImGui::SetWindowFontScale(1.0f);
     ImGui::Spacing();
 
-    ImGui::Text("Employee Information");
+    ImGui::BeginChild("EmployeeManagement", ImVec2(0, 350), true);
+    ImGui::Spacing();
 
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis));
+    // Employee Form Fields - Row 1
     ImGui::Text("Name:");
-    ImGui::SetCursorPos(ImVec2(65.0f, yAxis));
-    ImGui::SetNextItemWidth(textboxWidth + 200.0f);
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(300.0f);
     ImGui::InputText("##name", name, IM_ARRAYSIZE(name));
 
-    ImGui::SetCursorPos(ImVec2(580.0f, yAxis));
+    ImGui::SameLine(450.0f);
     ImGui::Text("Position:");
-    ImGui::SetCursorPos(ImVec2(650.0f, yAxis));
-    ImGui::SetNextItemWidth(textboxWidth);
+    ImGui::SameLine(550.0f);
+    ImGui::SetNextItemWidth(250.0f);
     ImGui::InputText("##position", position, IM_ARRAYSIZE(position));
 
-    ImGui::SetCursorPos(ImVec2(975.0f, yAxis));
+    ImGui::SameLine(830.0f);
     ImGui::Text("Employee ID:");
-    ImGui::SetCursorPos(ImVec2(1080.0f, yAxis));
-    ImGui::SetNextItemWidth(textboxWidth - 110.0f);
+    ImGui::SameLine(950.0f);
+    ImGui::SetNextItemWidth(150.0f);
     ImGui::InputText("##employeeID", employeeID, IM_ARRAYSIZE(employeeID));
 
-    ImGui::SetCursorPos(ImVec2(10.0, yAxis + 40.0f));
-    ImGui::Text("Location / Site:");
-    ImGui::SetCursorPos(ImVec2(130.0f, yAxis + 40.0f));
-    ImGui::SetNextItemWidth(textboxWidth);
+    ImGui::Spacing();
+
+    // Employee Form Fields - Row 2
+    ImGui::Text("Site Location:");
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(250.0f);
     ImGui::InputText("##location", location, IM_ARRAYSIZE(location));
 
-    ImGui::SetCursorPos(ImVec2(445.0f, yAxis + 40.0f));
-    ImGui::Text("Salary (per Hour):");
-    ImGui::SetCursorPos(ImVec2(585.0f, yAxis + 40.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 200.0f);
+    ImGui::SameLine(400.0f);
+    ImGui::Text("Hourly Rate:");
+    ImGui::SameLine(510.0f);
+    ImGui::SetNextItemWidth(120.0f);
     ImGui::InputText("##salary", salary, IM_ARRAYSIZE(salary));
 
-    ImGui::SetCursorPos(ImVec2(700.0f, yAxis + 40.0f));
+    ImGui::SameLine(660.0f);
     ImGui::Text("Hours Worked:");
-    ImGui::SetCursorPos(ImVec2(820.0f, yAxis + 40.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 200.0f);
+    ImGui::SameLine(780.0f);
+    ImGui::SetNextItemWidth(120.0f);
     ImGui::InputText("##hoursWorked", hoursWorked, IM_ARRAYSIZE(hoursWorked));
 
-    ImGui::SetCursorPos(ImVec2(940.0f, yAxis + 40.0f));
+    ImGui::SameLine(930.0f);
     ImGui::Text("Advance:");
-    ImGui::SetCursorPos(ImVec2(1015.0f, yAxis + 40.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 120.0f);
+    ImGui::SameLine(1020.0f);
+    ImGui::SetNextItemWidth(120.0f);
     ImGui::InputText("##advance", advance, IM_ARRAYSIZE(advance));
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
 
     const std::string nameStr(name);
     const std::string positionStr(position);
@@ -387,80 +747,67 @@ static void monitorUI() {
     const std::string hoursWorkedStr(hoursWorked);
     const std::string advanceStr(advance);
 
-    ImGui::SetCursorPos(ImVec2(25.0f, yAxis + 90.0f));
-    if (ImGui::Button("Add New Employee", ImVec2(400.0f, 100.0f))) {
+    // Employee Action Buttons
+    if (ImGui::Button("Add New Employee", ImVec2(350.0f, 40.0f))) {
         if (db::appendDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, "'" + nameStr + "', '" + positionStr + "', '" + locationStr + "', " + salaryStr + ", " + hoursWorkedStr + ", " + advanceStr)) {
-            system::logMessage(system::messageClassification::INFO, "DB Test: New employee added successfully.\n");
-            name[0] = '\0';
-            position[0] = '\0';
-            employeeID[0] = '\0';
-            location[0] = '\0';
-            salary[0] = '\0';
-            hoursWorked[0] = '\0';
-            advance[0] = '\0';
+            system::logMessage(system::messageClassification::INFO, "DB: New employee added successfully.\n");
+            name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
+            salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
         } else {
-            system::logMessage(system::messageClassification::INFO, "DB Test: Failed to add new employee.\n");
+            system::logMessage(system::messageClassification::INFO, "DB: Failed to add new employee.\n");
         }
     }
 
-    ImGui::SetCursorPos(ImVec2(447.5f, yAxis + 90.0f));
-    if (ImGui::Button("Delete Employee", ImVec2(400.0f, 100.0f))) {
-        if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeIDStr)) {
-            system::logMessage(system::messageClassification::INFO, "DB Test: Employee deleted successfully.\n");
-            employeeID[0] = '\0';
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to delete employee.\n");
-        }
-    }
-
-    ImGui::SetCursorPos(ImVec2(870.0f, yAxis + 90.0f));
-    if (ImGui::Button("Change Data (Employee)", ImVec2(400.0f, 100.0f))) {
+    ImGui::SameLine();
+    if (ImGui::Button("Update Employee", ImVec2(350.0f, 40.0f))) {
         if (const std::string setClause = "NAME='" + nameStr + "', 'POSITION='" + positionStr + "', SITE_LOCATION='" + locationStr + "', SALARY=" + salaryStr + ", HOURS_WORK=" + hoursWorkedStr + ", ADVANCE=" + advanceStr;
             db::updateDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeIDStr, setClause)) {
-            system::logMessage(system::messageClassification::INFO, "DB Test: Data updated successfully.\n");
-            name[0] = '\0';
-            position[0] = '\0';
-            employeeID[0] = '\0';
-            location[0] = '\0';
-            salary[0] = '\0';
-            hoursWorked[0] = '\0';
-            advance[0] = '\0';
+            system::logMessage(system::messageClassification::INFO, "DB: Employee data updated successfully.\n");
+            name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
+            salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to update data.\n");
+            system::logMessage(system::messageClassification::ERROR, "DB: Failed to update employee data.\n");
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Employee", ImVec2(350.0f, 40.0f))) {
+        if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeIDStr)) {
+            system::logMessage(system::messageClassification::INFO, "DB: Employee deleted successfully.\n");
+            employeeID[0] = '\0';
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete employee.\n");
         }
     }
 
     ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Spacing();
-    ImGui::Text("Employee Raw Database Viewer");
 
-    // Options (employees-only DB viewer)
-    static int s_maxRowsEmployee = 100; // max rows to display
+    // Employee Database Viewer
+    ImGui::Text("Employee Database Viewer");
+    static int s_maxRowsEmployee = 100;
     static bool s_showHeadersEmployee = true;
 
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 230.0f));
-    ImGui::SetNextItemWidth(110.0f);
-    ImGui::InputInt("Rows (max at 100) (for Employee)", &s_maxRowsEmployee, 1, 5);
+    ImGui::SetNextItemWidth(150.0f);
+    ImGui::InputInt("Max Rows##emp", &s_maxRowsEmployee, 10, 50);
     if (s_maxRowsEmployee < 1) s_maxRowsEmployee = 1;
     if (s_maxRowsEmployee > 100) s_maxRowsEmployee = 100;
 
-    ImGui::SetCursorPos(ImVec2(390.0f, yAxis + 230.0f));
-    ImGui::Checkbox("Show Headers (Employee)", &s_showHeadersEmployee);
+    ImGui::SameLine();
+    ImGui::Checkbox("Show Headers##emp", &s_showHeadersEmployee);
 
-    ImGui::Spacing();
-
-    // Resolve DB path and table schema for the employee dataset only
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
     struct Column { const char* name; int index; };
     const std::vector<Column> columns = {
         {"EMPLOYEE_ID", 1}, {"NAME", 2}, {"POSITION", 3}, {"SITE_LOCATION", 4},
         {"SALARY", 5}, {"HOURS_WORK", 6}, {"ADVANCE", 7}
-        };
+    };
 
-    ImGui::BeginChild("DBViewer", ImVec2(0, 300), true);
+    ImGui::BeginChild("EmployeeDBViewer", ImVec2(0, 0), true);
 
     if (s_showHeadersEmployee) {
-        ImGui::Columns(static_cast<int>(columns.size()), "DBViewer_HeaderCols");
+        ImGui::Columns(static_cast<int>(columns.size()), "EmpViewerHeader");
         for (const auto& c : columns) {
             ImGui::Text("%s", c.name);
             ImGui::NextColumn();
@@ -474,7 +821,7 @@ static void monitorUI() {
         if (const std::string idCell = db::fetchCell(dbPath, static_cast<size_t>(row), 1); idCell.empty()) break;
 
         ImGui::PushID(row);
-        ImGui::Columns(static_cast<int>(columns.size()), "DBViewer_RowCols");
+        ImGui::Columns(static_cast<int>(columns.size()), "EmpViewerRow");
         for (const auto& c : columns) {
             ImGui::TextWrapped("%s", db::fetchCell(dbPath, static_cast<size_t>(row), static_cast<size_t>(c.index)).c_str());
             ImGui::NextColumn();
@@ -484,29 +831,34 @@ static void monitorUI() {
         ++shownEmployee;
     }
 
-    ImGui::TextDisabled(shownEmployee == 0 ? "No rows to display." : "Showing %d row(s).", shownEmployee);
+    ImGui::TextDisabled(shownEmployee == 0 ? "No employees to display." : "Showing %d employee(s).", shownEmployee);
     ImGui::EndChild();
 
+    ImGui::EndChild();
 
+    ImGui::Spacing();
+    ImGui::Spacing();
 
+    // ==============================================
+    // ATTENDANCE MANAGEMENT SECTION
+    // ==============================================
+    ImGui::SetWindowFontScale(1.1f);
+    ImGui::TextColored(ImVec4(0.2f, 0.6f, 0.8f, 1.0f), "Weekly Attendance Management");
+    ImGui::SetWindowFontScale(1.0f);
     ImGui::Spacing();
+
+    ImGui::BeginChild("AttendanceManagement", ImVec2(0, 420), true);
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::Text("Employee Weekly Attendance (Sunday - Saturday)");
 
     static char attendanceEmployeeID[128];
     static char sunHours[128], monHours[128], tueHours[128], wedHours[128], thuHours[128], friHours[128], satHours[128];
     static int selectedWeekIndex = 0;
 
-    // Generate week options for the current year (2025)
+    // Generate week options
     static std::vector<std::string> weekOptions;
-    static std::vector<std::string> weekDates; // Store actual date ranges
+    static std::vector<std::string> weekDates;
     if (weekOptions.empty()) {
-        // Generate all weeks for 2025 (52-53 weeks)
         for (int month = 1; month <= 12; month++) {
-            // Simplified: generate weeks by month (4 weeks per month approx)
             int daysInMonth = 31;
             if (month == 2) daysInMonth = 28;
             else if (month == 4 || month == 6 || month == 9 || month == 11) daysInMonth = 30;
@@ -526,7 +878,7 @@ static void monitorUI() {
 
     ImGui::Text("Employee ID:");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(100.0f);
+    ImGui::SetNextItemWidth(120.0f);
     ImGui::InputText("##attendanceEmployeeID", attendanceEmployeeID, IM_ARRAYSIZE(attendanceEmployeeID));
 
     ImGui::SameLine();
@@ -546,10 +898,12 @@ static void monitorUI() {
         ImGui::EndCombo();
     }
 
-    ImGui::Text("Day:");
+    ImGui::SameLine();
+    ImGui::Text("  Day:");
     ImGui::SameLine();
     static int selectedDayForHours = 0;
     const char* dayLabels[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    ImGui::SetNextItemWidth(120.0f);
     if (ImGui::BeginCombo("##daySelector", dayLabels[selectedDayForHours])) {
         for (int i = 0; i < 7; ++i) {
             bool isSelected = (selectedDayForHours == i);
@@ -560,11 +914,10 @@ static void monitorUI() {
     }
 
     ImGui::SameLine();
-    ImGui::Text(" Hours:");
+    ImGui::Text("  Hours:");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(80.0f);
 
-    // Map the per-day buffers into an array so the selected day's buffer is edited by the single textbox.
     static char* dayBuffers[] = { sunHours, monHours, tueHours, wedHours, thuHours, friHours, satHours };
     ImGui::InputText("##dayHours", dayBuffers[selectedDayForHours], IM_ARRAYSIZE(sunHours));
 
@@ -579,7 +932,7 @@ static void monitorUI() {
     const std::string friHoursStr(friHours);
     const std::string satHoursStr(satHours);
 
-    // Format employee ID as EMP-00001
+    // Format employee ID
     std::string formattedEmpID;
     {
         std::string digits;
@@ -597,28 +950,23 @@ static void monitorUI() {
     }
 
     ImGui::Spacing();
-    if (ImGui::Button("Add Weekly Attendance", ImVec2(200.0f, 35.0f))) {
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Attendance Action Buttons
+    if (ImGui::Button("Add Weekly Attendance", ImVec2(350.0f, 40.0f))) {
         if (!formattedEmpID.empty() && !weekStartStr.empty()) {
-            // Attendance DB path: data/payroll/2025/12/01-07.db
-            const int currentYear = 2025; // Current year
-            const std::string attendanceDbPath = appConfig::g_dataDirectory +
-                                                appConfig::g_payrollDirectory +
-                                                std::to_string(currentYear) + "/" +
-                                                weekLabel + ".db";
+            const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
+            const std::string attendanceDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                                std::to_string(currentYear) + "/" + weekLabel + ".db";
             const std::string a_data = "'" + formattedEmpID + "', '" + weekStartStr + "', " + sunHoursStr + ", " + monHoursStr + ", " +
-                                      tueHoursStr + ", " + wedHoursStr + ", " + thuHoursStr + ", " +
-                                      friHoursStr + ", " + satHoursStr;
+                                      tueHoursStr + ", " + wedHoursStr + ", " + thuHoursStr + ", " + friHoursStr + ", " + satHoursStr;
 
             if (db::appendDatabase(attendanceDbPath, a_data)) {
                 system::logMessage(system::messageClassification::INFO, "Attendance: Weekly attendance added successfully.\n");
                 attendanceEmployeeID[0] = '\0';
-                sunHours[0] = '\0';
-                monHours[0] = '\0';
-                tueHours[0] = '\0';
-                wedHours[0] = '\0';
-                thuHours[0] = '\0';
-                friHours[0] = '\0';
-                satHours[0] = '\0';
+                sunHours[0] = '\0'; monHours[0] = '\0'; tueHours[0] = '\0'; wedHours[0] = '\0';
+                thuHours[0] = '\0'; friHours[0] = '\0'; satHours[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::INFO, "Attendance: Failed to add weekly attendance.\n");
             }
@@ -628,52 +976,19 @@ static void monitorUI() {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Delete Week Attendance", ImVec2(200.0f, 35.0f))) {
+    if (ImGui::Button("Update Weekly Attendance", ImVec2(350.0f, 40.0f))) {
         if (!formattedEmpID.empty() && !weekStartStr.empty()) {
-            const int currentYear = 2025;
-            const std::string attendanceDbPath = appConfig::g_dataDirectory +
-                                                appConfig::g_payrollDirectory +
-                                                std::to_string(currentYear) + "/" +
-                                                weekLabel + ".db";
-            if (db::deleteRow(attendanceDbPath, formattedEmpID)) {
-                system::logMessage(system::messageClassification::INFO, "Attendance: Week attendance deleted successfully.\n");
-                attendanceEmployeeID[0] = '\0';
-                sunHours[0] = '\0';
-                monHours[0] = '\0';
-                tueHours[0] = '\0';
-                wedHours[0] = '\0';
-                thuHours[0] = '\0';
-                friHours[0] = '\0';
-                satHours[0] = '\0';
-            } else {
-                system::logMessage(system::messageClassification::ERROR, "Attendance: Failed to delete week attendance.\n");
-            }
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "Attendance: Employee ID and Week are required.\n");
-        }
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Update Week Attendance", ImVec2(200.0f, 35.0f))) {
-        if (!formattedEmpID.empty() && !weekStartStr.empty()) {
-            const int currentYear = 2025;
-            const std::string attendanceDbPath = appConfig::g_dataDirectory +
-                                                appConfig::g_payrollDirectory +
-                                                std::to_string(currentYear) + "/" +
-                                                weekLabel + ".db";
+            const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
+            const std::string attendanceDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                                std::to_string(currentYear) + "/" + weekLabel + ".db";
             const std::string setClause = "SUN=" + sunHoursStr + ", MON=" + monHoursStr + ", TUE=" + tueHoursStr +
                                          ", WED=" + wedHoursStr + ", THU=" + thuHoursStr + ", FRI=" + friHoursStr +
                                          ", SAT=" + satHoursStr;
             if (db::updateDatabase(attendanceDbPath, formattedEmpID, setClause)) {
                 system::logMessage(system::messageClassification::INFO, "Attendance: Week attendance updated successfully.\n");
                 attendanceEmployeeID[0] = '\0';
-                sunHours[0] = '\0';
-                monHours[0] = '\0';
-                tueHours[0] = '\0';
-                wedHours[0] = '\0';
-                thuHours[0] = '\0';
-                friHours[0] = '\0';
-                satHours[0] = '\0';
+                sunHours[0] = '\0'; monHours[0] = '\0'; tueHours[0] = '\0'; wedHours[0] = '\0';
+                thuHours[0] = '\0'; friHours[0] = '\0'; satHours[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::ERROR, "Attendance: Failed to update week attendance.\n");
             }
@@ -682,10 +997,31 @@ static void monitorUI() {
         }
     }
 
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::Text("Weekly Attendance Viewer");
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Weekly Attendance", ImVec2(350.0f, 40.0f))) {
+        if (!formattedEmpID.empty() && !weekStartStr.empty()) {
+            const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
+            const std::string attendanceDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                                std::to_string(currentYear) + "/" + weekLabel + ".db";
+            if (db::deleteRow(attendanceDbPath, formattedEmpID)) {
+                system::logMessage(system::messageClassification::INFO, "Attendance: Week attendance deleted successfully.\n");
+                attendanceEmployeeID[0] = '\0';
+                sunHours[0] = '\0'; monHours[0] = '\0'; tueHours[0] = '\0'; wedHours[0] = '\0';
+                thuHours[0] = '\0'; friHours[0] = '\0'; satHours[0] = '\0';
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "Attendance: Failed to delete week attendance.\n");
+            }
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "Attendance: Employee ID and Week are required.\n");
+        }
+    }
 
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Attendance Database Viewer
+    ImGui::Text("Weekly Attendance Viewer");
     static int s_maxRowsAttendance = 50;
     static bool s_showHeadersAttendance = true;
     static int viewerWeekIndex = 0;
@@ -707,30 +1043,28 @@ static void monitorUI() {
     }
 
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(100.0f);
-    ImGui::InputInt("Max Rows", &s_maxRowsAttendance, 5, 25);
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::InputInt("Max Rows##att", &s_maxRowsAttendance, 10, 25);
     if (s_maxRowsAttendance < 1) s_maxRowsAttendance = 1;
     if (s_maxRowsAttendance > 100) s_maxRowsAttendance = 100;
 
     ImGui::SameLine();
-    ImGui::Checkbox("Show Headers", &s_showHeadersAttendance);
+    ImGui::Checkbox("Show Headers##att", &s_showHeadersAttendance);
 
     const std::string viewerWeekLabel = weekOptions[viewerWeekIndex];
     const int currentYear = 2025;
-    const std::string dbPathAttendance = appConfig::g_dataDirectory +
-                                        appConfig::g_payrollDirectory +
-                                        std::to_string(currentYear) + "/" +
-                                        viewerWeekLabel + ".db";
+    const std::string dbPathAttendance = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                        std::to_string(currentYear) + "/" + viewerWeekLabel + ".db";
 
     struct ColumnAttendance { const char* name; int index; };
     const std::vector<ColumnAttendance> columnsAttendance = {
         {"EMPLOYEE_ID", 1}, {"WEEK_START", 2}, {"SUN", 3}, {"MON", 4}, {"TUE", 5}, {"WED", 6}, {"THU", 7}, {"FRI", 8}, {"SAT", 9}
     };
 
-    ImGui::BeginChild("DBViewerAttendance", ImVec2(0, 250), true);
+    ImGui::BeginChild("AttendanceDBViewer", ImVec2(0, 0), true);
 
     if (s_showHeadersAttendance) {
-        ImGui::Columns(static_cast<int>(columnsAttendance.size()), "DBViewer_HeaderCols_Attendance");
+        ImGui::Columns(static_cast<int>(columnsAttendance.size()), "AttViewerHeader");
         for (const auto& c : columnsAttendance) {
             ImGui::Text("%s", c.name);
             ImGui::NextColumn();
@@ -744,7 +1078,7 @@ static void monitorUI() {
         if (const std::string idCell = db::fetchCell(dbPathAttendance, static_cast<size_t>(row), 1); idCell.empty()) break;
 
         ImGui::PushID(30000 + row);
-        ImGui::Columns(static_cast<int>(columnsAttendance.size()), "DBViewer_RowCols_Attendance");
+        ImGui::Columns(static_cast<int>(columnsAttendance.size()), "AttViewerRow");
         for (const auto& c : columnsAttendance) {
             ImGui::TextWrapped("%s", db::fetchCell(dbPathAttendance, static_cast<size_t>(row), static_cast<size_t>(c.index)).c_str());
             ImGui::NextColumn();
@@ -754,75 +1088,76 @@ static void monitorUI() {
         ++shownAttendance;
     }
 
-    ImGui::TextDisabled(shownAttendance == 0 ? "No rows to display." : "Showing %d row(s).", shownAttendance);
+    ImGui::TextDisabled(shownAttendance == 0 ? "No attendance records to display." : "Showing %d attendance record(s).", shownAttendance);
+    ImGui::EndChild();
 
     ImGui::EndChild();
 
-
-
-
     ImGui::Spacing();
     ImGui::Spacing();
-    ImGui::Separator();
+
+    // ==============================================
+    // PROJECT MANAGEMENT SECTION
+    // ==============================================
+    ImGui::SetWindowFontScale(1.1f);
+    ImGui::TextColored(ImVec4(0.2f, 0.6f, 0.8f, 1.0f), "Project Management");
+    ImGui::SetWindowFontScale(1.0f);
     ImGui::Spacing();
+
+    ImGui::BeginChild("ProjectManagement", ImVec2(0, 600), true);
     ImGui::Spacing();
 
     static char projectID[128], projectName[16384], status[128], startDate[128], notes[16384];
 
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1060.0f));
-    ImGui::Text("Project List Information");
-
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1090.0f));
+    // Project Form Fields
     ImGui::Text("Project ID:");
-    ImGui::SetCursorPos(ImVec2(100.0f, yAxis + 1090.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 240.0f);
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(120.0f);
     ImGui::InputText("##projectID", projectID, IM_ARRAYSIZE(projectID));
 
-    ImGui::SetCursorPos(ImVec2(180.0f, yAxis + 1090.0f));
+    ImGui::SameLine(270.0f);
     ImGui::Text("Project Name:");
-    ImGui::SetCursorPos(ImVec2(295.0f, yAxis + 1090.0f));
-    ImGui::SetNextItemWidth(textboxWidth + 200.0f);
+    ImGui::SameLine(400.0f);
+    ImGui::SetNextItemWidth(400.0f);
     ImGui::InputText("##projectName", projectName, IM_ARRAYSIZE(projectName));
 
-    ImGui::SetCursorPos(ImVec2(810.0f, yAxis + 1090.0f));
+    ImGui::Spacing();
+
     ImGui::Text("Status:");
-    ImGui::SetCursorPos(ImVec2(870.0f, yAxis + 1090.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 180.0f);
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(150.0f);
     static int statusIndex = 0;
     const char* statusOptions[] = { "Active", "Completed", "On-Hold", "In Progress" };
     ImGui::Combo("##status", &statusIndex, statusOptions, IM_ARRAYSIZE(statusOptions));
     std::strncpy(status, statusOptions[statusIndex], sizeof(status) - 1);
     status[sizeof(status) - 1] = '\0';
 
-    ImGui::SetCursorPos(ImVec2(1000.0f, yAxis + 1090.0f));
-    ImGui::Text("Start Date: ");
-    ImGui::SetCursorPos(ImVec2(1090.0f, yAxis + 1090.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 120.0f);
+    ImGui::SameLine(300.0f);
+    ImGui::Text("Start Date:");
+    ImGui::SameLine(400.0f);
+    ImGui::SetNextItemWidth(200.0f);
     ImGui::InputText("##startDate", startDate, IM_ARRAYSIZE(startDate));
 
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1130.0f));
+    ImGui::Spacing();
+
     ImGui::Text("Notes:");
-    ImGui::SetCursorPos(ImVec2(70.0f, yAxis + 1130.0f));
-    ImGui::SetNextItemWidth(textboxWidth + 900.0f);
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(1000.0f);
     ImGui::InputText("##notes", notes, IM_ARRAYSIZE(notes));
 
-    // projectID handling is done below (formatted as PRJ-xxxxx). Keep other fields.
     const std::string projectNameStr(projectName);
     const std::string statusStr(status);
     const std::string startDateStr(startDate);
     const std::string notesStr(notes);
 
-    // Enforce display format: PRJ-xxxxx (five digits). Extract digits from input, normalize
-    std::string projectIDStr; // displayed and stored (PRJ-00001)
+    // Format project ID
+    std::string projectIDStr;
     {
         std::string inputStr(projectID);
 
-        // Check if input already has correct PRJ-xxxxx format (to avoid re-formatting every frame)
         if (inputStr.length() == 10 && inputStr.substr(0, 4) == "PRJ-") {
-            // Already formatted correctly, use as-is
             projectIDStr = inputStr;
         } else {
-            // Extract only digits from input
             std::string digits;
             for (char ch : inputStr) {
                 if (std::isdigit(static_cast<unsigned char>(ch))) {
@@ -831,13 +1166,10 @@ static void monitorUI() {
             }
 
             if (!digits.empty()) {
-                // normalize to integer value (remove stray leading zeros) then format for display
                 long long idVal = 0;
                 try { idVal = std::stoll(digits); } catch (...) { idVal = 0; }
-                // display and DB: zero-padded to 5 digits with PRJ- prefix
                 std::ostringstream oss; oss << std::setw(5) << std::setfill('0') << idVal;
                 projectIDStr = std::string("PRJ-") + oss.str();
-                // Write formatted ID back to the input buffer so user sees PRJ-xxxxx
                 std::strncpy(projectID, projectIDStr.c_str(), IM_ARRAYSIZE(projectID));
                 projectID[IM_ARRAYSIZE(projectID)-1] = '\0';
             } else {
@@ -846,96 +1178,83 @@ static void monitorUI() {
         }
     }
 
-    ImGui::SetCursorPos(ImVec2(25.0f, yAxis + 1170.0f));
-    if (ImGui::Button("Add New Project", ImVec2(400.0f, 100.0f))) {
-        // Append project fields including PROJECT_ID: PROJECT_ID, PROJECT_NAME, STATUS, START_DATE, NOTE
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Project Action Buttons
+    if (ImGui::Button("Add New Project", ImVec2(350.0f, 40.0f))) {
         if (!projectIDStr.empty()) {
             const std::string p_data = "'" + projectIDStr + "', '" + projectNameStr + "', '" + statusStr + "', '" + startDateStr + "', '" + notesStr + "'";
             if (db::appendDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, p_data)) {
-                system::logMessage(system::messageClassification::INFO, "DB Test: New project added successfully.\n");
-                db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject + appConfig::g_projectExpenseDirectory + projectIDStr + ".db");
-                projectID[0] = '\0';
-                projectName[0] = '\0';
-                status[0] = '\0';
-                startDate[0] = '\0';
-                notes[0] = '\0';
+                system::logMessage(system::messageClassification::INFO, "DB: New project added successfully.\n");
+                db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory + projectIDStr + ".db");
+                projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
             } else {
-                system::logMessage(system::messageClassification::INFO, "DB Test: Failed to add new project.\n");
+                system::logMessage(system::messageClassification::INFO, "DB: Failed to add new project.\n");
             }
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Project ID is required.\n");
+            system::logMessage(system::messageClassification::ERROR, "DB: Project ID is required.\n");
         }
     }
 
-    ImGui::SetCursorPos(ImVec2(447.5f, yAxis + 1170.0f));
-    if (ImGui::Button("Delete Project", ImVec2(400.0f, 100.0f))) {
-        if (!projectIDStr.empty()) {
-            if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, projectIDStr)) {
-                system::logMessage(system::messageClassification::INFO, "DB Test: Project deleted successfully.\n");
-                system::deleteFile(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject + appConfig::g_projectExpenseDirectory + projectIDStr + ".db");
-                projectID[0] = '\0';
-                projectName[0] = '\0';
-                status[0] = '\0';
-                startDate[0] = '\0';
-                notes[0] = '\0';
-            } else {
-                system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to delete project.\n");
-            }
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Project ID is required.\n");
-        }
-    }
-
-    ImGui::SetCursorPos(ImVec2(870.0f, yAxis + 1170.0f));
-    if (ImGui::Button("Change Data (Project)", ImVec2(400.0f, 100.0f))) {
+    ImGui::SameLine();
+    if (ImGui::Button("Update Project", ImVec2(350.0f, 40.0f))) {
         if (!projectIDStr.empty()) {
             if (const std::string setClause = "PROJECT_NAME='" + projectNameStr + "', STATUS='" + statusStr + "', START_DATE='" + startDateStr + "', NOTE='" + notesStr + "'";
                 db::updateDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, projectIDStr, setClause)) {
-                system::logMessage(system::messageClassification::INFO, "DB Test: Project data updated successfully.\n");
-                projectID[0] = '\0';
-                projectName[0] = '\0';
-                status[0] = '\0';
-                startDate[0] = '\0';
-                notes[0] = '\0';
+                system::logMessage(system::messageClassification::INFO, "DB: Project data updated successfully.\n");
+                projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
             } else {
-                system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to update project data.\n");
+                system::logMessage(system::messageClassification::ERROR, "DB: Failed to update project data.\n");
             }
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Project ID is required.\n");
+            system::logMessage(system::messageClassification::ERROR, "DB: Project ID is required.\n");
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Project", ImVec2(350.0f, 40.0f))) {
+        if (!projectIDStr.empty()) {
+            if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, projectIDStr)) {
+                system::logMessage(system::messageClassification::INFO, "DB: Project deleted successfully.\n");
+                system::deleteFile(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory + projectIDStr + ".db");
+                projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete project.\n");
+            }
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "DB: Project ID is required.\n");
         }
     }
 
     ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Spacing();
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1280.0f));
-    ImGui::Text("Project Raw Database Viewer");
 
-    // Options (projects-only DB viewer)
+    // Project Database Viewer
+    ImGui::Text("Project Database Viewer");
     static int s_maxRowsProjects = 100;
     static bool s_showHeadersProjects = true;
 
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1310.0f));
-    ImGui::SetNextItemWidth(110.0f);
-    ImGui::InputInt("Rows (max at 100) (for Projects)", &s_maxRowsProjects, 1, 5);
+    ImGui::SetNextItemWidth(150.0f);
+    ImGui::InputInt("Max Rows##prj", &s_maxRowsProjects, 10, 50);
     if (s_maxRowsProjects < 1) s_maxRowsProjects = 1;
     if (s_maxRowsProjects > 100) s_maxRowsProjects = 100;
 
-    ImGui::SetCursorPos(ImVec2(390.0f, yAxis + 1310.0f));
-    ImGui::Checkbox("Show Headers (Projects)", &s_showHeadersProjects);
+    ImGui::SameLine();
+    ImGui::Checkbox("Show Headers##prj", &s_showHeadersProjects);
 
-    ImGui::Spacing();
-
-    // Resolve DB path and table schema for the project dataset only
     const std::string dbPathProjects = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
     struct ColumnProjects { const char* name; int index; };
     const std::vector<Column> columnsProjects = {
         {"PROJECT_ID", 1}, {"PROJECT_NAME", 2}, {"STATUS", 3}, {"START_DATE", 4}, {"NOTE", 5}
-        };
+    };
 
-    ImGui::BeginChild("DBViewerProjects", ImVec2(0, 300), true);
+    ImGui::BeginChild("ProjectDBViewer", ImVec2(0, 0), true);
 
     if (s_showHeadersProjects) {
-        ImGui::Columns(static_cast<int>(columnsProjects.size()), "DBViewer_HeaderCols_Projects");
+        ImGui::Columns(static_cast<int>(columnsProjects.size()), "PrjViewerHeader");
         for (const auto& c : columnsProjects) {
             ImGui::Text("%s", c.name);
             ImGui::NextColumn();
@@ -948,8 +1267,8 @@ static void monitorUI() {
     for (int row = 1; row <= s_maxRowsProjects; ++row) {
         if (const std::string idCell = db::fetchCell(dbPathProjects, static_cast<size_t>(row), 1); idCell.empty()) break;
 
-        ImGui::PushID(10000 + row); // Unique ID offset for projects
-        ImGui::Columns(static_cast<int>(columnsProjects.size()), "DBViewer_RowCols_Projects");
+        ImGui::PushID(10000 + row);
+        ImGui::Columns(static_cast<int>(columnsProjects.size()), "PrjViewerRow");
         for (const auto& c : columnsProjects) {
             ImGui::TextWrapped("%s", db::fetchCell(dbPathProjects, static_cast<size_t>(row), static_cast<size_t>(c.index)).c_str());
             ImGui::NextColumn();
@@ -959,45 +1278,59 @@ static void monitorUI() {
         ++shownProjects;
     }
 
-    ImGui::TextDisabled(shownProjects == 0 ? "No rows to display." : "Showing %d row(s).", shownProjects);
+    ImGui::TextDisabled(shownProjects == 0 ? "No projects to display." : "Showing %d project(s).", shownProjects);
     ImGui::EndChild();
+
+    ImGui::EndChild();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    // ==============================================
+    // PROJECT MATERIALS/EXPENSE SECTION
+    // ==============================================
+    ImGui::SetWindowFontScale(1.1f);
+    ImGui::TextColored(ImVec4(0.2f, 0.6f, 0.8f, 1.0f), "Project Materials & Expenses");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Spacing();
+
+    ImGui::BeginChild("MaterialsManagement", ImVec2(0, 600), true);
+    ImGui::Spacing();
 
     static char materialProjectID[128], materialID[128], materialName[16384], materialQuantity[128], materialUnitPrice[128];
 
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1660.0f));
-    ImGui::Text("Project Materials / Expense Information");
-
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1690.0f));
+    // Materials Form Fields
     ImGui::Text("Project ID:");
-    ImGui::SetCursorPos(ImVec2(100.0f, yAxis + 1690.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 240.0f);
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(120.0f);
     ImGui::InputText("##materialProjectID", materialProjectID, IM_ARRAYSIZE(materialProjectID));
 
-    ImGui::SetCursorPos(ImVec2(180.0f, yAxis + 1690.0f));
+    ImGui::SameLine(270.0f);
     ImGui::Text("Material ID:");
-    ImGui::SetCursorPos(ImVec2(280.0f, yAxis + 1690.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 120.0f);
+    ImGui::SameLine(380.0f);
+    ImGui::SetNextItemWidth(150.0f);
     ImGui::InputText("##materialID", materialID, IM_ARRAYSIZE(materialID));
 
-    ImGui::SetCursorPos(ImVec2(470.0f, yAxis + 1690.0f));
+    ImGui::SameLine(560.0f);
     ImGui::Text("Material Name:");
-    ImGui::SetCursorPos(ImVec2(590.0f, yAxis + 1690.0f));
-    ImGui::SetNextItemWidth(textboxWidth + 100.0f);
+    ImGui::SameLine(690.0f);
+    ImGui::SetNextItemWidth(400.0f);
     ImGui::InputText("##materialName", materialName, IM_ARRAYSIZE(materialName));
 
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1730.0f));
+    ImGui::Spacing();
+
     ImGui::Text("Quantity:");
-    ImGui::SetCursorPos(ImVec2(90.0f, yAxis + 1730.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 200.0f);
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(150.0f);
     ImGui::InputText("##materialQuantity", materialQuantity, IM_ARRAYSIZE(materialQuantity));
 
-    ImGui::SetCursorPos(ImVec2(220.0f, yAxis + 1730.0f));
+    ImGui::SameLine(300.0f);
     ImGui::Text("Unit Price (PHP):");
-    ImGui::SetCursorPos(ImVec2(350.0f, yAxis + 1730.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 200.0f);
+    ImGui::SameLine(450.0f);
+    ImGui::SetNextItemWidth(150.0f);
     ImGui::InputText("##materialUnitPrice", materialUnitPrice, IM_ARRAYSIZE(materialUnitPrice));
 
-    // Format material project ID to PRJ-xxxxx
+    // Format material project ID
     std::string materialProjectIDStr;
     {
         std::string inputStr(materialProjectID);
@@ -1030,100 +1363,89 @@ static void monitorUI() {
     const std::string materialQuantityStr(materialQuantity);
     const std::string materialUnitPriceStr(materialUnitPrice);
 
-    ImGui::SetCursorPos(ImVec2(25.0f, yAxis + 1770.0f));
-    if (ImGui::Button("Add New Material", ImVec2(400.0f, 100.0f))) {
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Materials Action Buttons
+    if (ImGui::Button("Add New Material", ImVec2(350.0f, 40.0f))) {
         if (!materialProjectIDStr.empty() && !materialIDStr.empty()) {
-            const std::string expenseDbPath = appConfig::g_dataDirectory +
-                                             appConfig::g_projectDirectory +
-                                             appConfig::g_projectExpenseDirectory +
-                                             materialProjectIDStr + ".db";
+            const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
+                                             appConfig::g_projectExpenseDirectory + materialProjectIDStr + ".db";
             const std::string m_data = "'" + materialIDStr + "', '" + materialNameStr + "', " + materialQuantityStr + ", " + materialUnitPriceStr;
 
             if (db::appendDatabase(expenseDbPath, m_data)) {
-                system::logMessage(system::messageClassification::INFO, "DB Test: New material added successfully.\n");
-                materialProjectID[0] = '\0';
-                materialID[0] = '\0';
-                materialName[0] = '\0';
-                materialQuantity[0] = '\0';
-                materialUnitPrice[0] = '\0';
+                system::logMessage(system::messageClassification::INFO, "DB: New material added successfully.\n");
+                materialProjectID[0] = '\0'; materialID[0] = '\0'; materialName[0] = '\0';
+                materialQuantity[0] = '\0'; materialUnitPrice[0] = '\0';
             } else {
-                system::logMessage(system::messageClassification::INFO, "DB Test: Failed to add new material.\n");
+                system::logMessage(system::messageClassification::INFO, "DB: Failed to add new material.\n");
             }
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Project ID and Material ID are required.\n");
+            system::logMessage(system::messageClassification::ERROR, "DB: Project ID and Material ID are required.\n");
         }
     }
 
-    ImGui::SetCursorPos(ImVec2(447.5f, yAxis + 1770.0f));
-    if (ImGui::Button("Delete Material", ImVec2(400.0f, 100.0f))) {
+    ImGui::SameLine();
+    if (ImGui::Button("Update Material", ImVec2(350.0f, 40.0f))) {
         if (!materialProjectIDStr.empty() && !materialIDStr.empty()) {
-            const std::string expenseDbPath = appConfig::g_dataDirectory +
-                                             appConfig::g_projectDirectory +
-                                             appConfig::g_projectExpenseDirectory +
-                                             materialProjectIDStr + ".db";
-            if (db::deleteRow(expenseDbPath, materialIDStr)) {
-                system::logMessage(system::messageClassification::INFO, "DB Test: Material deleted successfully.\n");
-                materialProjectID[0] = '\0';
-                materialID[0] = '\0';
-                materialName[0] = '\0';
-                materialQuantity[0] = '\0';
-                materialUnitPrice[0] = '\0';
-            } else {
-                system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to delete material.\n");
-            }
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Project ID and Material ID are required.\n");
-        }
-    }
-
-    ImGui::SetCursorPos(ImVec2(870.0f, yAxis + 1770.0f));
-    if (ImGui::Button("Change Data (Material)", ImVec2(400.0f, 100.0f))) {
-        if (!materialProjectIDStr.empty() && !materialIDStr.empty()) {
-            const std::string expenseDbPath = appConfig::g_dataDirectory +
-                                             appConfig::g_projectDirectory +
-                                             appConfig::g_projectExpenseDirectory +
-                                             materialProjectIDStr + ".db";
+            const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
+                                             appConfig::g_projectExpenseDirectory + materialProjectIDStr + ".db";
             const std::string setClause = "MATERIAL_NAME='" + materialNameStr + "', QUANTITY=" + materialQuantityStr + ", UNIT_PRICE=" + materialUnitPriceStr;
+
             if (db::updateDatabase(expenseDbPath, materialIDStr, setClause)) {
-                system::logMessage(system::messageClassification::INFO, "DB Test: Material data updated successfully.\n");
-                materialProjectID[0] = '\0';
-                materialID[0] = '\0';
-                materialName[0] = '\0';
-                materialQuantity[0] = '\0';
-                materialUnitPrice[0] = '\0';
+                system::logMessage(system::messageClassification::INFO, "DB: Material data updated successfully.\n");
+                materialProjectID[0] = '\0'; materialID[0] = '\0'; materialName[0] = '\0';
+                materialQuantity[0] = '\0'; materialUnitPrice[0] = '\0';
             } else {
-                system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to update material data.\n");
+                system::logMessage(system::messageClassification::INFO, "DB: Failed to update material data.\n");
             }
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Project ID and Material ID are required.\n");
+            system::logMessage(system::messageClassification::ERROR, "DB: Project ID and Material ID are required.\n");
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Material", ImVec2(350.0f, 40.0f))) {
+        if (!materialProjectIDStr.empty() && !materialIDStr.empty()) {
+            const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
+                                             appConfig::g_projectExpenseDirectory + materialProjectIDStr + ".db";
+
+            if (db::deleteRow(expenseDbPath, materialIDStr)) {
+                system::logMessage(system::messageClassification::INFO, "DB: Material deleted successfully.\n");
+                materialProjectID[0] = '\0'; materialID[0] = '\0'; materialName[0] = '\0';
+                materialQuantity[0] = '\0'; materialUnitPrice[0] = '\0';
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete material.\n");
+            }
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "DB: Project ID and Material ID are required.\n");
         }
     }
 
     ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Spacing();
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1880.0f));
-    ImGui::Text("Materials Database Viewer (Per Project)");
 
+    // Materials Database Viewer
+    ImGui::Text("Materials/Expense Database Viewer");
     static int s_maxRowsMaterials = 100;
     static bool s_showHeadersMaterials = true;
-    static char viewerProjectID[128] = "";
+    static char viewerProjectID[128];
 
-    ImGui::SetCursorPos(ImVec2(10.0f, yAxis + 1910.0f));
-    ImGui::Text("Project ID to View:");
-    ImGui::SetCursorPos(ImVec2(160.0f, yAxis + 1910.0f));
-    ImGui::SetNextItemWidth(textboxWidth - 190.0f);
+    ImGui::Text("Project ID:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120.0f);
     ImGui::InputText("##viewerProjectID", viewerProjectID, IM_ARRAYSIZE(viewerProjectID));
 
-    ImGui::SetCursorPos(ImVec2(290.0f, yAxis + 1910.0f));
-    ImGui::SetNextItemWidth(110.0f);
-    ImGui::InputInt("Rows (max at 100) (for Materials)", &s_maxRowsMaterials, 1, 5);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(150.0f);
+    ImGui::InputInt("Max Rows##mat", &s_maxRowsMaterials, 10, 50);
     if (s_maxRowsMaterials < 1) s_maxRowsMaterials = 1;
     if (s_maxRowsMaterials > 100) s_maxRowsMaterials = 100;
 
-    ImGui::SetCursorPos(ImVec2(670.0f, yAxis + 1910.0f));
-    ImGui::Checkbox("Show Headers (Materials)", &s_showHeadersMaterials);
-
-    ImGui::Spacing();
+    ImGui::SameLine();
+    ImGui::Checkbox("Show Headers##mat", &s_showHeadersMaterials);
 
     // Format viewer project ID
     std::string viewerProjectIDStr;
@@ -1143,39 +1465,40 @@ static void monitorUI() {
                 try { idVal = std::stoll(digits); } catch (...) { idVal = 0; }
                 std::ostringstream oss; oss << std::setw(5) << std::setfill('0') << idVal;
                 viewerProjectIDStr = std::string("PRJ-") + oss.str();
+                std::strncpy(viewerProjectID, viewerProjectIDStr.c_str(), IM_ARRAYSIZE(viewerProjectID));
+                viewerProjectID[IM_ARRAYSIZE(viewerProjectID)-1] = '\0';
+            } else {
+                viewerProjectIDStr.clear();
             }
         }
     }
 
-    const std::string dbPathMaterials = appConfig::g_dataDirectory +
-                                       appConfig::g_projectDirectory +
-                                       appConfig::g_projectExpenseDirectory +
-                                       viewerProjectIDStr + ".db";
-
+    const std::string dbPathMaterials = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
+                                       appConfig::g_projectExpenseDirectory + viewerProjectIDStr + ".db";
     struct ColumnMaterials { const char* name; int index; };
-    const std::vector<ColumnMaterials> columnsMaterials = {
+    const std::vector<Column> columnsMaterials = {
         {"MATERIAL_ID", 1}, {"MATERIAL_NAME", 2}, {"QUANTITY", 3}, {"UNIT_PRICE", 4}
     };
 
-    ImGui::BeginChild("DBViewerMaterials", ImVec2(0, 300), true);
+    ImGui::BeginChild("MaterialsDBViewer", ImVec2(0, 0), true);
 
-    if (!viewerProjectIDStr.empty()) {
-        if (s_showHeadersMaterials) {
-            ImGui::Columns(static_cast<int>(columnsMaterials.size()), "DBViewer_HeaderCols_Materials");
-            for (const auto& c : columnsMaterials) {
-                ImGui::Text("%s", c.name);
-                ImGui::NextColumn();
-            }
-            ImGui::Separator();
-            ImGui::Columns(1);
+    if (s_showHeadersMaterials) {
+        ImGui::Columns(static_cast<int>(columnsMaterials.size()), "MatViewerHeader");
+        for (const auto& c : columnsMaterials) {
+            ImGui::Text("%s", c.name);
+            ImGui::NextColumn();
         }
+        ImGui::Separator();
+        ImGui::Columns(1);
+    }
 
-        int shownMaterials = 0;
+    int shownMaterials = 0;
+    if (!viewerProjectIDStr.empty()) {
         for (int row = 1; row <= s_maxRowsMaterials; ++row) {
             if (const std::string idCell = db::fetchCell(dbPathMaterials, static_cast<size_t>(row), 1); idCell.empty()) break;
 
-            ImGui::PushID(20000 + row); // Unique ID offset for materials
-            ImGui::Columns(static_cast<int>(columnsMaterials.size()), "DBViewer_RowCols_Materials");
+            ImGui::PushID(20000 + row);
+            ImGui::Columns(static_cast<int>(columnsMaterials.size()), "MatViewerRow");
             for (const auto& c : columnsMaterials) {
                 ImGui::TextWrapped("%s", db::fetchCell(dbPathMaterials, static_cast<size_t>(row), static_cast<size_t>(c.index)).c_str());
                 ImGui::NextColumn();
@@ -1184,11 +1507,17 @@ static void monitorUI() {
             ImGui::PopID();
             ++shownMaterials;
         }
-
-        ImGui::TextDisabled(shownMaterials == 0 ? "No rows to display." : "Showing %d row(s).", shownMaterials);
-    } else {
-        ImGui::TextDisabled("Enter a Project ID to view materials.");
     }
+
+    if (viewerProjectIDStr.empty()) {
+        ImGui::TextDisabled("Enter a Project ID to view materials");
+    } else if (shownMaterials == 0) {
+        ImGui::TextDisabled("No materials to display for this project");
+    } else {
+        ImGui::TextDisabled("Showing %d material(s)", shownMaterials);
+    }
+
+    ImGui::EndChild();
 
     ImGui::EndChild();
 }
