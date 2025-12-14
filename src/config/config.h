@@ -19,6 +19,7 @@ class appConfig {
         static std::string g_projectDirectory;    // Projects directory path
         static std::string g_payrollDirectory;    // Payroll database directory path
         static std::string g_projectExpenseDirectory; // Project expenses directory path
+        static std::string g_payrollAttendanceDirectory; // Payroll attendance directory path
 
         static std::string g_dbNamePayroll;       // Database file name for payroll
         static std::string g_dbNameProject;       // Database file name for tracker
