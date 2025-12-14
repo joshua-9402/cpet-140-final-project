@@ -181,6 +181,12 @@ static void accountUI() {
         appConfig::g_testMode = false;
         ui::g_userName = "";
         ui::g_position = "";
+        // Force the runner to use the login window size on next run, then request the current Run to exit.
+        if (HelloImGui::GetRunnerParams()) {
+            HelloImGui::GetRunnerParams()->appWindowParams.windowGeometry.size = { std::clamp(appConfig::g_loginWidth, 50, 3840), std::clamp(appConfig::g_loginHeight, 50, 2160) };
+            // Ensure the runner applies the resize when it exits the current Run
+            HelloImGui::GetRunnerParams()->appWindowParams.windowGeometry.resizeAppWindowAtNextFrame = true;
+        }
         system::appShutdown();
     }
 }
@@ -410,7 +416,7 @@ void testUI() {
     static char hoursWorkedBuf[128] = "";
     static char advanceBuf[128] = "";
 
-    ImGui::Text("Username");
+    ImGui::Text("Name");
     ImGui::InputText("##name", nameBuf, IM_ARRAYSIZE(nameBuf));
 
     ImGui::Text("Position");
@@ -489,6 +495,115 @@ void testUI() {
             system::logMessage(system::messageClassification::ERROR, "Payslip Test: Failed to export payslips.\n");
         }
     }
+
+    // Project report printing test
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Project Report Printing Test");
+
+    static char projectIdInput[32] = "PRJ-00001";
+    ImGui::InputText("Project ID", projectIdInput, sizeof(projectIdInput));
+
+    if (ImGui::Button("Print Project Report")) {
+        if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); system::printProjectReport(projectIdInput, logoPath)) {
+            system::logMessage(system::messageClassification::INFO, "Project Report Test: Report exported successfully.\n");
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "Project Report Test: Failed to export report.\n");
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Database Viewer (Test UI)
+    // ---------------------------------------------------------------------
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Database Viewer");
+
+    // Dataset selector
+    static int s_datasetIndex = 0; // 0 = Payroll Employees, 1 = Project List
+    const char* kDatasets[] = {"Payroll: Employees", "Projects: Project List"};
+    ImGui::Combo("Dataset", &s_datasetIndex, kDatasets, IM_ARRAYSIZE(kDatasets));
+
+    // Options
+    static int s_maxRows = 50; // max rows to display
+    static bool s_showHeaders = true;
+    ImGui::InputInt("Max Rows", &s_maxRows, 5, 25);
+    if (s_maxRows < 1) s_maxRows = 1;
+    ImGui::Checkbox("Show Headers", &s_showHeaders);
+
+    ImGui::Spacing();
+
+    // Resolve DB path and table schema based on dataset selection
+    std::string dbPath;
+    struct Column { const char* name; int index; };
+    std::vector<Column> columns;
+    if (s_datasetIndex == 0) {
+        // Employees table
+        dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+        columns = {
+            {"EMPLOYEE_ID", 1},
+            {"NAME", 2},
+            {"POSITION", 3},
+            {"SITE_LOCATION", 4},
+            {"SALARY", 5},
+            {"HOURS_WORK", 6},
+            {"ADVANCE", 7}
+        };
+    } else {
+        // Project list table
+        dbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
+        columns = {
+            {"PROJECT_ID", 1},
+            {"PROJECT_NAME", 2},
+            {"STATUS", 3},
+            {"START_DATE", 4},
+            {"NOTE", 5}
+        };
+    }
+
+    // Display area
+    ImGui::BeginChild("DBViewer", ImVec2(0, 300), true);
+
+    // Render headers
+    if (s_showHeaders) {
+        // Provide an explicit ID for this Columns() set to avoid collisions
+        ImGui::Columns(static_cast<int>(columns.size()), "DBViewer_HeaderCols");
+        for (const auto& c : columns) {
+            ImGui::Text("%s", c.name);
+            ImGui::NextColumn();
+        }
+        ImGui::Separator();
+        ImGui::Columns(1);
+    }
+
+    // Render rows
+    int shown = 0;
+    for (int row = 1; row <= s_maxRows; ++row) {
+        // Stop if ID column is empty (assumes non-null ID in schema)
+        const std::string idCell = db::fetchCell(dbPath, static_cast<size_t>(row), 1);
+        if (idCell.empty()) break;
+
+        // Make the Columns() set for this row uniquely identified to prevent
+        // "visible items with conflicting ID" errors when many rows are shown
+        ImGui::PushID(row);
+        ImGui::Columns(static_cast<int>(columns.size()), "DBViewer_RowCols");
+        for (const auto& c : columns) {
+            const std::string cell = db::fetchCell(dbPath, static_cast<size_t>(row), static_cast<size_t>(c.index));
+            ImGui::TextWrapped("%s", cell.c_str());
+            ImGui::NextColumn();
+        }
+        ImGui::Columns(1);
+        ImGui::PopID();
+        ++shown;
+    }
+
+    if (shown == 0) {
+        ImGui::TextDisabled("No rows to display.");
+    } else {
+        ImGui::TextDisabled("Showing %d row(s).", shown);
+    }
+
+    ImGui::EndChild();
 }
 
 
