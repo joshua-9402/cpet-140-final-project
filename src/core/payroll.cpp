@@ -38,34 +38,38 @@
  * | over 8000000              | 2410000 + 35% of excess over 8000000                       |
  */
 
+#include <string>
 #include "payroll.h"
+#include "../handler/db.h"
+#include "../config/config.h"
+#include "../handler/system.h"
 
 
 // Gross Pay
-double Payroll::computeGross(const Employee& emp) {
+double payroll::computeGross(const Employee& emp) {
     return emp.hourlyRate * emp.hoursWorked;
 }
 
 
 // Government Contributions
-double Payroll::computeSSS(const double gross) {
+double payroll::computeSSS(const double gross) {
     return gross * 0.045; // 4.5% employee share
 }
 
 
-double Payroll::computePhilHealth(const double gross) {
+double payroll::computePhilHealth(const double gross) {
     return gross * 0.025; // 2.5% employee share
 }
 
 
-double Payroll::computePagIbig(const double gross) {
+double payroll::computePagIbig(const double gross) {
     return std::min(gross * 0.02, 100.0); // 2%, capped at 100
 }
 
 
 // TRAIN Law tax (weekly pay)
-double Payroll::computeTax(const double weeklyGrossAfterDeductions) {
-    double annual = weeklyGrossAfterDeductions * 52; // annualized
+double payroll::computeTax(const double weeklyGrossAfterDeductions) {
+    const double annual = weeklyGrossAfterDeductions * 52; // annualized
     double tax = 0.0;
 
     if (annual <= 250000)
@@ -83,7 +87,7 @@ double Payroll::computeTax(const double weeklyGrossAfterDeductions) {
 
     return tax / 52.0; // weekly tax
 }// Compute everything
-PayrollResult Payroll::computePayroll(const Employee& emp) {
+PayrollResult payroll::computePayroll(const Employee& emp) {
     PayrollResult result{};
 
     result.grossPay = computeGross(emp);
@@ -92,7 +96,7 @@ PayrollResult Payroll::computePayroll(const Employee& emp) {
     result.pagIbig = computePagIbig(result.grossPay);
 
     // Taxable amount = gross - contributions
-    double taxableWeekly = result.grossPay - (result.sss + result.philHealth + result.pagIbig);
+    const double taxableWeekly = result.grossPay - (result.sss + result.philHealth + result.pagIbig);
     result.tax = computeTax(taxableWeekly);
 
     // Net pay
@@ -100,6 +104,28 @@ PayrollResult Payroll::computePayroll(const Employee& emp) {
 
     return result;
 }
+
+
+bool createAttendanceRecord(const std::string& p_dbName) {
+    if (db::createDatabase(
+        appConfig::g_dataDirectory +
+        appConfig::g_projectDirectory +
+        appConfig::g_dbNamePayroll +
+        std::to_string(system::fetchTime(system::PartDateTime::YEAR)) +
+        p_dbName + ".db"))
+        {return true;}
+    return false;
+}
+
+bool workerAttendance(const std::string& p_dbName, const std::string& p_day, const int p_hoursWorked) {
+    if (db::updateDatabase(
+        appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNamePayroll + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + p_dbName + ".db",
+        p_day,
+        std::to_string(p_hoursWorked))) {return true;}
+    return false;
+}
+
+
 
 
 

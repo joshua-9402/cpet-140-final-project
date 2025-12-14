@@ -21,7 +21,7 @@ struct PayrollResult {
     double netPay;
 };
 
-class Payroll {
+class payroll {
 public:
     // Declare functions only
     static double computeGross(const Employee& emp);
