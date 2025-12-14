@@ -1,15 +1,55 @@
 ## What's Changed
 
-HOORAY! We moved on from pre-alpha to alpha of our software project.
+### 🎉 Major Features & Enhancements
 
-There are many changes included in this release, including:
+#### Print & Report Generation
+- Added comprehensive project report generation with HTML export to browser
+- Introduced HTML payslip generator with 2x4 layout options and improved margins
+- Implemented project and material structures with database fetching capabilities
+- Enhanced `print.cpp` and `print.h` with live data integration matching payslip styling
 
-- Enhanced database performance with optimized queries.
-- Improved performance and reduced memory usage.
-- Added new user authentication features.
-- Fixed bugs (many of them, some of them are very hard to find)
-- Refactored codebase for better maintainability.
-- Feats and improvements in the `system.cpp` and `db.cpp`
+#### UI Improvements
+- Enhanced UI with project report printing and database viewer features (`ui.cpp`)
+- Implemented payroll computation functions and enhanced payroll UI
+- Simplified login UI by removing unused padding and error handling code
+- Renamed `basicAuth` to `mainAuth` for better clarity
+- Enhanced passkey hashing functionality in UI components
+
+#### Monitoring System
+- Extended monitoring tools (`monitor.cpp/.h`) with richer project management and expense tracking
+- Added worker and equipment monitoring functions with cost calculations
+- Implemented background thread for periodic employee ID monitoring and rearrangement (`main.cpp`)
+
+#### Database & Data Management
+- Updated database schema and added `fetchCell` function for improved data retrieval
+- Improved input validation and simplified SQL query preparation in `db.cpp`
+- Removed obsolete materials database references for cleaner architecture
+- Added algorithm header for improved functionality
+
+#### Payroll System
+- Refined payroll modules (`payroll.cpp/.h`) with attendance helpers and standardized naming
+- Standardized class naming and added attendance record functions
+- Removed unnecessary whitespace and comments for code cleanliness
+
+#### System & Core
+- Updated `system.cpp/.h` to expose project report workflows and ensure logout returns to the login UI
+- Added project report generation function in system module
+
+### 🔒 Security & Authentication
+- Updated authentication methods to include standard and admin users
+- Renamed `basicAuth` to `mainAuth` throughout the codebase for consistency
+- Enhanced username verification in `auth.cpp`
+- Removed deprecated admin authentication method
+
+### 🛠️ Code Quality & Refactoring
+- Streamlined hash computation by combining variable declaration and condition check in `cryptography.cpp`
+- Corrected typo in boundaries section and removed unused includes in `monitor.h`
+- Improved code maintainability across multiple modules
+
+### 🖥️ Platform Support
+- Switch from macOS 13 to macOS 15 deployment target for Intel builds
+- Updated GitHub Actions workflow to use `macos-15` runner for Intel Macs
+- Enhanced cross-platform compatibility
 
 ## Supported Platforms
 
@@ -20,7 +60,7 @@ There are many changes included in this release, including:
 
 ### macOS
 - Apple Silicon (ARM64) - macOS 11.0+
-- Intel (x64) - macOS 10.15+
+- Intel (x64) - macOS 15.0+
 
 ### Windows
 - x64 and ARM64
