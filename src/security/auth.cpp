@@ -46,9 +46,9 @@ bool auth::testDeployAuth(const std::string& username, const std::string& passwo
 
 
 bool auth::mainAuth(const std::string& username, const std::string& password) {
-    if (username == "jsl" && password == "pass") {
-        ui::g_userName = "STANDARD USER";
-        ui::g_position = "STANDARD USER";
+    if (username == "jsl" && cryptography::hashKey(password, 32) == "4989ad9b68363636d2fa7dd15a073576eae5a4cef2dc1fd778dfe133c7cd9ff6") {
+        ui::g_userName = "Engr. Literal";
+        ui::g_position = "Owner";
         return true;
     }
     return false;
