@@ -292,6 +292,36 @@ bool system::printProjectReport(const std::string& projectId, const std::string&
     return exportProjectReportHtml(projectId, outputPath, logoPath);
 }
 
+bool system::openFileInBrowser(const std::string& filePath) {
+    if (filePath.empty() || !searchFile(filePath)) {
+        logMessage(messageClassification::ERROR, "File not found: " + filePath + "\n");
+        return false;
+    }
+
+    // Convert to absolute path
+    std::filesystem::path absPath = std::filesystem::absolute(filePath);
+    std::string pathStr = absPath.string();
+
+#ifdef _WIN32
+    // Windows: use ShellExecute or start command
+    std::string command = "start \"\" \"" + pathStr + "\"";
+#elif __APPLE__
+    // macOS: use open command
+    std::string command = "open \"" + pathStr + "\"";
+#else
+    // Linux: use xdg-open
+    std::string command = "xdg-open \"" + pathStr + "\"";
+#endif
+
+    int result = std::system(command.c_str());
+    if (result != 0) {
+        logMessage(messageClassification::ERROR, "Failed to open file in browser: " + pathStr + "\n");
+        return false;
+    }
+
+    logMessage(messageClassification::INFO, "Opened file in browser: " + pathStr + "\n");
+    return true;
+}
 
 void system::appShutdown() {
     std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;

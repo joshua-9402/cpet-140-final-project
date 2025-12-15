@@ -65,6 +65,10 @@ class system {
         // Returns true on success, false on failure.
         static bool printProjectReport(const std::string& projectId, const std::string& logoPath);
 
+        // Open a file in the system's default browser.
+        // Returns true on success, false on failure.
+        static bool openFileInBrowser(const std::string& filePath);
+
         // Application shutdown routine to clean up resources.
         static void appShutdown();
 };
