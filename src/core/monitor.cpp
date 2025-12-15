@@ -28,14 +28,21 @@
 #include "../config/config.h"
 
 
-bool addProject(const std::string& p_projectName, const std::string& p_status, const std::string& p_startDate, const std::string& p_note = "") {
-    if (db::appendDatabase(
-                appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject,
-         "\"'" + p_projectName + "', '" + p_status + "', '" + p_startDate + "', '" + p_note + "'\"")
-        &&
-        db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory + p_projectName + ".db")
-        ) {return true;}
+namespace monitor {
 
+bool addProject(const std::string& projectId,
+                const std::string& projectName,
+                const std::string& status,
+                const std::string& startDate,
+                const std::string& note) {
+    const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
+    const std::string values = "'" + projectId + "', '" + projectName + "', '" + status + "', '" + startDate + "', '" + note + "'";
+
+    if (db::appendDatabase(dbPath, values)
+        && db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory +
+                              appConfig::g_projectExpenseDirectory + projectId + ".db")) {
+        return true;
+    }
     return false;
 }
 
@@ -105,4 +112,6 @@ double computeProjectExpenses(
     }
     return grand;
 }
+
+} // namespace monitor
 
