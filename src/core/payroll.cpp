@@ -40,9 +40,6 @@
 
 #include <string>
 #include "payroll.h"
-#include "../handler/db.h"
-#include "../config/config.h"
-#include "../handler/system.h"
 
 
 // Gross Pay
@@ -103,26 +100,6 @@ PayrollResult payroll::computePayroll(const Employee& emp) {
     result.netPay = result.grossPay - (result.sss + result.philHealth + result.pagIbig + result.tax);
 
     return result;
-}
-
-
-bool createAttendanceRecord(const std::string& p_dbName) {
-    if (db::createDatabase(
-        appConfig::g_dataDirectory +
-        appConfig::g_projectDirectory +
-        appConfig::g_dbNamePayroll +
-        std::to_string(system::fetchTime(system::PartDateTime::YEAR)) +
-        p_dbName + ".db"))
-        {return true;}
-    return false;
-}
-
-bool workerAttendance(const std::string& p_dbName, const std::string& p_day, const int p_hoursWorked) {
-    if (db::updateDatabase(
-        appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNamePayroll + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + p_dbName + ".db",
-        p_day,
-        std::to_string(p_hoursWorked))) {return true;}
-    return false;
 }
 
 
