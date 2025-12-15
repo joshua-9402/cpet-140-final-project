@@ -16,6 +16,8 @@
  * Notes
  * - UI switching is immediate (case-insensitive). App exit uses HelloImGui runner.
  * - This part is OFF LIMITS, especially to constructUI(), the global variables, and to the UI registry/map.
+ *
+ * jslbuilders@victoria
  */
 
 #include <string>
@@ -186,8 +188,7 @@ static void loginUI() {
             username[0] = '\0';
             password[0] = '\0';
 
-            ui::g_userName = std::string(username);
-            ui::g_position = "";
+            // ui::g_userName and ui::g_position are already set by mainAuth()
 
             if (auto* params = HelloImGui::GetRunnerParams()) {
                 params->appShallExit = true;
@@ -224,7 +225,7 @@ static void accountUI() {
             params->appWindowParams.windowGeometry.size = { std::clamp(appConfig::g_loginWidth, 50, 3840), std::clamp(appConfig::g_loginHeight, 50, 2160) };
             // Ensure the runner applies the resize when it exits the current Run
             params->appWindowParams.windowGeometry.resizeAppWindowAtNextFrame = true;
-            // Request app to quit so HelloImGui::Run returns and we can restart at login
+            // Request app to quit so HelloImGui::Run returns, and we can restart at login
             params->appShallExit = true;
         }
     }
@@ -319,10 +320,10 @@ static void summaryUI() {
     }
 
     // Statistics Cards
-    const float cardWidth = 280.0f;
-    const float cardHeight = 120.0f;
-    const ImVec4 cardColor = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
-    const ImVec4 accentColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
+    constexpr float cardWidth = 280.0f;
+    constexpr float cardHeight = 120.0f;
+    constexpr ImVec4 cardColor = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    constexpr ImVec4 accentColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, cardColor);
 
@@ -628,10 +629,10 @@ static void payrollUI() {
     }
 
     // Statistics Cards
-    const float cardWidth = 380.0f;
-    const float cardHeight = 120.0f;
-    const ImVec4 cardColor = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
-    const ImVec4 accentColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
+    constexpr float cardWidth = 380.0f;
+    constexpr float cardHeight = 120.0f;
+    constexpr auto cardColor = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    constexpr auto accentColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, cardColor);
 
@@ -1128,7 +1129,7 @@ static void monitorUI() {
     ImGui::Checkbox("Show Headers##att", &s_showHeadersAttendance);
 
     const std::string viewerWeekLabel = weekOptions[viewerWeekIndex];
-    const int currentYear = 2025;
+    const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
     const std::string dbPathAttendance = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
                                         std::to_string(currentYear) + "/" + viewerWeekLabel + ".db";
 
@@ -1602,27 +1603,43 @@ static void testUI() {
 
     static char passkey[128] = "";
     static std::string hashedPasskey;
-    static std::string salt;
     static bool passkeyHashed = false;
 
     ImGui::Text("Passkey");
     ImGui::InputText("##passkey", passkey, IM_ARRAYSIZE(passkey));
 
-    if (ImGui::Button("Hash and Salt Passkey")) {
-        std::string passkeyStr(passkey);
-        hashedPasskey = cryptography::toHex(std::vector<unsigned char>(passkeyStr.begin(), passkeyStr.end()));
-        passkeyHashed = true;
+    if (ImGui::Button("Hash Passkey")) {
+        const std::string passkeyStr(passkey);
+        if (!passkeyStr.empty()) {
+            // Use 32 bytes (256 bits) for hash length - standard SHA-256 equivalent
+            hashedPasskey = cryptography::hashKey(passkey, 32);
+            passkeyHashed = true;
+            std::cout << "Button clicked! Passkey: '" << passkeyStr << "'" << std::endl;
+            std::cout << "Hashed result: '" << hashedPasskey << "'" << std::endl;
+            std::cout << "Hash length: " << hashedPasskey.length() << std::endl;
+        } else {
+            passkeyHashed = false;
+            hashedPasskey.clear();
+            std::cout << "Button clicked but passkey is empty!" << std::endl;
+        }
     }
 
+    ImGui::Spacing();
 
+    // Always show if the flag is set, even if hash is empty (for debugging)
     if (passkeyHashed) {
+        ImGui::Text("Passkey was hashed!");
         ImGui::Spacing();
-        const float wrapWidth = ImGui::GetContentRegionAvail().x;
-        const float height = ImGui::GetTextLineHeightWithSpacing() +
-                             ImGui::CalcTextSize(hashedPasskey.c_str(), nullptr, false, wrapWidth).y;
-        ImGui::BeginChild("PasskeyDisplayPanel", ImVec2(0.0f, height), true);
-        ImGui::TextWrapped("Hashed Passkey: %s", hashedPasskey.c_str());
-        ImGui::EndChild();
+
+        if (!hashedPasskey.empty()) {
+            const float height = ImGui::GetTextLineHeightWithSpacing() * 3;
+            ImGui::BeginChild("PasskeyDisplayPanel", ImVec2(0.0f, height), true);
+            ImGui::TextWrapped("Hashed Passkey:");
+            ImGui::TextWrapped("%s", hashedPasskey.c_str());
+            ImGui::EndChild();
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Hash result is empty! Check console output.");
+        }
     }
 
     static int keySizeBits = 128; // Default key size
@@ -2079,7 +2096,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
             img.height = h;
             img.pixels = pixels;
             // Set the GLFW window icon (GLFW makes its own copy)
-            glfwSetWindowIcon(reinterpret_cast<GLFWwindow*>(bp.glfwWindow), 1, &img);
+            glfwSetWindowIcon(static_cast<GLFWwindow*>(bp.glfwWindow), 1, &img);
             stbi_image_free(pixels);
             return;
         }
