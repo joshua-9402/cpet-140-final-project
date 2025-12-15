@@ -459,77 +459,79 @@ static std::string makeProjectReportHtml(const project& proj, const std::string&
 <meta charset="utf-8">
 <title>Project Report - )" << proj.id << R"(</title>
 <style>
-  @page { size: 8.5in 13in; margin: 0.5in; }
+  @page { size: 8.5in 13in; margin: 0.5in 0.5in 0.5in 0.5in; }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; padding: 20px; }
+  body { font-family: Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; padding: 0; margin: 0; }
 
-  .report-container { max-width: 7.5in; margin: 0 auto; border: 2px solid #d88c28; border-radius: 8px; padding: 20px; background: white; }
+  .report-container { width: 7.5in; margin: 0; border: 2px solid #d88c28; border-radius: 8px; padding: 15px; background: white; }
 
   .report-header {
     display: flex;
     align-items: center;
     gap: 15px;
-    padding-bottom: 15px;
+    padding-bottom: 12px;
     border-bottom: 3px solid #d88c28;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
   }
 
-  .company-logo { width: 60px; height: 60px; object-fit: contain; }
+  .company-logo { width: 55px; height: 55px; object-fit: contain; }
   .header-info { flex: 1; }
-  .report-title { font-size: 24px; font-weight: bold; color: #d88c28; margin-bottom: 5px; }
-  .report-subtitle { font-size: 14px; color: #666; }
+  .report-title { font-size: 22px; font-weight: bold; color: #d88c28; margin-bottom: 4px; }
+  .report-subtitle { font-size: 13px; color: #666; }
 
   .project-info {
     background: #f9f3e8;
     border: 1px solid #d88c28;
     border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 20px;
+    padding: 12px;
+    margin-bottom: 15px;
   }
 
   .info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
   }
 
   .info-item {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .info-label {
     font-weight: bold;
     color: #555;
-    margin-right: 8px;
+    margin-right: 6px;
   }
 
   .section-title {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: bold;
     color: #d88c28;
-    margin: 20px 0 10px;
-    padding-bottom: 5px;
+    margin: 15px 0 8px;
+    padding-bottom: 4px;
     border-bottom: 2px solid #d88c28;
   }
 
   .materials-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
   }
 
   .materials-table th {
     background: #d88c28;
     color: white;
-    padding: 10px;
+    padding: 8px;
     text-align: left;
     border: 1px solid #d88c28;
+    font-size: 14px;
   }
 
   .materials-table td {
-    padding: 8px 10px;
+    padding: 6px 8px;
     border: 1px solid #ddd;
+    font-size: 13px;
   }
 
   .materials-table tr:nth-child(even) {
@@ -547,43 +549,84 @@ static std::string makeProjectReportHtml(const project& proj, const std::string&
 
   .materials-table tr.total-row td {
     border-top: 2px solid #d88c28;
-    padding-top: 12px;
+    padding-top: 10px;
   }
 
   .summary-box {
     background: #d88c28;
     color: white;
-    padding: 15px;
+    padding: 12px;
     border-radius: 4px;
-    margin: 20px 0;
+    margin: 15px 0;
   }
 
   .summary-item {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 8px;
-    font-size: 16px;
+    margin-bottom: 6px;
+    font-size: 15px;
   }
 
   .summary-item.grand-total {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: 8px;
+    padding-top: 8px;
     border-top: 2px solid rgba(255, 255, 255, 0.3);
   }
 
   .footer {
     text-align: center;
-    margin-top: 30px;
-    padding-top: 15px;
+    margin-top: 20px;
+    padding-top: 12px;
     border-top: 1px solid #ddd;
     color: #666;
-    font-size: 12px;
+    font-size: 11px;
+  }
+
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+    margin: 20px 0;
+    padding: 15px 0;
+    border-bottom: 3px dashed #d88c28;
+    text-align: center;
+    color: #d88c28;
+    font-weight: bold;
+  }
+
+  .page-break::after {
+    content: "— CONTINUED ON NEXT PAGE —";
+    display: block;
+    font-size: 14px;
+    margin-top: 10px;
+  }
+
+  .continuation-header {
+    border-top: 3px solid #d88c28;
+    padding-top: 15px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+  }
+
+  .continuation-header::before {
+    content: "— CONTINUED FROM PREVIOUS PAGE —";
+    display: block;
+    text-align: center;
+    color: #d88c28;
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 15px;
   }
 
   @media print {
-    .report-container { border: 2px solid #d88c28; }
+    body { padding: 0; margin: 0; }
+    .report-container { border: 2px solid #d88c28; width: 7.5in; }
+    .page-break {
+      page-break-after: always;
+      border-bottom: none;
+    }
+    .page-break::after { display: none; }
   }
 </style>
 </head>
@@ -619,7 +662,7 @@ static std::string makeProjectReportHtml(const project& proj, const std::string&
 
     if (!proj.note.empty()) {
         o << R"(
-    <div class="info-item" style="margin-top: 10px;">
+    <div class="info-item" style="margin-top: 8px;">
       <span class="info-label">Notes:</span>
       <span>)" << proj.note << R"(</span>
     </div>)";
@@ -632,7 +675,21 @@ static std::string makeProjectReportHtml(const project& proj, const std::string&
 )";
 
     if (!proj.materials.empty()) {
-        o << R"(  <table class="materials-table">
+        const size_t itemsPerPage = 25; // Adjust based on page size
+        const size_t totalItems = proj.materials.size();
+
+        for (size_t pageStart = 0; pageStart < totalItems; pageStart += itemsPerPage) {
+            // Add continuation header for pages after the first
+            if (pageStart > 0) {
+                o << R"(
+</div>
+<div class="page-break"></div>
+<div class="report-container continuation-header">
+  <div class="section-title">Materials & Supplies (Continued)</div>
+)";
+            }
+
+            o << R"(  <table class="materials-table">
     <thead>
       <tr>
         <th>Material ID</th>
@@ -645,26 +702,34 @@ static std::string makeProjectReportHtml(const project& proj, const std::string&
     <tbody>
 )";
 
-        for (const auto& mat : proj.materials) {
-            const double totalCost = mat.quantity * mat.unitPrice;
-            o << "      <tr>\n";
-            o << "        <td>" << mat.id << "</td>\n";
-            o << "        <td>" << mat.name << "</td>\n";
-            o << "        <td class=\"amount\">" << std::fixed << std::setprecision(2) << mat.quantity << "</td>\n";
-            o << "        <td class=\"amount\">₱" << std::fixed << std::setprecision(2) << mat.unitPrice << "</td>\n";
-            o << "        <td class=\"amount\">₱" << std::fixed << std::setprecision(2) << totalCost << "</td>\n";
-            o << "      </tr>\n";
-        }
+            const size_t pageEnd = std::min(pageStart + itemsPerPage, totalItems);
+            for (size_t i = pageStart; i < pageEnd; ++i) {
+                const auto& mat = proj.materials[i];
+                const double totalCost = mat.quantity * mat.unitPrice;
+                o << "      <tr>\n";
+                o << "        <td>" << mat.id << "</td>\n";
+                o << "        <td>" << mat.name << "</td>\n";
+                o << "        <td class=\"amount\">" << std::fixed << std::setprecision(2) << mat.quantity << "</td>\n";
+                o << "        <td class=\"amount\">₱" << std::fixed << std::setprecision(2) << mat.unitPrice << "</td>\n";
+                o << "        <td class=\"amount\">₱" << std::fixed << std::setprecision(2) << totalCost << "</td>\n";
+                o << "      </tr>\n";
+            }
 
-        o << R"(      <tr class="total-row">
+            // Only show total on the last page
+            if (pageEnd >= totalItems) {
+                o << R"(      <tr class="total-row">
         <td colspan="4" style="text-align: right;">Total Material Cost:</td>
         <td class="amount">₱)" << std::fixed << std::setprecision(2) << proj.totalMaterialCost << R"(</td>
       </tr>
-    </tbody>
+)";
+            }
+
+            o << R"(    </tbody>
   </table>
 )";
+        }
     } else {
-        o << R"(  <p style="color: #666; font-style: italic; margin: 20px 0;">No materials recorded for this project.</p>
+        o << R"(  <p style="color: #666; font-style: italic; margin: 15px 0;">No materials recorded for this project.</p>
 )";
     }
 
