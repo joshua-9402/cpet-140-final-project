@@ -6,7 +6,7 @@
 
 namespace cryptography {
     bool checkSodium();
-    std::string hashKey(const std::string& key);
+    std::string hashKey(const std::string &key, int hashLen);
     std::vector<unsigned char> generateKey(size_t keyBits);
     std::string toHex(const std::vector<unsigned char>& key);
     std::string saltKey(const std::string& key);

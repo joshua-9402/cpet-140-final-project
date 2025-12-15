@@ -55,10 +55,11 @@ std::string cryptography::toHex(const std::vector<unsigned char>& key) {
 }
 
 
-std::string cryptography::hashKey(const std::string& key) {
+std::string cryptography::hashKey(const std::string& key, const int hashLen) {
     if (!checkSodium()) return {};
 
-    constexpr size_t hashLen = crypto_generichash_BYTES;
+    if (hashLen < crypto_generichash_BYTES_MIN || hashLen > crypto_generichash_BYTES_MAX) return {};
+
     std::vector<unsigned char> hash(hashLen);
 
     if (const unsigned char* data = key.empty() ? nullptr : reinterpret_cast<const unsigned char*>(key.data()); crypto_generichash(hash.data(), hashLen, data, key.size(), nullptr, 0) != 0) {
