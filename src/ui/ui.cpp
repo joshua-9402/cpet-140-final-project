@@ -29,10 +29,12 @@
 
 #include "hello_imgui/hello_imgui.h"
 #include "../handler/db.h"
+#include "../handler/print.h"
 #include "../handler/system.h"
 #include "../config/config.h"
 #include "../security/cryptography.h"
 #include "../security/auth.h"
+#include "../core/monitor.h"
 
 // stb_image is provided by the deps used in the project (hello_imgui). We include it here for icon loading.
 // If the header isn't available on the include path, these functions are declared manually as fallback prototypes.
@@ -52,10 +54,6 @@ extern "C" void stbi_image_free(void *retval_from_stbi_load);
 #include <SDL.h>
 #define UI_HAVE_SDL 1
 #endif
-
-
-// forward-declare the exporter to avoid including implementation here
-void exportPayslipsHtml(const std::string& outFile, const std::string& logoPath);
 
 
 // UI registry and UI management
@@ -501,6 +499,84 @@ static void summaryUI() {
 
     ImGui::Columns(1);
     ImGui::EndChild();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Action Buttons Section
+    ImGui::SetWindowFontScale(1.1f);
+    ImGui::Text("Generate Reports");
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::Spacing();
+
+    static char projectIDForReport[128] = "";
+
+    // Payslip Generation Button
+    if (ImGui::Button("Print All Payslips", ImVec2(350.0f, 50.0f))) {
+        const std::string outFile = appConfig::g_dataDirectory + "payslips_" +
+                                   std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "_" +
+                                   std::to_string(system::fetchTime(system::PartDateTime::MONTH)) + "_" +
+                                   std::to_string(system::fetchTime(system::PartDateTime::DAY)) + ".html";
+        const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png");
+
+        if (exportPayslipsHtml(outFile, logoPath)) {
+            system::logMessage(system::messageClassification::INFO, "Payslips exported successfully to: " + outFile + "\n");
+            system::openFileInBrowser(outFile);
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "Failed to export payslips\n");
+        }
+    }
+
+    ImGui::SameLine();
+
+    // Project Report Generation
+    ImGui::BeginGroup();
+    ImGui::Text("Project ID:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(150.0f);
+    ImGui::InputText("##projectIDReport", projectIDForReport, IM_ARRAYSIZE(projectIDForReport));
+    ImGui::SameLine();
+
+    if (ImGui::Button("Print Project Report", ImVec2(350.0f, 50.0f))) {
+        std::string projectIDStr(projectIDForReport);
+
+        // Format project ID to PRJ-xxxxx if needed
+        if (!projectIDStr.empty()) {
+            if (projectIDStr.length() != 10 || projectIDStr.substr(0, 4) != "PRJ-") {
+                std::string digits;
+                for (char ch : projectIDStr) {
+                    if (std::isdigit(static_cast<unsigned char>(ch))) {
+                        digits.push_back(ch);
+                    }
+                }
+                if (!digits.empty()) {
+                    long long idVal = 0;
+                    try { idVal = std::stoll(digits); } catch (...) { idVal = 0; }
+                    std::ostringstream oss;
+                    oss << "PRJ-" << std::setw(5) << std::setfill('0') << idVal;
+                    projectIDStr = oss.str();
+                }
+            }
+
+            const std::string outFile = appConfig::g_dataDirectory + "project_report_" + projectIDStr + "_" +
+                                       std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "_" +
+                                       std::to_string(system::fetchTime(system::PartDateTime::MONTH)) + "_" +
+                                       std::to_string(system::fetchTime(system::PartDateTime::DAY)) + ".html";
+            const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png");
+
+            if (exportProjectReportHtml(projectIDStr, outFile, logoPath)) {
+                system::logMessage(system::messageClassification::INFO, "Project report exported successfully to: " + outFile + "\n");
+                system::openFileInBrowser(outFile);
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "Failed to export project report for " + projectIDStr + "\n");
+            }
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "Please enter a Project ID\n");
+        }
+    }
+    ImGui::EndGroup();
 
     ImGui::Spacing();
     ImGui::Spacing();
@@ -1185,10 +1261,8 @@ static void monitorUI() {
     // Project Action Buttons
     if (ImGui::Button("Add New Project", ImVec2(350.0f, 40.0f))) {
         if (!projectIDStr.empty()) {
-            const std::string p_data = "'" + projectIDStr + "', '" + projectNameStr + "', '" + statusStr + "', '" + startDateStr + "', '" + notesStr + "'";
-            if (db::appendDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, p_data)) {
+            if (monitor::addProject(projectIDStr, projectNameStr, statusStr, startDateStr, notesStr)) {
                 system::logMessage(system::messageClassification::INFO, "DB: New project added successfully.\n");
-                db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory + projectIDStr + ".db");
                 projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::INFO, "DB: Failed to add new project.\n");
