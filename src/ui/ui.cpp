@@ -21,6 +21,7 @@
  */
 
 #include <string>
+#include <cstring>
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
@@ -1029,7 +1030,7 @@ static void monitorUI() {
         if (!formattedEmpID.empty() && !weekStartStr.empty()) {
             // For logging only (UI presentation), keep the same safe label formatting
             std::string safeWeekLabel = weekLabel;
-            std::replace(safeWeekLabel.begin(), safeWeekLabel.end(), '/', '-');
+            std::ranges::replace(safeWeekLabel, '/', '-');
 
             const bool ok = monitor::addWeeklyAttendance(
                 attendanceEmpIDStr,
@@ -1143,7 +1144,7 @@ static void monitorUI() {
 
     std::string viewerWeekLabel = weekOptions[viewerWeekIndex];
     // Replace slashes with hyphens for valid filename
-    std::replace(viewerWeekLabel.begin(), viewerWeekLabel.end(), '/', '-');
+    std::ranges::replace(viewerWeekLabel, '/', '-');
 
     const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
     const std::string dbPathAttendance = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
@@ -1748,248 +1749,6 @@ static void testUI() {
             ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", decryptionStatus.c_str());
         }
     }
-
-    // TEST FOR DB
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::Text("DB Test");
-
-    static char nameBuf[128] = "";
-    static char positionBuf[128] = "";
-    static char locationBuf[128] = "";
-    static char salaryBuf[128] = "";
-    static char hoursWorkedBuf[128] = "";
-    static char advanceBuf[128] = "";
-
-    ImGui::Text("Name");
-    ImGui::InputText("##name", nameBuf, IM_ARRAYSIZE(nameBuf));
-
-    ImGui::Text("Position");
-    ImGui::InputText("##position", positionBuf, IM_ARRAYSIZE(positionBuf));
-
-    ImGui::Text("Location Site");
-    ImGui::InputText("##location", locationBuf, IM_ARRAYSIZE(locationBuf));
-
-    ImGui::Text("Salary");
-    ImGui::InputText("##salary", salaryBuf, IM_ARRAYSIZE(salaryBuf));
-
-    ImGui::Text("Hours Worked");
-    ImGui::InputText("##hoursWorked", hoursWorkedBuf, IM_ARRAYSIZE(hoursWorkedBuf));
-
-    ImGui::Text("Advance Payment");
-    ImGui::InputText("##advance", advanceBuf, IM_ARRAYSIZE(advanceBuf));
-
-    const std::string nameStr(nameBuf);
-    const std::string positionStr(positionBuf);
-    const std::string locationStr(locationBuf);
-    const std::string salaryStr(salaryBuf);
-    const std::string hoursWorkedStr(hoursWorkedBuf);
-    const std::string advanceStr(advanceBuf);
-
-    if (ImGui::Button("Add New Employee")) {
-        if (db::appendDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, "'" + nameStr + "', '" + positionStr + "', '" + locationStr + "', " + salaryStr + ", " + hoursWorkedStr + ", " + advanceStr)) {
-            system::logMessage(system::messageClassification::INFO, "DB Test: New employee added successfully.\n");
-        } else {
-            system::logMessage(system::messageClassification::INFO, "DB Test: Failed to add new employee.\n");
-        }
-    }
-
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    static char employeeId[8] = "";
-    ImGui::Text("Employee ID");
-    ImGui::InputText("##employeeId", employeeId, IM_ARRAYSIZE(employeeId));
-    const std::string employeeIdStr(employeeId);
-
-    static char column[64] = "";
-    ImGui::Text("Column Name");
-    ImGui::InputText("##column", column, IM_ARRAYSIZE(column));
-    const std::string columnStr(column);
-
-    static char newValue[128] = "";
-    ImGui::Text("New Value");
-    ImGui::InputText("##newValue", newValue, IM_ARRAYSIZE(newValue));
-    const std::string newValueStr(newValue);
-
-    if (ImGui::Button("Delete Employee")) {
-        if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeId)) {
-            system::logMessage(system::messageClassification::INFO, "DB Test: Employee deleted successfully.\n");
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to delete employee.\n");
-        }
-    }
-
-    if (ImGui::Button("Change Data")) {
-        if (const std::string setClause = columnStr + " = '" + newValueStr + "'"; db::updateDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeIdStr, setClause)) {
-            system::logMessage(system::messageClassification::INFO, "DB Test: Data updated successfully.\n");
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB Test: Failed to update data.\n");
-        }
-    }
-
-    // Payslip printing test
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::Text("Payslip Printing Test");
-
-    if (ImGui::Button("Print Payslips")) {
-        if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); system::printPayslips("", logoPath, {})) {
-            system::logMessage(system::messageClassification::INFO, "Payslip Test: Payslips exported successfully.\n");
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "Payslip Test: Failed to export payslips.\n");
-        }
-    }
-
-    // Project report printing test
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::Text("Project Report Printing Test");
-
-    static char projectIdInput[32] = "PRJ-00001";
-    ImGui::InputText("Project ID", projectIdInput, sizeof(projectIdInput));
-
-    if (ImGui::Button("Print Project Report")) {
-        if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); system::printProjectReport(projectIdInput, logoPath)) {
-            system::logMessage(system::messageClassification::INFO, "Project Report Test: Report exported successfully.\n");
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "Project Report Test: Failed to export report.\n");
-        }
-    }
-
-    // ---------------------------------------------------------------------
-    // Employee Database Viewer
-    // ---------------------------------------------------------------------
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::Text("Employee Database Viewer");
-
-    // Options for Employee DB
-    static int s_maxRowsEmp = 50;
-    static bool s_showHeadersEmp = true;
-    ImGui::InputInt("Max Rows##Emp", &s_maxRowsEmp, 5, 25);
-    if (s_maxRowsEmp < 1) s_maxRowsEmp = 1;
-    ImGui::Checkbox("Show Headers##Emp", &s_showHeadersEmp);
-
-    ImGui::Spacing();
-
-    // Employee DB configuration
-    std::string dbPathEmp = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
-    struct Column { const char* name; int index; };
-    std::vector<Column> columnsEmp = {
-        {"EMPLOYEE_ID", 1},
-        {"NAME", 2},
-        {"POSITION", 3},
-        {"SITE_LOCATION", 4},
-        {"SALARY", 5},
-        {"HOURS_WORK", 6},
-        {"ADVANCE", 7}
-    };
-
-    // Display area for Employee DB
-    ImGui::BeginChild("EmployeeDBViewer", ImVec2(0, 200), true);
-
-    // Render headers
-    if (s_showHeadersEmp) {
-        ImGui::Columns(static_cast<int>(columnsEmp.size()), "EmpDB_HeaderCols");
-        for (const auto& c : columnsEmp) {
-            ImGui::Text("%s", c.name);
-            ImGui::NextColumn();
-        }
-        ImGui::Separator();
-        ImGui::Columns(1);
-    }
-
-    // Render rows
-    int shownEmp = 0;
-    for (int row = 1; row <= s_maxRowsEmp; ++row) {
-        const std::string idCell = db::fetchCell(dbPathEmp, static_cast<size_t>(row), 1);
-        if (idCell.empty()) break;
-
-        ImGui::PushID(row);
-        ImGui::Columns(static_cast<int>(columnsEmp.size()), "EmpDB_RowCols");
-        for (const auto& c : columnsEmp) {
-            const std::string cell = db::fetchCell(dbPathEmp, static_cast<size_t>(row), static_cast<size_t>(c.index));
-            ImGui::TextWrapped("%s", cell.c_str());
-            ImGui::NextColumn();
-        }
-        ImGui::Columns(1);
-        ImGui::PopID();
-        ++shownEmp;
-    }
-
-    if (shownEmp == 0) {
-        ImGui::TextDisabled("No rows to display.");
-    } else {
-        ImGui::TextDisabled("Showing %d row(s).", shownEmp);
-    }
-
-    ImGui::EndChild();
-
-    // ---------------------------------------------------------------------
-    // Project Database Viewer
-    // ---------------------------------------------------------------------
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::Text("Project Database Viewer");
-
-    // Options for Project DB
-    static int s_maxRowsProj = 50;
-    static bool s_showHeadersProj = true;
-    ImGui::InputInt("Max Rows##Proj", &s_maxRowsProj, 5, 25);
-    if (s_maxRowsProj < 1) s_maxRowsProj = 1;
-    ImGui::Checkbox("Show Headers##Proj", &s_showHeadersProj);
-
-    ImGui::Spacing();
-
-    // Project DB configuration
-    std::string dbPathProj = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
-    std::vector<Column> columnsProj = {
-        {"PROJECT_ID", 1},
-        {"PROJECT_NAME", 2},
-        {"STATUS", 3},
-        {"START_DATE", 4},
-        {"NOTE", 5}
-    };
-
-    // Display area for Project DB
-    ImGui::BeginChild("ProjectDBViewer", ImVec2(0, 200), true);
-
-    // Render headers
-    if (s_showHeadersProj) {
-        ImGui::Columns(static_cast<int>(columnsProj.size()), "ProjDB_HeaderCols");
-        for (const auto& c : columnsProj) {
-            ImGui::Text("%s", c.name);
-            ImGui::NextColumn();
-        }
-        ImGui::Separator();
-        ImGui::Columns(1);
-    }
-
-    // Render rows
-    int shownProj = 0;
-    for (int row = 1; row <= s_maxRowsProj; ++row) {
-        if (const std::string idCell = db::fetchCell(dbPathProj, static_cast<size_t>(row), 1); idCell.empty()) break;
-
-        ImGui::PushID(1000 + row); // Offset ID to avoid conflicts with employee viewer
-        ImGui::Columns(static_cast<int>(columnsProj.size()), "ProjDB_RowCols");
-        for (const auto& c : columnsProj) {
-            const std::string cell = db::fetchCell(dbPathProj, static_cast<size_t>(row), static_cast<size_t>(c.index));
-            ImGui::TextWrapped("%s", cell.c_str());
-            ImGui::NextColumn();
-        }
-        ImGui::Columns(1);
-        ImGui::PopID();
-        ++shownProj;
-    }
-
-    if (shownProj == 0) {
-        ImGui::TextDisabled("No rows to display.");
-    } else {
-        ImGui::TextDisabled("Showing %d row(s).", shownProj);
-    }
-
-    ImGui::EndChild();
 }
 
 
