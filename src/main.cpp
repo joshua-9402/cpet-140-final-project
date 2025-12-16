@@ -57,8 +57,17 @@ void systemCheck() {
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory);}
 
-    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll);}
-    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject)) {db::createDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject);}
+    // Only create base DBs if neither plaintext nor encrypted files exist
+    const std::string payrollDb = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+    const std::string payrollEnc = payrollDb + ".enc";
+    if (!system::searchFile(payrollDb) && !system::searchFile(payrollEnc)) {
+        db::createDatabase(payrollDb);
+    }
+    const std::string projectDb = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
+    const std::string projectEnc = projectDb + ".enc";
+    if (!system::searchFile(projectDb) && !system::searchFile(projectEnc)) {
+        db::createDatabase(projectDb);
+    }
 }
 
 static std::atomic s_runBackground{true};
@@ -101,11 +110,14 @@ int main() {
     // Background thread to monitor and rearrange employee IDs and project IDs periodically.
     std::thread([] {
         while (s_runBackground.load(std::memory_order_relaxed)) {
-            if (db::checkEmployeeChanges()) {
-                db::rearrangeEmployeeIDs();
-            }
-            if (db::checkProjectChanges()) {
-                db::rearrangeProjectIDs();
+            // Avoid touching databases while not authenticated (may be encrypted)
+            if (appConfig::g_auth) {
+                if (db::checkEmployeeChanges()) {
+                    db::rearrangeEmployeeIDs();
+                }
+                if (db::checkProjectChanges()) {
+                    db::rearrangeProjectIDs();
+                }
             }
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
