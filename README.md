@@ -89,7 +89,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 - Database: SQLite (single-file, local, embedded)
 - Cryptography: libsodium (for password hashing, encryption, decryption, salting, etc.)
 - Architecture: modular with clear separation of concerns (UI, DB, core logic, system)
-- Target platforms: Desktop (Win/macOS/Linux), Mobile (Android/iOS)
+- Target platforms: Desktop (Windows/macOS/Linux)
 
 - Recent repository updates: several small, backwards-compatible fixes and CI improvements were applied to keep builds stable across platforms (notably: `system::createDirectory` now returns `bool`, `system::appShutdown` uses a portable partial_sort variant, and cryptography helper types were clarified to use byte vectors for keys/salts and in-place decryption semantics). For full details and troubleshooting steps (libsodium, freetype, Windows linking, macOS toolchain), see the "Troubleshooting & Debugging Tips" section below.
 
@@ -97,14 +97,14 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       cpet-140-final-project/
       ├── .github/
       │   └── workflows/
-      │       ├── BULD.md
+      │       ├── BUILD.md
       │       ├── README-linux.md
       │       ├── README-linux-rpm.md
       │       ├── README-linux-suse.md
       │       ├── README-macos-arm64.md
       │       ├── README-macos-intel.md
       │       ├── README-windows-arm64.md
-      │       ├── README-windows-x86_64.m
+      │       ├── README-windows-x86_64.md
       │       ├── build-linux.yml
       │       ├── build-linux-rpm.yml
       │       ├── build-linux-suse.yml
@@ -116,18 +116,20 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │   │   └── OpenSans-Regular.ttf
       │   └── icons/
       │       ├── business_logo.png
+      │       ├── app_icon.png
       │       └── user_icon.png
       ├── assets (raw)/
       │   ├── user_icon.psd
       │   └── concept.png
       ├── dependencies/
-      │   └── sqlite3/
+      │   └── sqlite/
       │      ├── sqlite3.c
       │      └── sqlite3.h
       ├── doc/
-      │   ├── system_flowcart/
+      │   ├── system_flowchart/
       │   │   └── CpET 140 Final Project System Flowchart.svg
-      │   ├── CpET 140 - Computer Programming 1 - Final Output.pdf
+      │   ├── CpET 140 - Computer Programming I - Final Output.pdf
+      │   ├── modules/
       │   └── hello_imgui_manual.pdf
       ├── src/
       │   ├── main.cpp
@@ -137,6 +139,8 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │   ├── handler/
       │   │   ├── db.cpp
       │   │   ├── db.h
+      │   │   ├── print.cpp
+      │   │   ├── print.h
       │   │   ├── system.cpp
       │   │   └── system.h
       │   ├── core/
@@ -145,7 +149,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │   │   ├── payroll.cpp
       │   │   └── payroll.h
       │   ├── security/
-      │   │   ├── cryptography.cpp
+      │   │   ├── cryptography.h
       │   │   ├── cryptography.cpp
       │   │   ├── auth.cpp
       │   │   └── auth.h
@@ -172,7 +176,7 @@ Below each module is a concise responsibility summary, a short list of public fu
 
 - `src/config/config.h` / `src/config/config.cpp` (`appConfig`)
   - Responsibilities: global application configuration variables (titles, default paths, DB filenames, window sizes).
-  - Public interface (globals): `appConfig::g_auth`, `appConfig::g_testMode`, `appConfig::g_appTitle`, `appConfig::g_loginTitle`, `appConfig::g_errorTitle`, `appConfig::g_fontName`, `appConfig::g_dataDirectory`, `appConfig::g_projectDirectory`, `appConfig::g_payrollDirectory`, `appConfig::g_projectExpenseDirectory`, `appConfig::g_dbNamePayroll`, `appConfig::g_dbNameProject`, `appConfig::g_defaultWidth`, `appConfig::g_defaultHeight`, `appConfig::g_loginWidth`, `appConfig::g_loginHeight`, `appConfig::g_errorWidth`, `appConfig::g_errorHeight`.
+  - Public interface (globals): `appConfig::g_auth`, `appConfig::g_testMode`, `appConfig::g_appTitle`, `appConfig::g_loginTitle`, `appConfig::g_errorTitle`, `appConfig::g_fontName`, `appConfig::g_dataDirectory`, `appConfig::g_projectDirectory`, `appConfig::g_payrollDirectory`, `appConfig::g_projectExpenseDirectory`, `appConfig::g_payrollAttendanceDirectory`, `appConfig::g_dbNamePayroll`, `appConfig::g_dbNameProject`, `appConfig::g_defaultWidth`, `appConfig::g_defaultHeight`, `appConfig::g_loginWidth`, `appConfig::g_loginHeight`, `appConfig::g_errorWidth`, `appConfig::g_errorHeight`.
   - Full doc: [doc/modules/config-config.md](doc/modules/config-config.md)
 
 - `src/ui/ui.h` / `src/ui/ui.cpp` (`ui`)
@@ -183,25 +187,29 @@ Below each module is a concise responsibility summary, a short list of public fu
 
 - `src/handler/db.h` / `src/handler/db.cpp` (`db`)
   - Responsibilities: lightweight SQLite helpers tailored to the project's payroll and projects schemas.
-  - Public interface: `db::isSQLiteAvailable()`, `db::createDatabase(const std::string&)`, `db::openDatabase(const std::string&)`, `db::appendDatabase(const std::string&, const std::string&)`, `db::updateDatabase(const std::string&, const std::string&, const std::string&)`.
+  - Public interface: `db::isSQLiteAvailable()`, `db::createDatabase(const std::string&)`, `db::openDatabase(const std::string&)`, `db::closeDatabase()`, `db::appendDatabase(const std::string&, const std::string&)`, `db::updateDatabase(const std::string&, const std::string&, const std::string&)`, `db::deleteRow(const std::string&, const std::string&)`, `db::fetchCell(const std::string&, size_t, size_t)`, `db::checkEmployeeChanges()`, `db::rearrangeEmployeeIDs()`, `db::checkProjectChanges()`, `db::rearrangeProjectIDs()`.
   - Security note: current implementation builds SQL via string concatenation; prefer prepared statements for user data.
   - Full doc: [doc/modules/handler-db.md](doc/modules/handler-db.md)
 
 - `src/handler/system.h` / `src/handler/system.cpp` (`system`)
   - Responsibilities: cross-platform filesystem helpers, time utilities, logging, file/directory creation/removal, copy, and shutdown/backup rotation.
-  - Public interface: `system::fetchTime(PartDateTime)`, `system::timeDateString()`, `system::logMessage(messageClassification, const std::string&)`, `system::createDirectory()`, `system::searchDirectory()`, `system::copyDirectory()`, `system::deleteDirectory()`, `system::createFile()`, `system::searchFile()`, `system::deleteFile()`, `system::appShutdown()`.
+  - Public interface: `system::fetchTime(PartDateTime)`, `system::timeDateString()`, `system::logMessage(messageClassification, const std::string&)`, `system::createDirectory(const std::string&)`, `system::searchDirectory(const std::string&)`, `system::copyDirectory(const std::string&, const std::string&)`, `system::deleteDirectory(const std::string&)`, `system::createFile(const std::string&)`, `system::searchFile(const std::string&)`, `system::deleteFile(const std::string&)`, `system::printPayslips(const std::string&, const std::string&, const std::vector<int>&)`, `system::printProjectReport(const std::string&, const std::string&)`, `system::openFileInBrowser(const std::string&)`, `system::appShutdown()`.
   - Full doc: [doc/modules/handler-system.md](doc/modules/handler-system.md)
+
+- `src/handler/print.h` / `src/handler/print.cpp` (`print`)
+  - Responsibilities: project report and payslip HTML generation and printing helpers used by the UI and system.
+  - Full doc: [doc/modules/handler-print.md](doc/modules/handler-print.md)
 
 - `src/security/auth.h` / `src/security/auth.cpp` (`auth`)
   - Responsibilities: small, in-source demo/test authentication helpers used by the UI for test/admin flows.
-  - Public interface: `auth::testAuth()`, `auth::testDeployAuth()`, `auth::adminAuth()`, `auth::basicAuth()`.
+  - Public interface: `auth::testAuth()`, `auth::testDeployAuth()`, `auth::adminAuth()`, `auth::mainAuth()`.
   - Warning: these are demonstrational checks and mutate UI globals; replace it with a secure auth backend for production.
   - Full doc: [doc/modules/security-auth.md](doc/modules/security-auth.md)
 
 - `src/security/cryptography.h` / `src/security/cryptography.cpp` (`cryptography`)
   - Responsibilities: libsodium wrapper for initialization, hashing, key generation, to-hex conversion, password/key salting, file encryption/decryption, and a small append-only vault.
-  - Public interface: `cryptography::checkSodium()`, `cryptography::hashKey()`, `cryptography::generateKey()`, `cryptography::toHex()`, `cryptography::saltKey()`, `cryptography::encryptFile()`, `cryptography::decryptFile()`, `cryptography::vault()`.
-  - Important behavior: `encryptFile` writes `filepath + ".enc"` with `salt||nonce||ciphertext`; `decryptFile` overwrites the input path with plaintext on success (keep backups). `vault` derives a master key from release/build metadata — changing release tags changes the master key.
+  - Public interface: `cryptography::checkSodium()`, `cryptography::hashKey(const std::string&, int)`, `cryptography::generateKey(size_t)`, `cryptography::toHex(const std::vector<unsigned char>&)`, `cryptography::saltKey(const std::string&)`, `cryptography::encryptFile(const std::string&, const std::vector<unsigned char>&)`, `cryptography::decryptFile(const std::string&, const std::vector<unsigned char>&, std::string*)`.
+  - Important behavior: `encryptFile` writes `filepath + ".enc"` with `salt||nonce||ciphertext`; `decryptFile` overwrites the input path with plaintext on success (keep backups).
   - Full doc: [doc/modules/security-cryptography.md](doc/modules/security-cryptography.md)
 
 - `src/core/` (payroll, monitor)
@@ -282,7 +290,7 @@ Windows README files:
 
 macOS README files:
    - [README-macos-arm64.md](.github/workflows/README-macos-arm64.md)
-   - [README-macos-x86_64.md](.github/workflows/README-macos-intel.md)
+   - [README-macos-intel.md](.github/workflows/README-macos-intel.md)
 
 | Workflow  | Target Hardware             | Architecture | Target macOS Versions | C++ Std | Asset Name                                        |
 |-----------|-----------------------------|--------------|-----------------------|---------|---------------------------------------------------|
@@ -313,12 +321,12 @@ Linux README files:
 
 | Workflow                  | Platforms          | Trigger                    |
 |---------------------------|--------------------|----------------------------|
-| **Release Build**         | All supported      | Git tag (e.g., `v1.0.0`)   |
+| **Release**               | Selected platforms | Manual (Actions → Release) |
 
-- When a version tag is created, the **Release Build** workflow automatically:
-  - Builds binaries for all supported platforms (Linux x64, linux ARM64, Windows x64, Windows ARM64, macOS ARM64, macOS Intel, macOS Legacy)
-  - Creates a GitHub Release with the tag
-  - Attaches all platform binaries to the release as downloadable assets
+- When manually triggered, the **Release** workflow:
+  - Computes the version from inputs (stage, iteration, W.X.Y.Z)
+  - Builds binaries for the selected platforms/architectures (Linux x64/ARM64, Windows x64/ARM64, macOS ARM64/Intel)
+  - Creates a GitHub Release and attaches the built artifacts as downloadable assets
 
 #### Downloading Pre-built Binaries
 
@@ -361,14 +369,13 @@ For release build (version tagging and automatic release):
 
 1. Navigate to the **Actions** tab
 2. Select the `Release` workflow from the left sidebar 
-3. Select the desired version (e.g., `v1.0.0`)
+3. Configure the desired version and targets, then run the workflow
 4. Download the binary for your platform from the **Assets** section:
     - `structuracost-linux-x64.tar.gz`
     - `structuracost-windows-x64.zip`
     - `structuracost-macos-arm64.tar.gz`
     - `structuracost-macos-x64.tar.gz`
-    - `structuracost-macos-legacy.tar.gz`
-5. Extract and run the executable
+    5. Extract and run the executable
 
 **Note:** Release binaries are permanent and recommended for production use.
 
@@ -376,7 +383,7 @@ For release build (version tagging and automatic release):
 
 - sqlite3 (runtime + development headers)
 - libsodium (for cryptography)
-- Hello Dear ImGui 
+- Hello ImGui 
 - Optional:
   - libraries for platform windows/rendering (GLFW/SDL/DirectX/Metal)
 
@@ -385,7 +392,7 @@ For release build (version tagging and automatic release):
 The participation of everyone is needed to make this project a success. Please follow the guidelines below when contributing to this project.
 
 > Notes:
-> - `UI.cpp`, `UI.h`, `db.cpp` and `db.h` are OFF LIMITS especially for `constructUI()` and `switchToUI()` functions (in `UI.cpp`).
+> - `ui.cpp`, `ui.h`, `db.cpp` and `db.h` are OFF LIMITS especially for `constructUI()` and the internal UI switching logic (in `ui.cpp`).
 >   - For bugs, please file an issue instead.
 >   - For enhancements, please discuss with the maintainer first or file an issue regarding the enhancement.
 >   - For adding new UIs, please file an issue first to discuss the addition.
@@ -516,7 +523,7 @@ This section highlights common issues seen in local and CI builds and concrete f
    - Fix: Use libsodium build artifacts that match the MSVC target architecture and toolset chosen by the CI workflow. If using `dependencies/libsodium`, ensure you add the correct subfolder (Win32/x64/ARM64) with matching runtime and MSVC version.
 
 6) Decryption / encryption behavior
-   - Decryption in-place: the cryptography helper `decryptFileInPlace()` will replace the encrypted file with the decrypted version on success. If decryption fails, the encrypted file remains untouched. Check the logs (use `system::logMessage`) for detailed reasons. Key generation now returns a vector, and functions validate key size; errors like "Key generation failed or wrong size" mean the caller passed an invalid size — adjust caller or remove artificial limits.
+  - Decryption in-place: `cryptography::decryptFile()` will replace the encrypted file with the decrypted version on success. If decryption fails, the encrypted file remains untouched. Check the logs (use `system::logMessage`) for detailed reasons. Key generation returns a vector, and functions validate key size; errors like "Key generation failed or wrong size" mean the caller passed an invalid size — adjust caller or remove artificial limits.
 
 7) UI runtime issues (selector / quick disappearing windows)
    - Symptom: clicking UI buttons briefly changes the view but reverts instantly, or secondary windows (payroll/monitor) appear to then disappear.
