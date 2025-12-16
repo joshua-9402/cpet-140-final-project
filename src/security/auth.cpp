@@ -1,5 +1,5 @@
 /*
-* CpET 140 Final Project — Authentication module
+ * CpET 140 Final Project — Authentication module
  * StructuraCost - Security - Authentication module
  *
  * Contributors:
@@ -23,6 +23,7 @@
 #include "auth.h"
 #include "../security/cryptography.h"
 #include "../ui/ui.h"
+#include "../handler/system.h"
 
 
 bool auth::testAuth(const std::string& username, const std::string& password) {
@@ -49,6 +50,15 @@ bool auth::mainAuth(const std::string& username, const std::string& password) {
     if (username == "jsl" && cryptography::hashKey(password, 32) == "4989ad9b68363636d2fa7dd15a073576eae5a4cef2dc1fd778dfe133c7cd9ff6") {
         ui::g_userName = "Engr. Literal";
         ui::g_position = "Owner";
+        // Set session encryption key from the provided password and decrypt DBs
+        security::DBEncryptionSession::setPassword(password);
+        system::logMessage(system::messageClassification::INFO, "Login successful; starting database decryption...\n");
+        if (!security::DBEncryptionSession::decryptAllDbs()) {
+            system::logMessage(system::messageClassification::ERROR, "Login decryption failed\n");
+            security::DBEncryptionSession::clear();
+            return false;
+        }
+        system::logMessage(system::messageClassification::INFO, "Database decryption completed after login.\n");
         return true;
     }
     return false;
