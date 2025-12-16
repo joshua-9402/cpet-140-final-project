@@ -103,6 +103,7 @@
 
 #include "db.h"
 #include "../config/config.h"
+#include "system.h"
 #include <sqlite3.h>
 #include <string>
 #include <fstream>
@@ -136,6 +137,7 @@ bool db::createDatabase(const std::string& p_dbName) {
     // Open (or create) a database file
     if (const int returnCode = sqlite3_open_v2(p_dbName.c_str(), &dbPointer,SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr); returnCode != SQLITE_OK) {
         if (dbPointer) sqlite3_close(dbPointer);
+        system::logMessage(system::messageClassification::ERROR, "DB CREATE failed db=" + p_dbName);
         return false;
     }
 
@@ -247,11 +249,14 @@ bool db::createDatabase(const std::string& p_dbName) {
         if (const int execRc = sqlite3_exec(dbPointer, sqlStmt.c_str(), nullptr, nullptr, &err); execRc != SQLITE_OK) {
             if (err) sqlite3_free(err);
             sqlite3_close(dbPointer);
+            system::logMessage(system::messageClassification::ERROR, "DB CREATE failed during schema init db=" + p_dbName);
             return false;
         }
     }
 
     sqlite3_close(dbPointer);
+    // Avoid logging data content; only operation and target DB
+    system::logMessage(system::messageClassification::INFO, "DB CREATE ok db=" + p_dbName);
     return true;
 }
 
@@ -261,8 +266,10 @@ bool db::openDatabase(const std::string& p_dbName) {
 
     if (const int database = sqlite3_open(p_dbName.c_str(), &dbPtr); database == SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::INFO, "DB OPEN ok db=" + p_dbName);
         return true;
     }
+    system::logMessage(system::messageClassification::ERROR, "DB OPEN failed db=" + p_dbName);
     return false;
 }
 
@@ -272,7 +279,12 @@ bool db::closeDatabase() {
     //     if (m_db) { sqlite3_close(m_db); m_db = nullptr; }
     // As a best-effort cleanup, shut down the SQLite library to free resources.
     const int rc = sqlite3_shutdown();
-    return rc == SQLITE_OK;
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB CLOSE ok");
+        return true;
+    }
+    system::logMessage(system::messageClassification::ERROR, "DB CLOSE failed");
+    return false;
 }
 
 
@@ -295,6 +307,7 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
 
     if (needsCreation) {
         if (!createDatabase(p_dbName)) {
+            system::logMessage(system::messageClassification::ERROR, "DB INSERT failed (create) db=" + p_dbName);
             return false;
         }
     }
@@ -302,6 +315,7 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
     sqlite3* dbPointer = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPointer) != SQLITE_OK) {
         if (dbPointer) sqlite3_close(dbPointer);
+        system::logMessage(system::messageClassification::ERROR, "DB INSERT failed (open) db=" + p_dbName);
         return false;
     }
 
@@ -353,7 +367,18 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
     const int rc = sqlite3_exec(dbPointer, sqlite.c_str(), nullptr, nullptr, &err);
     if (err) sqlite3_free(err);
     sqlite3_close(dbPointer);
-    return rc == SQLITE_OK;
+    if (rc == SQLITE_OK) {
+        // Identify entity by db filename without exposing values
+        std::string filename = p_dbName;
+        if (const size_t pos = filename.find_last_of("/\\"); pos != std::string::npos) filename = filename.substr(pos + 1);
+        std::string entity = (filename == appConfig::g_dbNamePayroll) ? "EMPLOYEE"
+                            : (filename == appConfig::g_dbNameProject) ? "PROJECT"
+                            : (filename.find("PRJ-") != std::string::npos ? "MATERIAL" : "ATTENDANCE");
+        system::logMessage(system::messageClassification::INFO, "DB INSERT ok db=" + p_dbName + " entity=" + entity);
+        return true;
+    }
+    system::logMessage(system::messageClassification::ERROR, "DB INSERT failed db=" + p_dbName);
+    return false;
 }
 
 
@@ -362,6 +387,7 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB UPDATE failed (open) db=" + p_dbName);
         return false;
     }
 
@@ -396,19 +422,26 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
     const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
     if (err) sqlite3_free(err);
     sqlite3_close(dbPtr);
-    return rc == SQLITE_OK;
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB UPDATE ok db=" + p_dbName + " key=provided");
+        return true;
+    }
+    system::logMessage(system::messageClassification::ERROR, "DB UPDATE failed db=" + p_dbName);
+    return false;
 }
 
 // Delete a row by employee ID or project ID
 bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
     // Validate input is not empty
     if (p_id.empty()) {
+        system::logMessage(system::messageClassification::WARNING, "DB DELETE no-op (empty key) db=" + p_dbName);
         return false;
     }
 
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB DELETE failed (open) db=" + p_dbName);
         return false;
     }
 
@@ -460,7 +493,12 @@ bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
     }
 
     sqlite3_close(dbPtr);
-    return success;
+    if (success) {
+        system::logMessage(system::messageClassification::INFO, "DB DELETE ok db=" + p_dbName + " key=provided");
+        return true;
+    }
+    system::logMessage(system::messageClassification::WARNING, "DB DELETE no-op or failed db=" + p_dbName);
+    return false;
 }
 
 // Check if there are gaps in employee IDs that need rearranging
@@ -500,6 +538,7 @@ bool db::rearrangeEmployeeIDs() {
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(dbPath.c_str(), &dbPtr) != SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE EMPLOYEE_IDS failed (open) db=" + dbPath);
         return false;
     }
 
@@ -508,6 +547,7 @@ bool db::rearrangeEmployeeIDs() {
     if (sqlite3_exec(dbPtr, "BEGIN TRANSACTION;", nullptr, nullptr, &err) != SQLITE_OK) {
         if (err) sqlite3_free(err);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE EMPLOYEE_IDS failed (begin)");
         return false;
     }
 
@@ -522,6 +562,7 @@ bool db::rearrangeEmployeeIDs() {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE EMPLOYEE_IDS failed (temp)");
         return false;
     }
 
@@ -530,6 +571,7 @@ bool db::rearrangeEmployeeIDs() {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE EMPLOYEE_IDS failed (clear)");
         return false;
     }
 
@@ -542,6 +584,7 @@ bool db::rearrangeEmployeeIDs() {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE EMPLOYEE_IDS failed (copy)");
         return false;
     }
 
@@ -550,10 +593,12 @@ bool db::rearrangeEmployeeIDs() {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE EMPLOYEE_IDS failed (commit)");
         return false;
     }
 
     sqlite3_close(dbPtr);
+    system::logMessage(system::messageClassification::INFO, "DB REARRANGE EMPLOYEE_IDS ok");
     return true;
 }
 
@@ -606,6 +651,7 @@ bool db::rearrangeProjectIDs() {
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(dbPath.c_str(), &dbPtr) != SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE PROJECT_IDS failed (open) db=" + dbPath);
         return false;
     }
 
@@ -614,6 +660,7 @@ bool db::rearrangeProjectIDs() {
     if (sqlite3_exec(dbPtr, "BEGIN TRANSACTION;", nullptr, nullptr, &err) != SQLITE_OK) {
         if (err) sqlite3_free(err);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE PROJECT_IDS failed (begin)");
         return false;
     }
 
@@ -629,6 +676,7 @@ bool db::rearrangeProjectIDs() {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE PROJECT_IDS failed (temp)");
         return false;
     }
 
@@ -637,6 +685,7 @@ bool db::rearrangeProjectIDs() {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE PROJECT_IDS failed (clear)");
         return false;
     }
 
@@ -649,6 +698,7 @@ bool db::rearrangeProjectIDs() {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE PROJECT_IDS failed (copy)");
         return false;
     }
 
@@ -657,10 +707,12 @@ bool db::rearrangeProjectIDs() {
         if (err) sqlite3_free(err);
         sqlite3_exec(dbPtr, "ROLLBACK;", nullptr, nullptr, nullptr);
         sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB REARRANGE PROJECT_IDS failed (commit)");
         return false;
     }
 
     sqlite3_close(dbPtr);
+    system::logMessage(system::messageClassification::INFO, "DB REARRANGE PROJECT_IDS ok");
     return true;
 }
 
@@ -744,6 +796,7 @@ bool db::ensureWeeklyAttendanceTable(const std::string& p_dbName) {
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB ENSURE WEEKLY_ATTENDANCE failed (open) db=" + p_dbName);
         return false;
     }
 
@@ -765,7 +818,12 @@ bool db::ensureWeeklyAttendanceTable(const std::string& p_dbName) {
     const int rc = sqlite3_exec(dbPtr, createSql, nullptr, nullptr, &err);
     if (err) sqlite3_free(err);
     sqlite3_close(dbPtr);
-    return rc == SQLITE_OK;
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB ENSURE WEEKLY_ATTENDANCE ok db=" + p_dbName);
+        return true;
+    }
+    system::logMessage(system::messageClassification::ERROR, "DB ENSURE WEEKLY_ATTENDANCE failed db=" + p_dbName);
+    return false;
 }
 
 // Insert or upsert a weekly attendance row. valuesCsv should be:
@@ -777,6 +835,7 @@ bool db::insertWeeklyAttendance(const std::string& p_dbName, const std::string& 
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB ATTENDANCE INSERT failed (open) db=" + p_dbName);
         return false;
     }
 
@@ -789,7 +848,12 @@ bool db::insertWeeklyAttendance(const std::string& p_dbName, const std::string& 
     const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
     if (err) sqlite3_free(err);
     sqlite3_close(dbPtr);
-    return rc == SQLITE_OK;
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB ATTENDANCE INSERT ok db=" + p_dbName);
+        return true;
+    }
+    system::logMessage(system::messageClassification::ERROR, "DB ATTENDANCE INSERT failed db=" + p_dbName);
+    return false;
 }
 
 bool db::updateWeeklyAttendanceRow(const std::string& p_dbName, const std::string& employeeId, const std::string& weekStartIso, const std::string& setClause) {
@@ -799,6 +863,7 @@ bool db::updateWeeklyAttendanceRow(const std::string& p_dbName, const std::strin
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB ATTENDANCE UPDATE failed (open) db=" + p_dbName);
         return false;
     }
     const std::string sql = "UPDATE WEEKLY_ATTENDANCE SET " + setClause +
@@ -807,7 +872,12 @@ bool db::updateWeeklyAttendanceRow(const std::string& p_dbName, const std::strin
     const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
     if (err) sqlite3_free(err);
     sqlite3_close(dbPtr);
-    return rc == SQLITE_OK;
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB ATTENDANCE UPDATE ok db=" + p_dbName + " key=provided");
+        return true;
+    }
+    system::logMessage(system::messageClassification::ERROR, "DB ATTENDANCE UPDATE failed db=" + p_dbName);
+    return false;
 }
 
 bool db::deleteWeeklyAttendanceRow(const std::string& p_dbName, const std::string& employeeId, const std::string& weekStartIso) {
@@ -815,6 +885,7 @@ bool db::deleteWeeklyAttendanceRow(const std::string& p_dbName, const std::strin
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
         if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB ATTENDANCE DELETE failed (open) db=" + p_dbName);
         return false;
     }
     const std::string sql = "DELETE FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID='" + employeeId + "' AND WEEK_START='" + weekStartIso + "';";
@@ -822,5 +893,10 @@ bool db::deleteWeeklyAttendanceRow(const std::string& p_dbName, const std::strin
     const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
     if (err) sqlite3_free(err);
     sqlite3_close(dbPtr);
-    return rc == SQLITE_OK;
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB ATTENDANCE DELETE ok db=" + p_dbName + " key=provided");
+        return true;
+    }
+    system::logMessage(system::messageClassification::WARNING, "DB ATTENDANCE DELETE no-op or failed db=" + p_dbName);
+    return false;
 }
