@@ -1,27 +1,32 @@
 /*
-* CpET 140 Final Project — Cryptography module
-* StructuraCost - Security - Cryptography module
-*
-* Contributors:
-*  Joshua Literal
-*
-* Purpose
-* - Handle cryptographic operations such as encryption, decryption, hashing, and key management.
-*
-* Boundaries
-* - Interacts with the security module for authentication and data protection.
-*
-* Notes
-* - This module is crucial for ensuring data integrity and confidentiality within the application.
-*/
+ * CpET 140 Final Project — Cryptography module
+ * StructuraCost - Security - Cryptography module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Handle cryptographic operations such as encryption, decryption, hashing, and key management.
+ *
+ * Boundaries
+ * - Interacts with the security module for authentication and data protection.
+ *
+ * Notes
+ * - This module is crucial for ensuring data integrity and confidentiality within the application.
+ */
 
 
 #include <vector>
 #include <sstream>
 #include <iomanip>
 #include <fstream>
+#include <filesystem>
+#include <functional>
+#include <utility>
 
 #include "cryptography.h"
+#include "../handler/system.h"
+#include "../config/config.h"
 
 #include "sodium.h"
 
@@ -151,6 +156,163 @@ bool cryptography::encryptFile(const std::string &filePath, const std::vector<un
     sodium_memzero(derivedKey.data(), derivedKey.size());
     return true;
 }
+
+
+// =====================================================================================
+// DBEncryptionSession (merged from encryption_session.cpp)
+// =====================================================================================
+
+namespace security {
+
+static std::vector<unsigned char> g_sessionKey;
+
+static bool fileExists(const std::string& path) {
+    std::error_code ec;
+    return std::filesystem::exists(path, ec) && std::filesystem::is_regular_file(path, ec);
+}
+
+std::vector<unsigned char>& DBEncryptionSession::key() {
+    return g_sessionKey;
+}
+
+void DBEncryptionSession::setPassword(const std::string& password) {
+    g_sessionKey.assign(password.begin(), password.end());
+    system::logMessage(system::messageClassification::INFO, "Session encryption key set (in-memory)\n");
+}
+
+void DBEncryptionSession::clear() {
+    for (auto &b : g_sessionKey) b = 0u;
+    g_sessionKey.clear();
+    g_sessionKey.shrink_to_fit();
+    system::logMessage(system::messageClassification::INFO, "Session encryption key cleared from memory\n");
+}
+
+bool DBEncryptionSession::hasKey() {
+    return !g_sessionKey.empty();
+}
+
+bool DBEncryptionSession::decryptOne(const std::string& encPath) {
+    if (!hasKey()) return false;
+    if (!fileExists(encPath)) return true; // nothing to do
+
+    // Determine plaintext path by stripping trailing ".enc"
+    std::string dbPath = encPath;
+    if (dbPath.size() >= 4 && dbPath.substr(dbPath.size() - 4) == ".enc") {
+        dbPath.erase(dbPath.size() - 4);
+    } else {
+        // Not an .enc file
+        return true;
+    }
+
+    // If plaintext already exists, skip decryption to avoid overwriting user's data
+    if (fileExists(dbPath)) return true;
+
+    std::string err;
+    if (!cryptography::decryptFile(encPath, key(), &err)) {
+        system::logMessage(system::messageClassification::ERROR, "DB decrypt failed: " + encPath + " | " + err + "\n");
+        return false;
+    }
+    // decryptFile overwrote encPath with plaintext; now rename to .db
+    std::error_code ec;
+    std::filesystem::rename(encPath, dbPath, ec);
+    if (ec) {
+        // As a fallback, try copy and delete
+        try {
+            std::filesystem::copy_file(encPath, dbPath, std::filesystem::copy_options::overwrite_existing);
+            system::deleteFile(encPath);
+        } catch (...) {
+            system::logMessage(system::messageClassification::ERROR, "Failed to move decrypted DB to: " + dbPath + "\n");
+            return false;
+        }
+    }
+    system::logMessage(system::messageClassification::INFO, "DB decrypted: " + dbPath + "\n");
+    return true;
+}
+
+bool DBEncryptionSession::encryptOne(const std::string& dbPath) {
+    if (!hasKey()) return false;
+    if (!fileExists(dbPath)) return true; // nothing to do
+    const std::string encPath = dbPath + ".enc";
+
+    if (fileExists(encPath)) {
+        // Already encrypted copy exists; prefer to delete plaintext to avoid duplication
+        if (!system::deleteFile(dbPath)) {
+            system::logMessage(system::messageClassification::ERROR, "Failed to delete plaintext DB (enc exists): " + dbPath + "\n");
+            return false;
+        }
+        return true;
+    }
+
+    if (!cryptography::encryptFile(dbPath, key())) {
+        system::logMessage(system::messageClassification::ERROR, "DB encrypt failed: " + dbPath + "\n");
+        return false;
+    }
+    // On success, remove plaintext
+    if (!system::deleteFile(dbPath)) {
+        system::logMessage(system::messageClassification::ERROR, "Failed to delete plaintext after encryption: " + dbPath + "\n");
+        return false;
+    }
+    system::logMessage(system::messageClassification::INFO, "DB encrypted: " + encPath + "\n");
+    return true;
+}
+
+static bool forEachDbPath(bool encToPlain, const std::function<bool(const std::string&)>& func) {
+    const std::string root = appConfig::g_dataDirectory; // "data/"
+    std::error_code ec;
+    if (!std::filesystem::exists(root, ec)) return true; // Nothing to do
+
+    bool ok = true;
+    for (auto it = std::filesystem::recursive_directory_iterator(root, ec);
+         it != std::filesystem::recursive_directory_iterator(); ++it) {
+        if (ec) break;
+        if (!it->is_regular_file()) continue;
+        const std::string path = it->path().string();
+        if (encToPlain) {
+            if (path.size() >= 7 && path.substr(path.size() - 7) == ".db.enc") {
+                ok = func(path) && ok;
+            }
+        } else {
+            if (path.size() >= 3 && path.substr(path.size() - 3) == ".db") {
+                ok = func(path) && ok;
+            }
+        }
+    }
+    return ok;
+}
+
+bool DBEncryptionSession::decryptAllDbs() {
+    if (!hasKey()) return false;
+    system::logMessage(system::messageClassification::INFO, "Starting database decryption sweep (data/).\n");
+    size_t total = 0, okCount = 0, failCount = 0;
+    bool allOk = forEachDbPath(true, [&](const std::string& p){
+        ++total;
+        const bool r = DBEncryptionSession::decryptOne(p);
+        if (r) ++okCount; else ++failCount;
+        return r;
+    });
+    system::logMessage(system::messageClassification::INFO,
+        "Database decryption sweep completed: total=" + std::to_string(total) +
+        ", ok=" + std::to_string(okCount) + ", failed=" + std::to_string(failCount) + "\n");
+    return allOk;
+}
+
+bool DBEncryptionSession::encryptAllDbs() {
+    if (!hasKey()) return false;
+    system::logMessage(system::messageClassification::INFO, "Starting database encryption sweep (data/).\n");
+    size_t total = 0, okCount = 0, failCount = 0;
+    bool allOk = forEachDbPath(false, [&](const std::string& p){
+        ++total;
+        const bool r = DBEncryptionSession::encryptOne(p);
+        if (r) ++okCount; else ++failCount;
+        return r;
+    });
+    system::logMessage(system::messageClassification::INFO,
+        "Database encryption sweep completed: total=" + std::to_string(total) +
+        ", ok=" + std::to_string(okCount) + ", failed=" + std::to_string(failCount) + "\n");
+    return allOk;
+}
+
+} // namespace security
 
 
 bool cryptography::decryptFile(const std::string& filePath, const std::vector<unsigned char>& key, std::string* errorMsg) {
