@@ -106,10 +106,10 @@
 #include <sqlite3.h>
 #include <string>
 #include <fstream>
+#include <iostream>
 #include <algorithm>
 #include <vector>
 #include <sstream>
-#include <iomanip>
 
 
 bool db::isSQLiteAvailable() {
@@ -139,7 +139,7 @@ bool db::createDatabase(const std::string& p_dbName) {
         return false;
     }
 
-    std::string databaseTable;
+    std::vector<std::string> tablesSql;
 
     // Normalize to filename only so callers can pass full paths
     std::string filename = p_dbName;
@@ -147,9 +147,10 @@ bool db::createDatabase(const std::string& p_dbName) {
         filename = filename.substr(pos + 1);
     }
 
+
     // Use column names that match the rest of the code (insert/update)
     if (filename == appConfig::g_dbNamePayroll || p_dbName == appConfig::g_dbNamePayroll) {
-        databaseTable =
+        tablesSql.push_back(
             "CREATE TABLE IF NOT EXISTS EMPLOYEES ("
             "EMPLOYEE_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
             "NAME TEXT NOT NULL,"
@@ -158,35 +159,12 @@ bool db::createDatabase(const std::string& p_dbName) {
             "SALARY REAL NOT NULL,"
             "HOURS_WORK REAL NOT NULL,"
             "ADVANCE REAL NOT NULL"
-            ");";
-    } else if (filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
-        databaseTable =
-            "CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
-            "PROJECT_ID TEXT PRIMARY KEY,"
-            "PROJECT_NAME TEXT NOT NULL,"
-            "STATUS TEXT NOT NULL,"
-            "START_DATE TEXT NOT NULL,"
-            "NOTE TEXT"
-            ");";
-    } else if (
-        filename.find("PRJ") != std::string::npos &&
-        filename.find(".db") != std::string::npos){
-        databaseTable =
-            "CREATE TABLE IF NOT EXISTS MATERIALS ("
-            "MATERIAL_ID TEXT PRIMARY KEY,"
-            "MATERIAL_NAME TEXT NOT NULL,"
-            "QUANTITY REAL NOT NULL,"
-            "UNIT_PRICE REAL NOT NULL"
-            ");";
-    } else if (
-        filename.find("/") != std::string::npos &&
-        filename.find("-") != std::string::npos &&
-        filename.find(".db") != std::string::npos) {
-        // Attendance database for weekly records (2025/12/01-07.db format)
-        // All employees' attendance for one week in one database
-        databaseTable =
+            ");"
+        );
+        // Integrate weekly attendance into base_payroll.db as a central ledger
+        tablesSql.push_back(
             "CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
-            "EMPLOYEE_ID TEXT PRIMARY KEY,"
+            "EMPLOYEE_ID TEXT NOT NULL,"
             "WEEK_START TEXT NOT NULL,"
             "SUN REAL NOT NULL,"
             "MON REAL NOT NULL,"
@@ -194,13 +172,59 @@ bool db::createDatabase(const std::string& p_dbName) {
             "WED REAL NOT NULL,"
             "THU REAL NOT NULL,"
             "FRI REAL NOT NULL,"
-            "SAT REAL NOT NULL"
-            ");";
+            "SAT REAL NOT NULL,"
+            "PRIMARY KEY (EMPLOYEE_ID, WEEK_START)"
+            ");"
+        );
+    } else if (filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
+        tablesSql.push_back(
+            "CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
+            "PROJECT_ID TEXT PRIMARY KEY,"
+            "PROJECT_NAME TEXT NOT NULL,"
+            "STATUS TEXT NOT NULL,"
+            "START_DATE TEXT NOT NULL,"
+            "NOTE TEXT"
+            ");"
+        );
+    } else if (
+        filename.find("PRJ") != std::string::npos &&
+        filename.find(".db") != std::string::npos){
+        tablesSql.push_back(
+            "CREATE TABLE IF NOT EXISTS MATERIALS ("
+            "MATERIAL_ID TEXT PRIMARY KEY,"
+            "MATERIAL_NAME TEXT NOT NULL,"
+            "QUANTITY REAL NOT NULL,"
+            "UNIT_PRICE REAL NOT NULL"
+            ");"
+        );
+    } else if (
+        // Weekly attendance database detection (format: MM-DD-DD.db or MM-DD-MM-DD.db)
+        // Must have 2 or 3 hyphens and be short filename
+        (std::count(filename.begin(), filename.end(), '-') == 2 ||
+         std::count(filename.begin(), filename.end(), '-') == 3) &&
+        filename.find(".db") != std::string::npos &&
+        filename.length() < 20 &&
+        filename.find("PRJ") == std::string::npos) {
+        // Attendance database for weekly records
+        tablesSql.push_back(
+            "CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
+            "EMPLOYEE_ID TEXT NOT NULL,"
+            "WEEK_START TEXT NOT NULL,"
+            "SUN REAL NOT NULL,"
+            "MON REAL NOT NULL,"
+            "TUE REAL NOT NULL,"
+            "WED REAL NOT NULL,"
+            "THU REAL NOT NULL,"
+            "FRI REAL NOT NULL,"
+            "SAT REAL NOT NULL,"
+            "PRIMARY KEY (EMPLOYEE_ID, WEEK_START)"
+            ");"
+        );
     } else if (
         filename.find("PRJ-") == std::string::npos &&
         filename.find("20") != std::string::npos &&
         filename.find(".db") != std::string::npos) {
-        databaseTable =
+        tablesSql.push_back(
             "CREATE TABLE IF NOT EXISTS TIMESHEET ("
             "EMPLOYEE_ID INTEGER PRIMARY KEY,"
             "MON REAL NOT NULL,"
@@ -210,17 +234,21 @@ bool db::createDatabase(const std::string& p_dbName) {
             "FRI REAL NOT NULL,"
             "SAT REAL NOT NULL,"
             "SUN REAL NOT NULL"
-            ");";
+            ");"
+        );
     } else {
         sqlite3_close(dbPointer);
         return false;
     }
 
-    char* err = nullptr;
-    if (const int execRc = sqlite3_exec(dbPointer, databaseTable.c_str(), nullptr, nullptr, &err); execRc != SQLITE_OK) {
-        if (err) sqlite3_free(err);
-        sqlite3_close(dbPointer);
-        return false;
+    // Execute all queued table creation statements
+    for (const auto& sqlStmt : tablesSql) {
+        char* err = nullptr;
+        if (const int execRc = sqlite3_exec(dbPointer, sqlStmt.c_str(), nullptr, nullptr, &err); execRc != SQLITE_OK) {
+            if (err) sqlite3_free(err);
+            sqlite3_close(dbPointer);
+            return false;
+        }
     }
 
     sqlite3_close(dbPointer);
@@ -250,6 +278,27 @@ bool db::closeDatabase() {
 
 // p_data should contain comma-separated values matching the column order (e.g., "'John Doe', 'Manager', 'Manila', 100.0, 160.0, 0.0").
 bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) {
+    // Check if database exists and has content; if not or empty, create it with proper schema
+    std::ifstream dbCheck(p_dbName, std::ios::binary | std::ios::ate);
+    bool needsCreation = false;
+
+    if (!dbCheck.good()) {
+        needsCreation = true;
+    } else {
+        // Check file size - if 0 bytes, we need to create the schema
+        const std::streamsize size = dbCheck.tellg();
+        if (size == 0) {
+            needsCreation = true;
+        }
+    }
+    dbCheck.close();
+
+    if (needsCreation) {
+        if (!createDatabase(p_dbName)) {
+            return false;
+        }
+    }
+
     sqlite3* dbPointer = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPointer) != SQLITE_OK) {
         if (dbPointer) sqlite3_close(dbPointer);
@@ -266,11 +315,11 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
     if (p_dbName == appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll) {
         sqlite = "INSERT INTO EMPLOYEES (NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE) VALUES (" + p_data + ");";
     } else if (p_dbName == appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject) {
-        // Project records include PROJECT_ID (PRJ-xxxxx format), PROJECT_NAME, STATUS, START_DATE, NOTE
+        // ...existing code...
         sqlite = "INSERT INTO PROJECT_LIST (PROJECT_ID, PROJECT_NAME, STATUS, START_DATE, NOTE) VALUES (" + p_data + ");";
 
         // Extract PROJECT_ID from p_data to create corresponding expense database
-        // p_data format: 'PRJ-00001', 'Project Name', 'Status', 'Date', 'Note'
+        // ...existing code...
         size_t firstQuote = p_data.find('\'');
         size_t secondQuote = p_data.find('\'', firstQuote + 1);
         if (firstQuote != std::string::npos && secondQuote != std::string::npos) {
@@ -288,8 +337,12 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
     } else if (filename.find("PRJ-") != std::string::npos && filename.find(".db") != std::string::npos) {
         // Material database (expense/PRJ-xxxxx.db)
         sqlite = "INSERT INTO MATERIALS (MATERIAL_ID, MATERIAL_NAME, QUANTITY, UNIT_PRICE) VALUES (" + p_data + ");";
-    } else if (filename.find("/") != std::string::npos && filename.find("-") != std::string::npos && filename.find(".db") != std::string::npos) {
-        // Attendance database (2025/12/01-07.db format)
+    } else if (
+        // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
+        filename.find("-") != std::string::npos &&
+        filename.find(".db") != std::string::npos &&
+        filename.find("PRJ") == std::string::npos) {
+        // Attendance database
         sqlite = "INSERT INTO WEEKLY_ATTENDANCE (EMPLOYEE_ID, WEEK_START, SUN, MON, TUE, WED, THU, FRI, SAT) VALUES (" + p_data + ");";
     } else {
         if (dbPointer) sqlite3_close(dbPointer);
@@ -327,8 +380,12 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
     } else if (filename.find("PRJ-") != std::string::npos && filename.find(".db") != std::string::npos) {
         // Material database (expense/PRJ-xxxxx.db)
         sql = "UPDATE MATERIALS SET " + p_data + " WHERE MATERIAL_ID = '" + p_id + "';";
-    } else if (filename.find("/") != std::string::npos && filename.find("-") != std::string::npos && filename.find(".db") != std::string::npos) {
-        // Attendance database (2025/12/01-07.db format) - update by EMPLOYEE_ID
+    } else if (
+        // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
+        filename.find("-") != std::string::npos &&
+        filename.find(".db") != std::string::npos &&
+        filename.find("PRJ") == std::string::npos) {
+        // Attendance database - update by EMPLOYEE_ID
         sql = "UPDATE WEEKLY_ATTENDANCE SET " + p_data + " WHERE EMPLOYEE_ID = '" + p_id + "';";
     } else {
         sqlite3_close(dbPtr);
@@ -376,8 +433,12 @@ bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
     } else if (filename.find("PRJ-") != std::string::npos && filename.find(".db") != std::string::npos) {
         // Material database (expense/PRJ-xxxxx.db)
         sql = "DELETE FROM MATERIALS WHERE MATERIAL_ID = ?;";
-    } else if (filename.find("/") != std::string::npos && filename.find("-") != std::string::npos && filename.find(".db") != std::string::npos) {
-        // Attendance database (2025/12/01-07.db format) - delete by EMPLOYEE_ID
+    } else if (
+        // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
+        filename.find("-") != std::string::npos &&
+        filename.find(".db") != std::string::npos &&
+        filename.find("PRJ") == std::string::npos) {
+        // Attendance database - delete by EMPLOYEE_ID
         sql = "DELETE FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID = ?;";
     } else {
         sqlite3_close(dbPtr);
@@ -640,8 +701,12 @@ std::string db::fetchCell(const std::string& p_dbName, const size_t p_row, const
     } else if (filename.find("PRJ-") != std::string::npos && filename.find(".db") != std::string::npos) {
         // Material database (expense/PRJ-xxxxx.db)
         sql += "MATERIALS";
-    } else if (filename.find("/") != std::string::npos && filename.find("-") != std::string::npos && filename.find(".db") != std::string::npos) {
-        // Attendance database (2025/12/01-07.db format)
+    } else if (
+        // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
+        filename.find("-") != std::string::npos &&
+        filename.find(".db") != std::string::npos &&
+        filename.find("PRJ") == std::string::npos) {
+        // Attendance database
         sql += "WEEKLY_ATTENDANCE";
     } else {
         sqlite3_close(dbPtr);
@@ -672,4 +737,90 @@ std::string db::fetchCell(const std::string& p_dbName, const size_t p_row, const
     sqlite3_finalize(stmt);
     sqlite3_close(dbPtr);
     return result;
+}
+
+// Ensure WEEKLY_ATTENDANCE table exists (composite PK) regardless of db name
+bool db::ensureWeeklyAttendanceTable(const std::string& p_dbName) {
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return false;
+    }
+
+    const char* createSql =
+        "CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
+        "EMPLOYEE_ID TEXT NOT NULL,"
+        "WEEK_START TEXT NOT NULL,"
+        "SUN REAL NOT NULL,"
+        "MON REAL NOT NULL,"
+        "TUE REAL NOT NULL,"
+        "WED REAL NOT NULL,"
+        "THU REAL NOT NULL,"
+        "FRI REAL NOT NULL,"
+        "SAT REAL NOT NULL,"
+        "PRIMARY KEY (EMPLOYEE_ID, WEEK_START)"
+        ");";
+
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPtr, createSql, nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPtr);
+    return rc == SQLITE_OK;
+}
+
+// Insert or upsert a weekly attendance row. valuesCsv should be:
+//  '\''EMP-00001'\'', '\''2025-01-05'\'', 8, 8, 8, 8, 8, 0, 0
+bool db::insertWeeklyAttendance(const std::string& p_dbName, const std::string& valuesCsv) {
+    // Ensure table exists
+    if (!ensureWeeklyAttendanceTable(p_dbName)) return false;
+
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return false;
+    }
+
+    const std::string sql =
+        "INSERT INTO WEEKLY_ATTENDANCE (EMPLOYEE_ID, WEEK_START, SUN, MON, TUE, WED, THU, FRI, SAT) VALUES (" + valuesCsv + ") "
+        "ON CONFLICT(EMPLOYEE_ID, WEEK_START) DO UPDATE SET "
+        "SUN=excluded.SUN, MON=excluded.MON, TUE=excluded.TUE, WED=excluded.WED, THU=excluded.THU, FRI=excluded.FRI, SAT=excluded.SAT;";
+
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPtr);
+    return rc == SQLITE_OK;
+}
+
+bool db::updateWeeklyAttendanceRow(const std::string& p_dbName, const std::string& employeeId, const std::string& weekStartIso, const std::string& setClause) {
+    // Ensure table exists
+    if (!ensureWeeklyAttendanceTable(p_dbName)) return false;
+
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return false;
+    }
+    const std::string sql = "UPDATE WEEKLY_ATTENDANCE SET " + setClause +
+                            " WHERE EMPLOYEE_ID = '" + employeeId + "' AND WEEK_START='" + weekStartIso + "';";
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPtr);
+    return rc == SQLITE_OK;
+}
+
+bool db::deleteWeeklyAttendanceRow(const std::string& p_dbName, const std::string& employeeId, const std::string& weekStartIso) {
+    if (!ensureWeeklyAttendanceTable(p_dbName)) return false;
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        return false;
+    }
+    const std::string sql = "DELETE FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID='" + employeeId + "' AND WEEK_START='" + weekStartIso + "';";
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPtr);
+    return rc == SQLITE_OK;
 }
