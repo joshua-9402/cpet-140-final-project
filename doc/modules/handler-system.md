@@ -21,7 +21,17 @@ Provides cross-platform system and filesystem helpers used by the application. T
   - Returns a formatted concatenation of YEAR_MONTH_DAY_HOUR_MINUTE_SECOND using `fetchTime` values.
 
 - `static void system::logMessage(system::messageClassification classification, const std::string &message)`
-  - Writes a timestamped log file (under `logs/`) with a filename that includes date/time. Each log file contains a single message line with a classification prefix (`[INFO]`, `[WARNING]`, `[ERROR]`).
+  - Thread-safe logging to a rolling daily log file under `logs/` with filename `structuracost-YYYY-MM-DD.log`.
+  - Automatically creates the `logs/` directory if missing.
+  - Each line is formatted like: `[YYYY-MM-DD HH:MM:SS] [LEVEL]: message`.
+  - Honors the global minimum log level; messages below the threshold are ignored.
+  - Optionally mirrors `WARNING`, `ERROR`, and `FATAL` to `stderr`.
+
+- `static void system::setLogLevel(system::messageClassification level)` / `static system::messageClassification system::getLogLevel()`
+  - Configure and query the minimum log level to write (default: `INFO`).
+
+- `static void system::setLogToConsole(bool enabled)` / `static bool system::getLogToConsole()`
+  - Enable/disable mirroring of `WARNING` and above to `stderr` (default: enabled).
 
 - `static bool system::createDirectory(const std::string &p_directoryName)`
   - Creates the directory and parents as needed. Returns `true` if the directory exists after the call (i.e., already existed or was created successfully).
@@ -109,6 +119,11 @@ system::appShutdown();
 - If `createDirectory` fails:
   - Check parent directory permissions.
   - On Windows, path length issues or backslash vs forward-slash are common pitfalls.
+
+- If log files are not created:
+  - Ensure the process has permission to create the `logs/` directory in the working directory.
+  - Verify the current log level (`system::getLogLevel()`) is not higher than the messages you emit.
+  - On multithreaded contexts, the logger is internally synchronized with a mutex; no extra steps are needed from callers.
 
 - If `deleteFile` fails to remove a file, the function attempts to add owner-write permissions and retry. If that fails, check for other processes locking the file (on Windows) or elevated permissions.
 

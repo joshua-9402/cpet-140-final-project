@@ -31,8 +31,17 @@ class system {
 
         static std::string timeDateString();
 
-        // Logs messages in the terminal to the log file.
+        // Logs a message to the rolling daily log file under `logs/`.
+        // Thread-safe. Messages below the current log level are ignored.
         static void logMessage(messageClassification classification, const std::string &message);
+
+        // Configure minimum log level to write (default: INFO).
+        static void setLogLevel(messageClassification level);
+        static messageClassification getLogLevel();
+
+        // Mirror WARNING/ERROR/FATAL to console (stderr). Default: true.
+        static void setLogToConsole(bool enabled);
+        static bool getLogToConsole();
 
         // Creates a directory with the specified name.
         // Returns true on success, false on failure.

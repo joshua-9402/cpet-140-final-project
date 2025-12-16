@@ -24,6 +24,9 @@
 #include <filesystem>
 #include <fstream>
 #include "hello_imgui/hello_imgui.h"
+#include <mutex>
+#include <atomic>
+#include <iostream>
 #ifdef _WIN32
     #include <direct.h>  // For _mkdir on Windows
     #include <sys/stat.h>  // For _stat on Windows
@@ -33,6 +36,14 @@
     #include <unistd.h>    // For rmdir and other POSIX functions
     #define MKDIR(path) mkdir(path, 0777)
 #endif
+
+
+namespace {
+    // Logging controls (thread-safe)
+    std::mutex g_logMutex;
+    std::atomic<system::messageClassification> g_minLevel{ system::messageClassification::INFO };
+    std::atomic<bool> g_logToConsole{ true };
+}
 
 
 // Returns the requested part of the current local time.
@@ -66,8 +77,13 @@ std::string system::timeDateString() {
 }
 
 
-// Logs messages in the terminal to the log file.
+// Logs messages to a rolling daily log file under logs/ (thread-safe)
 void system::logMessage(const messageClassification classification, const std::string& message) {
+    // Level filter first (cheap)
+    if (static_cast<int>(classification) < static_cast<int>(g_minLevel.load())) {
+        return;
+    }
+
     // Get current time once
     const auto currentSystemTime = std::chrono::system_clock::now();
     const std::time_t now_c = std::chrono::system_clock::to_time_t(currentSystemTime);
@@ -77,7 +93,7 @@ void system::logMessage(const messageClassification classification, const std::s
     // Helper for zero-padding
     auto pad2 = [](const int v) { return v < 10 ? "0" + std::to_string(v) : std::to_string(v); };
 
-    // Construct timestamp and filename
+    // Construct timestamp and daily filename
     const int year = localTime->tm_year + 1900;
     const int month = localTime->tm_mon + 1;
     const int day = localTime->tm_mday;
@@ -88,24 +104,51 @@ void system::logMessage(const messageClassification classification, const std::s
     const std::string timestamp = std::to_string(year) + "-" + pad2(month) + "-" + pad2(day) +
                                   " " + pad2(hour) + ":" + pad2(minute) + ":" + pad2(second);
 
-    const std::string fileName = "logs/log_" + std::to_string(year) + "_" +
-                                 std::to_string(month) + "_" + std::to_string(day) + "_" +
-                                 std::to_string(hour) + "_" + std::to_string(minute) + "_" +
-                                 std::to_string(second) + ".txt";
+    const std::string fileName = "logs/structuracost-" + std::to_string(year) + "-" + pad2(month) + "-" + pad2(day) + ".log";
 
     // Determine classification prefix
-        std::string prefix;
-        switch (classification) {
+    std::string prefix;
+    switch (classification) {
         case messageClassification::INFO:    prefix = "[INFO]"; break;
         case messageClassification::WARNING: prefix = "[WARNING]"; break;
         case messageClassification::ERROR:   prefix = "[ERROR]"; break;
+        case messageClassification::FATAL:   prefix = "[FATAL]"; break;
         default:                             prefix = "[INFO]"; break;
-        }
-
-    // Write to log file
-    if (std::ofstream logFile(fileName, std::ios::app); logFile.is_open()) {
-        logFile << "[" << timestamp << "] " << prefix << ": " << message << std::endl;
     }
+
+    const std::string line = "[" + timestamp + "] " + prefix + ": " + message;
+
+    std::lock_guard<std::mutex> lock(g_logMutex);
+    // Ensure logs directory exists
+    static_cast<void>(createDirectory("logs"));
+    if (std::ofstream logFile(fileName, std::ios::app); logFile.is_open()) {
+        logFile << line;
+        // Ensure newline if caller forgot one
+        if (!message.empty() && message.back() != '\n') logFile << '\n';
+        logFile.flush();
+    }
+
+    // Optional console mirroring for warnings and above
+    if (g_logToConsole.load() && static_cast<int>(classification) >= static_cast<int>(messageClassification::WARNING)) {
+        std::cerr << line;
+        if (!message.empty() && message.back() != '\n') std::cerr << '\n';
+    }
+}
+
+void system::setLogLevel(const messageClassification level) {
+    g_minLevel.store(level);
+}
+
+system::messageClassification system::getLogLevel() {
+    return g_minLevel.load();
+}
+
+void system::setLogToConsole(const bool enabled) {
+    g_logToConsole.store(enabled);
+}
+
+bool system::getLogToConsole() {
+    return g_logToConsole.load();
 }
 
 
