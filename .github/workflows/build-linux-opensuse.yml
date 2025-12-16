@@ -1,0 +1,102 @@
+name: Linux (openSUSE Tumbleweed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Release
+          - Debug
+
+jobs:
+  build-linux-opensuse:
+    name: openSUSE Tumbleweed (${{ inputs.build_type }})
+    runs-on: ubuntu-latest
+    container:
+      image: opensuse/tumbleweed:latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: System information
+      run: |
+        echo "=== System Info ==="
+        cat /etc/os-release || true
+        uname -a
+
+    - name: Stabilize zypper repositories (openh264)
+      run: |
+        chmod +x packaging/linux/zypper_stabilize.sh
+        ./packaging/linux/zypper_stabilize.sh
+
+    - name: Install build dependencies
+      run: |
+        set -euxo pipefail
+        zypper -n in --no-recommends \
+          git ca-certificates curl \
+          gcc-c++ cmake ninja \
+          freetype-devel libsodium-devel \
+          libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
+          Mesa-libGL-devel || true
+        zypper -n in --no-recommends Mesa-libGL-devel || true
+        cmake --version
+        ninja --version || true
+        g++ --version
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ inputs.build_type }}
+
+    - name: Build
+      run: |
+        cmake --build build --config ${{ inputs.build_type }} -j $(nproc || echo 2)
+
+    - name: Verify build output
+      run: |
+        echo "=== Checking build output ==="
+        ls -lh build || true
+        if [ -f "build/structuracost" ]; then
+          echo "✅ Executable created"
+          ls -lh build/structuracost
+          file build/structuracost || true
+        elif [ -d "build/structuracost.app" ]; then
+          echo "✅ App bundle (unlikely on Linux)"
+          ls -lh build/structuracost.app/Contents/MacOS/ || true
+        else
+          echo "❌ Build output not found!" && exit 1
+        fi
+
+    - name: Package artifacts
+      run: |
+        mkdir -p artifact
+        if [ -f "build/structuracost" ]; then
+          cp build/structuracost artifact/
+          if [ -d "assets" ]; then cp -R assets artifact/; fi
+        elif [ -d "build/structuracost.app" ]; then
+          cp -R build/structuracost.app artifact/
+        fi
+        (cd artifact && tar -czf ../structuracost-opensuse-${{ inputs.build_type }}.tar.gz .)
+        ls -lh structuracost-opensuse-${{ inputs.build_type }}.tar.gz
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: structuracost-opensuse-${{ inputs.build_type }}
+        path: structuracost-opensuse-${{ inputs.build_type }}.tar.gz
+        retention-days: 30
+
+    - name: Build summary
+      run: |
+        cat << EOF >> $GITHUB_STEP_SUMMARY
+        ### ✅ Linux (openSUSE Tumbleweed) Build Completed
+        **Build Type:** ${{ inputs.build_type }}
+        **Container:** opensuse/tumbleweed:latest
+        **Artifact:** structuracost-opensuse-${{ inputs.build_type }}.tar.gz
+        EOF
