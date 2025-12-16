@@ -27,6 +27,8 @@
 #include <mutex>
 #include <atomic>
 #include <iostream>
+#include <streambuf>
+#include <memory>
 #ifdef _WIN32
     #include <direct.h>  // For _mkdir on Windows
     #include <sys/stat.h>  // For _stat on Windows
@@ -43,6 +45,89 @@ namespace {
     std::mutex g_logMutex;
     std::atomic<system::messageClassification> g_minLevel{ system::messageClassification::INFO };
     std::atomic<bool> g_logToConsole{ true };
+
+    // Std stream capture state
+    std::atomic<bool> g_captureStd{ false };
+    bool g_prevConsoleMirror = true;
+    struct LoggerStreamBuf : public std::streambuf {
+        std::streambuf* orig;
+        system::messageClassification level;
+        std::string buffer;
+        std::mutex mtx;
+
+        explicit LoggerStreamBuf(std::streambuf* original, system::messageClassification lvl)
+            : orig(original), level(lvl) {
+            setp(nullptr, nullptr); // we don't use put area buffering
+        }
+
+        // Prevent recursion when logger itself writes to std::cerr
+        static thread_local bool s_inLogging;
+
+        int overflow(int ch) override {
+            if (ch == EOF) return 0;
+            const char c = static_cast<char>(ch);
+            // Forward to original streambuf
+            if (orig) orig->sputc(c);
+
+            // Accumulate and flush on newline
+            std::lock_guard<std::mutex> lock(mtx);
+            buffer.push_back(c);
+            if (c == '\n') {
+                if (!s_inLogging) {
+                    s_inLogging = true;
+                    // Strip trailing newline for the log line (logger ensures newline)
+                    std::string line = buffer;
+                    if (!line.empty() && line.back() == '\n') line.pop_back();
+                    system::logMessage(level, line);
+                    s_inLogging = false;
+                }
+                buffer.clear();
+            }
+            return ch;
+        }
+
+        std::streamsize xsputn(const char* s, std::streamsize n) override {
+            if (orig) orig->sputn(s, n);
+            std::lock_guard<std::mutex> lock(mtx);
+            buffer.append(s, static_cast<size_t>(n));
+            // Flush complete lines
+            size_t pos = 0;
+            while (true) {
+                size_t nl = buffer.find('\n', pos);
+                if (nl == std::string::npos) break;
+                if (!s_inLogging) {
+                    s_inLogging = true;
+                    std::string line = buffer.substr(0, nl);
+                    system::logMessage(level, line);
+                    s_inLogging = false;
+                }
+                buffer.erase(0, nl + 1);
+                pos = 0;
+            }
+            return n;
+        }
+
+        int sync() override {
+            if (orig) orig->pubsync();
+            std::lock_guard<std::mutex> lock(mtx);
+            if (!buffer.empty()) {
+                if (!s_inLogging) {
+                    s_inLogging = true;
+                    std::string line = buffer;
+                    system::logMessage(level, line);
+                    s_inLogging = false;
+                }
+                buffer.clear();
+            }
+            return 0;
+        }
+    };
+    thread_local bool LoggerStreamBuf::s_inLogging = false;
+
+    std::unique_ptr<LoggerStreamBuf> g_coutBuf;
+    std::unique_ptr<LoggerStreamBuf> g_cerrBuf;
+    std::streambuf* g_origCout = nullptr;
+    std::streambuf* g_origCerr = nullptr;
 }
 
 
@@ -149,6 +234,42 @@ void system::setLogToConsole(const bool enabled) {
 
 bool system::getLogToConsole() {
     return g_logToConsole.load();
+}
+
+
+void system::setCaptureStdStreams(const bool enable) {
+    const bool currently = g_captureStd.load();
+    if (enable == currently) return;
+
+    if (enable) {
+        g_captureStd.store(true);
+        // Save originals
+        g_origCout = std::cout.rdbuf();
+        g_origCerr = std::cerr.rdbuf();
+        // Disable console mirroring to avoid echo loops
+        g_prevConsoleMirror = g_logToConsole.load();
+        g_logToConsole.store(false);
+        // Install capturing buffers
+        g_coutBuf = std::make_unique<LoggerStreamBuf>(g_origCout, system::messageClassification::INFO);
+        g_cerrBuf = std::make_unique<LoggerStreamBuf>(g_origCerr, system::messageClassification::ERROR);
+        std::cout.rdbuf(g_coutBuf.get());
+        std::cerr.rdbuf(g_cerrBuf.get());
+    } else {
+        // Restore
+        if (g_origCout) std::cout.rdbuf(g_origCout);
+        if (g_origCerr) std::cerr.rdbuf(g_origCerr);
+        g_coutBuf.reset();
+        g_cerrBuf.reset();
+        g_origCout = nullptr;
+        g_origCerr = nullptr;
+        // Restore console mirroring
+        g_logToConsole.store(g_prevConsoleMirror);
+        g_captureStd.store(false);
+    }
+}
+
+bool system::getCaptureStdStreams() {
+    return g_captureStd.load();
 }
 
 

@@ -43,6 +43,12 @@ class system {
         static void setLogToConsole(bool enabled);
         static bool getLogToConsole();
 
+        // Capture std::cout and std::cerr and forward them to the logger.
+        // When enabled, stdout lines are logged as INFO and stderr lines as ERROR.
+        // Console mirroring is temporarily disabled while capture is active to avoid loops.
+        static void setCaptureStdStreams(bool enable);
+        static bool getCaptureStdStreams();
+
         // Creates a directory with the specified name.
         // Returns true on success, false on failure.
         static bool createDirectory(const std::string &p_directoryName);
