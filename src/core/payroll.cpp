@@ -1,5 +1,6 @@
 /*
  * CpET 140 Final Project — Payroll module
+ * StructuraCost - Core - Payroll module
  *
  * Contributors:
  *  Mark Clarence De Luna
