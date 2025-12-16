@@ -19,7 +19,6 @@ std::string appConfig::g_projectDirectory = "projects/";
 std::string appConfig::g_payrollDirectory  = "payroll/";
 
 std::string appConfig::g_projectExpenseDirectory = "expenses/";
-std::string appConfig::g_payrollAttendanceDirectory = "attendance/";
 
 std::string appConfig::g_dbNamePayroll = "base_payroll.db";
 std::string appConfig::g_dbNameProject = "base_project.db";
