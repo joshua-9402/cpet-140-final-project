@@ -89,6 +89,9 @@ void runUIFlow() {
 }
 
 int main() {
+    // Capture terminal output (stdout/stderr) into the system logger
+    system::setCaptureStdStreams(true);
+
     // Perform checks before starting the application
     system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Initiated.\n");
     systemCheck();
