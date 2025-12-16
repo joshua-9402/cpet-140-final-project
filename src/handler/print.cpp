@@ -1,25 +1,25 @@
 /*
  * CpET 140 Final Project — Print Module
  * StructuraCost - Handler - Print Module
-*
-* Contributors:
-*  Joshua Literal
-*
-* Purpose
- *  - Generate and export employee payslips to HTML format
- *  - Fetch employee data from the payroll database
- *  - Convert company logos to embedded data URIs for offline viewing
-*
-* Boundaries
- *  - Interacts with SQLite database for employee data retrieval
- *  - Handles file system operations for HTML export and logo embedding
- *  - Platform-specific system calls for opening generated HTML files
-*
-* Notes
- *  - Generates print-ready HTML with embedded styling and logos
- *  - Supports automatic pagination for multiple payslips
- *  - Cross-platform file opening (Windows, macOS, Linux)
-*/
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Generate and export employee payslips to HTML format
+ * - Fetch employee data from the payroll database
+ * - Convert company logos to embedded data URIs for offline viewing
+ *
+ * Boundaries
+ * - Interacts with SQLite database for employee data retrieval
+ * - Handles file system operations for HTML export and logo embedding
+ * - Platform-specific system calls for opening generated HTML files
+ *
+ * Notes
+ * - Generates print-ready HTML with embedded styling and logos
+ * - Supports automatic pagination for multiple payslips
+ * - Cross-platform file opening (Windows, macOS, Linux)
+ */
 
 
 #include <iostream>

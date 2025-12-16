@@ -1,3 +1,23 @@
+/*
+ * CpET 140 Final Project — Print/Export module header
+ * StructuraCost - Handler - Print module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Export payslips and project reports to HTML format
+ * - Generate printable documents for payroll and project management
+ *
+ * Boundaries
+ * - Interacts with database module to retrieve data
+ * - Generates HTML files for browser viewing and printing
+ *
+ * Notes
+ * - HTML output includes embedded styles and logos
+ * - Supports both payslip and project report generation
+ */
+
 #ifndef CPET_140_FINAL_PROJECT_PRINT_H
 #define CPET_140_FINAL_PROJECT_PRINT_H
 
