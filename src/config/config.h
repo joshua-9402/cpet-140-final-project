@@ -1,3 +1,22 @@
+/*
+ * CpET 140 Final Project — Application Configuration header
+ * StructuraCost - Config - Application Configuration
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Define global configuration variables for the application
+ * - Centralize application settings and constants
+ *
+ * Boundaries
+ * - Provides read-only configuration data to all modules
+ *
+ * Notes
+ * - All variables are declared static and defined in config.cpp
+ * - Configuration includes paths, window dimensions, and application metadata
+ */
+
 #ifndef CPET_140_FINAL_PROJECT_APP_CONFIG_H
 #define CPET_140_FINAL_PROJECT_APP_CONFIG_H
 

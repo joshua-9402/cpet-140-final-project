@@ -1,3 +1,22 @@
+/*
+ * CpET 140 Final Project — Configuration module
+ * StructuraCost - Config - Application configuration module
+ *
+ * Contributors:
+ *
+ * Purpose
+ * - Defines and initializes global application configuration variables (titles, fonts, directories, window sizes).
+ * - Matches declarations in config.h and provides default values used across the app.
+ *
+ * Boundaries
+ * - Definitions only; no business logic, I/O, or runtime computation here.
+ * - Do not introduce side effects beyond initializing constants/defaults.
+ *
+ * Notes
+ * - Keep this synchronized with config.h declarations.
+ * - Values are used by UI and handlers for titles, fonts, paths, and sizes.
+ */
+
 #include "config.h"
 
 // Global authentication flag
