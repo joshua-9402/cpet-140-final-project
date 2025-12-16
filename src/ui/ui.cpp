@@ -75,6 +75,60 @@ static std::string toLower(std::string s) {
 }
 
 
+// Small helpers to keep UI code concise without changing behavior
+static void renderStatCard(
+    const char* childId,
+    const char* title,
+    const ImVec4& titleColor,
+    const std::string& valueText,
+    const char* subtitle,
+    const ImVec2& size
+) {
+    ImGui::BeginChild(childId, size, true);
+    ImGui::SetCursorPosY(15.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextColored(titleColor, "%s", title);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::SetWindowFontScale(2.0f);
+    ImGui::Text("%s", valueText.c_str());
+    ImGui::SetWindowFontScale(1.0f);
+    ImGui::SetCursorPosY(size.y - 30.0f);
+    ImGui::SetCursorPosX(20.0f);
+    ImGui::TextDisabled("%s", subtitle);
+    ImGui::EndChild();
+}
+
+// Keep exact normalization semantics used previously for PRJ-xxxxx formatting
+static std::string normalizeProjectId(const std::string& input) {
+    std::string projectIDStr = input;
+    if (!projectIDStr.empty()) {
+        if (projectIDStr.length() != 10 || projectIDStr.substr(0, 4) != "PRJ-") {
+            std::string digits;
+            for (char ch : projectIDStr) {
+                if (std::isdigit(static_cast<unsigned char>(ch))) {
+                    digits.push_back(ch);
+                }
+            }
+            if (!digits.empty()) {
+                long long idVal = 0;
+                try { idVal = std::stoll(digits); } catch (...) { idVal = 0; }
+                std::ostringstream oss;
+                oss << "PRJ-" << std::setw(5) << std::setfill('0') << idVal;
+                projectIDStr = oss.str();
+            }
+        }
+    }
+    return projectIDStr;
+}
+
+static std::string buildProjectReportOutFile(const std::string& projectID) {
+    return appConfig::g_dataDirectory + "project_report_" + projectID + "_" +
+           std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "_" +
+           std::to_string(system::fetchTime(system::PartDateTime::MONTH)) + "_" +
+           std::to_string(system::fetchTime(system::PartDateTime::DAY)) + ".html";
+}
+
+
 static ImVec2 fullWidthButtonSize(const float a_height = g_buttonSizePxSelector.y) { return {ImGui::GetContentRegionAvail().x, a_height}; }
 
 
@@ -297,27 +351,12 @@ static void summaryUI() {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Count total employees
-    int totalEmployees = 0;
-    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
-    for (int row = 1; row <= 1000; ++row) {
-        if (db::fetchCell(employeeDB, static_cast<size_t>(row), 1).empty()) break;
-        ++totalEmployees;
-    }
-
-    // Count total projects
-    int totalProjects = 0;
-    int activeProjects = 0;
-    const std::string projectDB = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
-    for (int row = 1; row <= 1000; ++row) {
-        const std::string projectID = db::fetchCell(projectDB, static_cast<size_t>(row), 1);
-        if (projectID.empty()) break;
-        ++totalProjects;
-        const std::string status = db::fetchCell(projectDB, static_cast<size_t>(row), 3);
-        if (status == "Active" || status == "In Progress") {
-            ++activeProjects;
-        }
-    }
+    // Delegate counts to monitor module
+    const auto payrollSummary = monitor::computePayrollSummary();
+    const auto projectSummary = monitor::computeProjectSummary();
+    const int totalEmployees = payrollSummary.totalEmployees;
+    const int totalProjects = projectSummary.totalProjects;
+    const int activeProjects = projectSummary.activeProjects;
 
     // Statistics Cards
     constexpr float cardWidth = 280.0f;
@@ -328,54 +367,21 @@ static void summaryUI() {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, cardColor);
 
     // Employee Count Card
-    ImGui::BeginChild("EmployeeCard", ImVec2(cardWidth, cardHeight), true);
-    ImGui::SetCursorPosY(15.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextColored(accentColor, "Total Employees");
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::SetWindowFontScale(2.0f);
-    ImGui::Text("%d", totalEmployees);
-    ImGui::SetWindowFontScale(1.0f);
-    ImGui::SetCursorPosY(cardHeight - 30.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextDisabled("Active in payroll");
-    ImGui::EndChild();
+    renderStatCard("EmployeeCard", "Total Employees", accentColor, std::to_string(totalEmployees), "Active in payroll", ImVec2(cardWidth, cardHeight));
 
     ImGui::SameLine();
 
     // Project Count Card
-    ImGui::BeginChild("ProjectCard", ImVec2(cardWidth, cardHeight), true);
-    ImGui::SetCursorPosY(15.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextColored(accentColor, "Total Projects");
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::SetWindowFontScale(2.0f);
-    ImGui::Text("%d", totalProjects);
-    ImGui::SetWindowFontScale(1.0f);
-    ImGui::SetCursorPosY(cardHeight - 30.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextDisabled("Managed projects");
-    ImGui::EndChild();
+    renderStatCard("ProjectCard", "Total Projects", accentColor, std::to_string(totalProjects), "Managed projects", ImVec2(cardWidth, cardHeight));
 
     ImGui::SameLine();
 
     // Active Projects Card
-    ImGui::BeginChild("ActiveCard", ImVec2(cardWidth, cardHeight), true);
-    ImGui::SetCursorPosY(15.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextColored(accentColor, "Active Projects");
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::SetWindowFontScale(2.0f);
-    ImGui::Text("%d", activeProjects);
-    ImGui::SetWindowFontScale(1.0f);
-    ImGui::SetCursorPosY(cardHeight - 30.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextDisabled("In progress/active");
-    ImGui::EndChild();
+    renderStatCard("ActiveCard", "Active Projects", accentColor, std::to_string(activeProjects), "In progress/active", ImVec2(cardWidth, cardHeight));
 
     ImGui::SameLine();
 
-    // System Status Card
+    // System Status Card (kept as-is to preserve colored value text)
     ImGui::BeginChild("SystemCard", ImVec2(cardWidth, cardHeight), true);
     ImGui::SetCursorPosY(15.0f);
     ImGui::SetCursorPosX(20.0f);
@@ -414,6 +420,7 @@ static void summaryUI() {
     ImGui::Separator();
 
     // Display all projects (up to 1000)
+    const std::string projectDB = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
     int displayedProjects = 0;
     for (int row = 1; row <= 1000; ++row) {
         const std::string projectID = db::fetchCell(projectDB, static_cast<size_t>(row), 1);
@@ -475,6 +482,7 @@ static void summaryUI() {
     ImGui::Separator();
 
     // Display all employees (up to 1000)
+    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
     int displayedEmployees = 0;
     for (int row = 1; row <= 1000; ++row) {
         const std::string employeeNo = db::fetchCell(employeeDB, static_cast<size_t>(row), 1);
@@ -541,32 +549,10 @@ static void summaryUI() {
     ImGui::SameLine();
 
     if (ImGui::Button("Print Project Report", ImVec2(350.0f, 50.0f))) {
-        std::string projectIDStr(projectIDForReport);
-
-        // Format project ID to PRJ-xxxxx if needed
+        std::string projectIDStr = normalizeProjectId(std::string(projectIDForReport));
         if (!projectIDStr.empty()) {
-            if (projectIDStr.length() != 10 || projectIDStr.substr(0, 4) != "PRJ-") {
-                std::string digits;
-                for (char ch : projectIDStr) {
-                    if (std::isdigit(static_cast<unsigned char>(ch))) {
-                        digits.push_back(ch);
-                    }
-                }
-                if (!digits.empty()) {
-                    long long idVal = 0;
-                    try { idVal = std::stoll(digits); } catch (...) { idVal = 0; }
-                    std::ostringstream oss;
-                    oss << "PRJ-" << std::setw(5) << std::setfill('0') << idVal;
-                    projectIDStr = oss.str();
-                }
-            }
-
-            const std::string outFile = appConfig::g_dataDirectory + "project_report_" + projectIDStr + "_" +
-                                       std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "_" +
-                                       std::to_string(system::fetchTime(system::PartDateTime::MONTH)) + "_" +
-                                       std::to_string(system::fetchTime(system::PartDateTime::DAY)) + ".html";
+            const std::string outFile = buildProjectReportOutFile(projectIDStr);
             const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png");
-
             if (exportProjectReportHtml(projectIDStr, outFile, logoPath)) {
                 system::logMessage(system::messageClassification::INFO, "Project report exported successfully to: " + outFile + "\n");
                 system::openFileInBrowser(outFile);
@@ -602,31 +588,11 @@ static void payrollUI() {
     ImGui::Separator();
     ImGui::Spacing();
 
-    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
-
-    // Count total employees
-    int totalEmployees = 0;
-    double totalSalaryExpense = 0.0;
-    double totalAdvances = 0.0;
-
-    for (int row = 1; row <= 1000; ++row) {
-        if (db::fetchCell(employeeDB, static_cast<size_t>(row), 1).empty()) break;
-        ++totalEmployees;
-
-        const std::string salaryStr = db::fetchCell(employeeDB, static_cast<size_t>(row), 5);
-        const std::string hoursStr = db::fetchCell(employeeDB, static_cast<size_t>(row), 6);
-        const std::string advanceStr = db::fetchCell(employeeDB, static_cast<size_t>(row), 7);
-
-        try {
-            const double salary = salaryStr.empty() ? 0.0 : std::stod(salaryStr);
-            const double hours = hoursStr.empty() ? 0.0 : std::stod(hoursStr);
-            const double advance = advanceStr.empty() ? 0.0 : std::stod(advanceStr);
-            totalSalaryExpense += salary * hours;
-            totalAdvances += advance;
-        } catch (...) {
-            // Skip invalid numeric values
-        }
-    }
+    // Delegate stats computation to core/monitor module
+    const auto payrollSummary = monitor::computePayrollSummary();
+    const int totalEmployees = payrollSummary.totalEmployees;
+    const double totalSalaryExpense = payrollSummary.totalSalaryExpense;
+    const double totalAdvances = payrollSummary.totalAdvances;
 
     // Statistics Cards
     constexpr float cardWidth = 380.0f;
@@ -637,50 +603,23 @@ static void payrollUI() {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, cardColor);
 
     // Total Employees Card
-    ImGui::BeginChild("PayrollEmployeeCard", ImVec2(cardWidth, cardHeight), true);
-    ImGui::SetCursorPosY(15.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextColored(accentColor, "Total Employees");
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::SetWindowFontScale(2.0f);
-    ImGui::Text("%d", totalEmployees);
-    ImGui::SetWindowFontScale(1.0f);
-    ImGui::SetCursorPosY(cardHeight - 30.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextDisabled("Active employees");
-    ImGui::EndChild();
+    renderStatCard("PayrollEmployeeCard", "Total Employees", accentColor, std::to_string(totalEmployees), "Active employees", ImVec2(cardWidth, cardHeight));
 
     ImGui::SameLine();
 
     // Total Salary Expense Card
-    ImGui::BeginChild("SalaryExpenseCard", ImVec2(cardWidth, cardHeight), true);
-    ImGui::SetCursorPosY(15.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextColored(accentColor, "Total Salary Expense");
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::SetWindowFontScale(2.0f);
-    ImGui::Text("%.2f", totalSalaryExpense);
-    ImGui::SetWindowFontScale(1.0f);
-    ImGui::SetCursorPosY(cardHeight - 30.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextDisabled("Total payroll cost");
-    ImGui::EndChild();
+    {
+        std::ostringstream oss; oss.setf(std::ios::fixed); oss << std::setprecision(2) << totalSalaryExpense;
+        renderStatCard("SalaryExpenseCard", "Total Salary Expense", accentColor, oss.str(), "Total payroll cost", ImVec2(cardWidth, cardHeight));
+    }
 
     ImGui::SameLine();
 
     // Total Advances Card
-    ImGui::BeginChild("AdvancesCard", ImVec2(cardWidth, cardHeight), true);
-    ImGui::SetCursorPosY(15.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextColored(accentColor, "Total Advances");
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::SetWindowFontScale(2.0f);
-    ImGui::Text("%.2f", totalAdvances);
-    ImGui::SetWindowFontScale(1.0f);
-    ImGui::SetCursorPosY(cardHeight - 30.0f);
-    ImGui::SetCursorPosX(20.0f);
-    ImGui::TextDisabled("Employee advances");
-    ImGui::EndChild();
+    {
+        std::ostringstream oss; oss.setf(std::ios::fixed); oss << std::setprecision(2) << totalAdvances;
+        renderStatCard("AdvancesCard", "Total Advances", accentColor, oss.str(), "Employee advances", ImVec2(cardWidth, cardHeight));
+    }
 
     ImGui::PopStyleColor();
 
@@ -710,6 +649,7 @@ static void payrollUI() {
     ImGui::Separator();
 
     // Display all employees (up to 1000)
+    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
     int displayedEmployees = 0;
     for (int row = 1; row <= 1000; ++row) {
         const std::string employeeNo = db::fetchCell(employeeDB, static_cast<size_t>(row), 1);
@@ -826,7 +766,7 @@ static void monitorUI() {
 
     // Employee Action Buttons
     if (ImGui::Button("Add New Employee", ImVec2(350.0f, 40.0f))) {
-        if (db::appendDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, "'" + nameStr + "', '" + positionStr + "', '" + locationStr + "', " + salaryStr + ", " + hoursWorkedStr + ", " + advanceStr)) {
+        if (monitor::addEmployee(nameStr, positionStr, locationStr, salaryStr, hoursWorkedStr, advanceStr)) {
             system::logMessage(system::messageClassification::INFO, "DB: New employee added successfully.\n");
             name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
             salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
@@ -837,19 +777,22 @@ static void monitorUI() {
 
     ImGui::SameLine();
     if (ImGui::Button("Update Employee", ImVec2(350.0f, 40.0f))) {
-        if (const std::string setClause = "NAME='" + nameStr + "', 'POSITION='" + positionStr + "', SITE_LOCATION='" + locationStr + "', SALARY=" + salaryStr + ", HOURS_WORK=" + hoursWorkedStr + ", ADVANCE=" + advanceStr;
-            db::updateDatabase(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeIDStr, setClause)) {
-            system::logMessage(system::messageClassification::INFO, "DB: Employee data updated successfully.\n");
-            name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
-            salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
+        if (!employeeIDStr.empty()) {
+            if (monitor::updateEmployee(employeeIDStr, nameStr, positionStr, locationStr, salaryStr, hoursWorkedStr, advanceStr)) {
+                system::logMessage(system::messageClassification::INFO, "DB: Employee data updated successfully.\n");
+                name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
+                salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "DB: Failed to update employee data.\n");
+            }
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Failed to update employee data.\n");
+            system::logMessage(system::messageClassification::ERROR, "DB: Employee ID is required for update.\n");
         }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Delete Employee", ImVec2(350.0f, 40.0f))) {
-        if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll, employeeIDStr)) {
+        if (monitor::deleteEmployee(employeeIDStr)) {
             system::logMessage(system::messageClassification::INFO, "DB: Employee deleted successfully.\n");
             employeeID[0] = '\0';
         } else {
@@ -931,24 +874,75 @@ static void monitorUI() {
     static char sunHours[128], monHours[128], tueHours[128], wedHours[128], thuHours[128], friHours[128], satHours[128];
     static int selectedWeekIndex = 0;
 
-    // Generate week options
+    // Generate week options aligned to Sunday-Saturday
     static std::vector<std::string> weekOptions;
     static std::vector<std::string> weekDates;
     if (weekOptions.empty()) {
-        for (int month = 1; month <= 12; month++) {
-            int daysInMonth = 31;
-            if (month == 2) daysInMonth = 28;
-            else if (month == 4 || month == 6 || month == 9 || month == 11) daysInMonth = 30;
+        const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
 
-            for (int day = 1; day <= daysInMonth; day += 7) {
-                int endDay = std::min(day + 6, daysInMonth);
-                std::ostringstream label, dateRange;
-                label << std::setfill('0') << std::setw(2) << month << "/"
-                      << std::setw(2) << day << "-" << std::setw(2) << endDay;
-                dateRange << "2025-" << std::setfill('0') << std::setw(2) << month
-                         << "-" << std::setw(2) << day;
-                weekOptions.push_back(label.str());
-                weekDates.push_back(dateRange.str());
+        // Helper lambda to get day of week (0=Sunday, 6=Saturday)
+        auto getDayOfWeek = [](int year, int month, int day) -> int {
+            // Zeller's congruence algorithm
+            if (month < 3) {
+                month += 12;
+                year--;
+            }
+            int q = day;
+            int m = month;
+            int k = year % 100;
+            int j = year / 100;
+            int h = (q + ((13 * (m + 1)) / 5) + k + (k / 4) + (j / 4) - (2 * j)) % 7;
+            // Convert to 0=Sunday format
+            return (h + 6) % 7;
+        };
+
+        // Helper to get days in month
+        auto getDaysInMonth = [currentYear](int month) -> int {
+            if (month == 2) {
+                // Check for leap year
+                bool isLeap = (currentYear % 4 == 0 && currentYear % 100 != 0) || (currentYear % 400 == 0);
+                return isLeap ? 29 : 28;
+            }
+            if (month == 4 || month == 6 || month == 9 || month == 11) return 30;
+            return 31;
+        };
+
+        // Generate all Sundays in the year
+        for (int month = 1; month <= 12; month++) {
+            int daysInMonth = getDaysInMonth(month);
+
+            for (int day = 1; day <= daysInMonth; day++) {
+                int dayOfWeek = getDayOfWeek(currentYear, month, day);
+
+                // If this is a Sunday, create a week entry
+                if (dayOfWeek == 0) {
+                    int endDay = day + 6;
+                    int endMonth = month;
+
+                    // Check if week spans into next month
+                    if (endDay > daysInMonth) {
+                        endDay = endDay - daysInMonth;
+                        endMonth = month + 1;
+                        if (endMonth > 12) endMonth = 1;
+                    }
+
+                    std::ostringstream label, dateRange;
+                    if (endMonth == month) {
+                        // Week is within same month
+                        label << std::setfill('0') << std::setw(2) << month << "/"
+                              << std::setw(2) << day << "-" << std::setw(2) << endDay;
+                    } else {
+                        // Week spans two months
+                        label << std::setfill('0') << std::setw(2) << month << "/"
+                              << std::setw(2) << day << "-" << std::setw(2) << endMonth << "/"
+                              << std::setw(2) << endDay;
+                    }
+
+                    dateRange << currentYear << "-" << std::setfill('0') << std::setw(2) << month
+                             << "-" << std::setw(2) << day;
+                    weekOptions.push_back(label.str());
+                    weekDates.push_back(dateRange.str());
+                }
             }
         }
     }
@@ -1033,19 +1027,30 @@ static void monitorUI() {
     // Attendance Action Buttons
     if (ImGui::Button("Add Weekly Attendance", ImVec2(350.0f, 40.0f))) {
         if (!formattedEmpID.empty() && !weekStartStr.empty()) {
-            const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
-            const std::string attendanceDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
-                                                std::to_string(currentYear) + "/" + weekLabel + ".db";
-            const std::string a_data = "'" + formattedEmpID + "', '" + weekStartStr + "', " + sunHoursStr + ", " + monHoursStr + ", " +
-                                      tueHoursStr + ", " + wedHoursStr + ", " + thuHoursStr + ", " + friHoursStr + ", " + satHoursStr;
+            // For logging only (UI presentation), keep the same safe label formatting
+            std::string safeWeekLabel = weekLabel;
+            std::replace(safeWeekLabel.begin(), safeWeekLabel.end(), '/', '-');
 
-            if (db::appendDatabase(attendanceDbPath, a_data)) {
-                system::logMessage(system::messageClassification::INFO, "Attendance: Weekly attendance added successfully.\n");
+            const bool ok = monitor::addWeeklyAttendance(
+                attendanceEmpIDStr,
+                weekLabel,
+                weekStartStr,
+                sunHoursStr,
+                monHoursStr,
+                tueHoursStr,
+                wedHoursStr,
+                thuHoursStr,
+                friHoursStr,
+                satHoursStr
+            );
+
+            if (ok) {
+                system::logMessage(system::messageClassification::INFO, "Attendance: Weekly attendance added successfully to " + safeWeekLabel + "\n");
                 attendanceEmployeeID[0] = '\0';
                 sunHours[0] = '\0'; monHours[0] = '\0'; tueHours[0] = '\0'; wedHours[0] = '\0';
                 thuHours[0] = '\0'; friHours[0] = '\0'; satHours[0] = '\0';
             } else {
-                system::logMessage(system::messageClassification::INFO, "Attendance: Failed to add weekly attendance.\n");
+                system::logMessage(system::messageClassification::ERROR, "Attendance: Failed to add weekly attendance.\n");
             }
         } else {
             system::logMessage(system::messageClassification::ERROR, "Attendance: Employee ID and Week are required.\n");
@@ -1055,13 +1060,19 @@ static void monitorUI() {
     ImGui::SameLine();
     if (ImGui::Button("Update Weekly Attendance", ImVec2(350.0f, 40.0f))) {
         if (!formattedEmpID.empty() && !weekStartStr.empty()) {
-            const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
-            const std::string attendanceDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
-                                                std::to_string(currentYear) + "/" + weekLabel + ".db";
-            const std::string setClause = "SUN=" + sunHoursStr + ", MON=" + monHoursStr + ", TUE=" + tueHoursStr +
-                                         ", WED=" + wedHoursStr + ", THU=" + thuHoursStr + ", FRI=" + friHoursStr +
-                                         ", SAT=" + satHoursStr;
-            if (db::updateDatabase(attendanceDbPath, formattedEmpID, setClause)) {
+            const bool ok = monitor::updateWeeklyAttendance(
+                attendanceEmpIDStr,
+                weekLabel,
+                weekStartStr,
+                sunHoursStr,
+                monHoursStr,
+                tueHoursStr,
+                wedHoursStr,
+                thuHoursStr,
+                friHoursStr,
+                satHoursStr
+            );
+            if (ok) {
                 system::logMessage(system::messageClassification::INFO, "Attendance: Week attendance updated successfully.\n");
                 attendanceEmployeeID[0] = '\0';
                 sunHours[0] = '\0'; monHours[0] = '\0'; tueHours[0] = '\0'; wedHours[0] = '\0';
@@ -1077,10 +1088,12 @@ static void monitorUI() {
     ImGui::SameLine();
     if (ImGui::Button("Delete Weekly Attendance", ImVec2(350.0f, 40.0f))) {
         if (!formattedEmpID.empty() && !weekStartStr.empty()) {
-            const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
-            const std::string attendanceDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
-                                                std::to_string(currentYear) + "/" + weekLabel + ".db";
-            if (db::deleteRow(attendanceDbPath, formattedEmpID)) {
+            const bool ok = monitor::deleteWeeklyAttendance(
+                attendanceEmpIDStr,
+                weekLabel,
+                weekStartStr
+            );
+            if (ok) {
                 system::logMessage(system::messageClassification::INFO, "Attendance: Week attendance deleted successfully.\n");
                 attendanceEmployeeID[0] = '\0';
                 sunHours[0] = '\0'; monHours[0] = '\0'; tueHours[0] = '\0'; wedHours[0] = '\0';
@@ -1128,7 +1141,10 @@ static void monitorUI() {
     ImGui::SameLine();
     ImGui::Checkbox("Show Headers##att", &s_showHeadersAttendance);
 
-    const std::string viewerWeekLabel = weekOptions[viewerWeekIndex];
+    std::string viewerWeekLabel = weekOptions[viewerWeekIndex];
+    // Replace slashes with hyphens for valid filename
+    std::replace(viewerWeekLabel.begin(), viewerWeekLabel.end(), '/', '-');
+
     const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
     const std::string dbPathAttendance = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
                                         std::to_string(currentYear) + "/" + viewerWeekLabel + ".db";
@@ -2071,7 +2087,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     };
 
     // PostInit: set application icon using HelloImGui backend pointers (GLFW/SDL)
-    params.callbacks.PostInit = []() {
+    params.callbacks.PostInit = [&params]() {
         // Resolve icon path from assets; prefer app_icon.png, fallback to business_logo.png
         std::string iconPath = HelloImGui::AssetFileFullPath("icons/app_icon.png");
         if (iconPath.empty()) iconPath = HelloImGui::AssetFileFullPath("icons/business_logo.png");
@@ -2082,12 +2098,7 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
         unsigned char* pixels = stbi_load(iconPath.c_str(), &w, &h, &comps, 4);
         if (!pixels) return;
 
-        auto* params = HelloImGui::GetRunnerParams();
-        if (!params) {
-            stbi_image_free(pixels);
-            return;
-        }
-        auto bp = params->backendPointers;
+        auto bp = params.backendPointers;
 
     #ifdef UI_HAVE_GLFW
         if (bp.glfwWindow) {
