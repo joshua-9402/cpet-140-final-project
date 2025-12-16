@@ -1,7 +1,9 @@
 /*
-* CpET 140 Final Project — Database module
+ * CpET 140 Final Project — Database module
+ * StructuraCost - Handler - Database module
  *
- * Contributors: Joshua Literal
+ * Contributors:
+ *  Joshua Literal
  *
  * Purpose
  * - Provides persistence adapters used by POS/Inventory (e.g., load/save items,
@@ -14,90 +16,6 @@
  * Notes
  * - Single-threaded by default; callers must synchronize if used from workers.
  * - Prefer explicit status results and avoid partial writes on failure.
- *
- * Database:
- * This will be the structure of the database files used in the application.
-
-    root/
-      └── data/
-          ├── payroll/
-          │   ├── 2025/
-          │   │   └── 11/17-22/2025.db
-          │   └── base_payroll.db
-          └── projects/
-              ├── expense/
-              │   ├── PRJ-0001.db
-              │   └── PRJ-0002.db
-              └── base_projects.db
-
- * For Payroll System:
- * This is the template and for every month, there will be new folder and every folder contains four database files (base_payroll.db)
- * |-------------|----------------|-----------|---------------|-------------------------|--------------------------|----------------|
- * | EMPLOYEE_ID | NAME           | Position  | SITE_LOCATION | SALARY   | HOURS_WORKED  | ADVANCE       |
- * |-------------|----------------|-----------|---------------|-------------------------|--------------------------|----------------|
- * | 000001      | Juan Dela Cruz | Secretary | Manila   | 70.00                   | 192            | 0.00           |
- * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
- * | 000002      | Maria Santos   | Manager   | Cavite   | 100.00                  | 208  (26 * 8)            | 5000.00        |
- * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
- * | 000003      | Pedro Reyes    | Engineer  | Iloilo   | 200.00                  | 176  (22 * 8)            | 1500.00        |
- * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
- * | 000004      | Ana Lopez      | Technician| Baguio   | 80.00                   | 200  (25 * 8)            | 2500.00        |
- * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
- * | 000005      | Luis Garcia    | Laborer   | Davao    | 30.00                   | 184  (23 * 8)            | 0.00           |
- * |-------------|----------------|-----------|----------|-------------------------|--------------------------|----------------|
- *
- * For tracking employees' worked hours for a week:
- * |------------------|-----|-----|-----|-----|-----|-----|-----|
- * | EMPLOYEE_ID      | Mon | Tue | Wed | Thu | Fri | Sat | Sun |
- * |------------------|-----|-----|-----|-----|-----|-----|-----|
- * | 000001           | 08  | 08  | 08  | 08  | 08  | 00  | 00  |
- * |------------------|-----|-----|-----|-----|-----|-----|-----|
- * | 000002           | 08  | 08  | 07  | 08  | 06  | 04  | 00  |
- * |------------------|-----|-----|-----|-----|-----|-----|-----|
- * | 000003           | 08  | 06  | 08  | 08  | 05  | 00  | 00  |
- * |------------------|-----|-----|-----|-----|-----|-----|-----|
- * | 000004           | 08  | 07  | 08  | 08  | 08  | 08  | 00  |
- * |------------------|-----|-----|-----|-----|-----|-----|-----|
- * | 000005           | 06  | 06  | 06  | 06  | 06  | 00  | 00  |
- * |------------------|-----|-----|-----|-----|-----|-----|-----|
- *
- * Questions:
- *  - For the computation of the salary, is it just hourly rate multiplied by hours worked?
- *
- *
- * For Tracker/Monitoring System:
- * - status can be "Active", "Completed", "On-Hold", or "In Progress".
- * - For date, use ISO 8601 format (year-month-day) (e.g., "2023-10-05").
- * - this is the main database file for tracking projects (projects/base_projects.db)
- * |------------|--------------------------------------------|-------------|--------------------|-----------------------------------|
- * | Project ID | Project Name                               | Status      | Project Start Date | Notes                             |
- * |------------|--------------------------------------------|-------------|--------------------|-----------------------------------|
- * | PRJ-00001  | BatStateU Aboitiz LIMA Campus              | In Progress | 2025-01-15         | Under Construction at LIMA Estate |
- * |------------|--------------------------------------------|-------------|--------------------|-----------------------------------|
- * | PRJ-00002  | BatStateU STEER Hub                        | Completed   | 2024-11-01         | BatStateU Gov. Pablo Borbon II    |
- * |------------|--------------------------------------------|-------------|--------------------|-----------------------------------|
- *
- *
- * For Tracker/Monitoring System Building Materials (Per Project) (expense/${PROJECT_ID}.db, e.g., expense/PRJ-00001.db):
- *  - MAT-{number} - a predefined material ID.
- *  - MAT-CS-{number} - custom/special order material ID.
- *
- * |------------------|-----------------------|-------------------------|------------------|
- * | Material ID      | Material Name         | Quantity                | Unit Price (PHP) |
- * |                  |                       | (in unit appropriate    |                  |
- * |                  |                       | with the material)      |                  |
- * |------------------|-----------------------|-------------------------|------------------|
- * | MAT-0000         | Bidding Documents     | 0 (units)               | 0.00             |
- * |------------------|-----------------------|-------------------------|------------------|
- * | MAT-0001         | Cement                | 100 (bags)              | 250.00           |
- * |------------------|-----------------------|-------------------------|------------------|
- * | MAT-0002         | Steel Rebars          | 500 (kilograms)         | 75.00            |
- * |------------------|-----------------------|-------------------------|------------------|
- * | MAT-0003         | Gravel                | 2 (cubic meters)        | 1500.00          |
- * |------------------|-----------------------|-------------------------|------------------|
- * | MAT-CS-0001      | Drill Bit Set- Shopee | 3 (cubic meters)        | 1200.00          |
- * |------------------|-----------------------|-------------------------|------------------|
- *
  */
 
 
@@ -152,8 +70,7 @@ bool db::createDatabase(const std::string& p_dbName) {
 
     // Use column names that match the rest of the code (insert/update)
     if (filename == appConfig::g_dbNamePayroll || p_dbName == appConfig::g_dbNamePayroll) {
-        tablesSql.push_back(
-            "CREATE TABLE IF NOT EXISTS EMPLOYEES ("
+        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS EMPLOYEES ("
             "EMPLOYEE_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
             "NAME TEXT NOT NULL,"
             "POSITION TEXT NOT NULL,"
@@ -164,8 +81,7 @@ bool db::createDatabase(const std::string& p_dbName) {
             ");"
         );
         // Integrate weekly attendance into base_payroll.db as a central ledger
-        tablesSql.push_back(
-            "CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
+        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
             "EMPLOYEE_ID TEXT NOT NULL,"
             "WEEK_START TEXT NOT NULL,"
             "SUN REAL NOT NULL,"
@@ -179,8 +95,7 @@ bool db::createDatabase(const std::string& p_dbName) {
             ");"
         );
     } else if (filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
-        tablesSql.push_back(
-            "CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
+        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
             "PROJECT_ID TEXT PRIMARY KEY,"
             "PROJECT_NAME TEXT NOT NULL,"
             "STATUS TEXT NOT NULL,"
@@ -191,8 +106,7 @@ bool db::createDatabase(const std::string& p_dbName) {
     } else if (
         filename.find("PRJ") != std::string::npos &&
         filename.find(".db") != std::string::npos){
-        tablesSql.push_back(
-            "CREATE TABLE IF NOT EXISTS MATERIALS ("
+        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS MATERIALS ("
             "MATERIAL_ID TEXT PRIMARY KEY,"
             "MATERIAL_NAME TEXT NOT NULL,"
             "QUANTITY REAL NOT NULL,"
@@ -202,14 +116,13 @@ bool db::createDatabase(const std::string& p_dbName) {
     } else if (
         // Weekly attendance database detection (format: MM-DD-DD.db or MM-DD-MM-DD.db)
         // Must have 2 or 3 hyphens and be short filename
-        (std::count(filename.begin(), filename.end(), '-') == 2 ||
-         std::count(filename.begin(), filename.end(), '-') == 3) &&
+        (std::ranges::count(filename, '-') == 2 ||
+         std::ranges::count(filename, '-') == 3) &&
         filename.find(".db") != std::string::npos &&
         filename.length() < 20 &&
         filename.find("PRJ") == std::string::npos) {
         // Attendance database for weekly records
-        tablesSql.push_back(
-            "CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
+        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
             "EMPLOYEE_ID TEXT NOT NULL,"
             "WEEK_START TEXT NOT NULL,"
             "SUN REAL NOT NULL,"
@@ -226,8 +139,7 @@ bool db::createDatabase(const std::string& p_dbName) {
         filename.find("PRJ-") == std::string::npos &&
         filename.find("20") != std::string::npos &&
         filename.find(".db") != std::string::npos) {
-        tablesSql.push_back(
-            "CREATE TABLE IF NOT EXISTS TIMESHEET ("
+        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS TIMESHEET ("
             "EMPLOYEE_ID INTEGER PRIMARY KEY,"
             "MON REAL NOT NULL,"
             "TUE REAL NOT NULL,"
@@ -353,7 +265,7 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
         sqlite = "INSERT INTO MATERIALS (MATERIAL_ID, MATERIAL_NAME, QUANTITY, UNIT_PRICE) VALUES (" + p_data + ");";
     } else if (
         // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
-        filename.find("-") != std::string::npos &&
+        filename.find('-') != std::string::npos &&
         filename.find(".db") != std::string::npos &&
         filename.find("PRJ") == std::string::npos) {
         // Attendance database
@@ -369,11 +281,11 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
     sqlite3_close(dbPointer);
     if (rc == SQLITE_OK) {
         // Identify entity by db filename without exposing values
-        std::string filename = p_dbName;
-        if (const size_t pos = filename.find_last_of("/\\"); pos != std::string::npos) filename = filename.substr(pos + 1);
-        std::string entity = (filename == appConfig::g_dbNamePayroll) ? "EMPLOYEE"
-                            : (filename == appConfig::g_dbNameProject) ? "PROJECT"
-                            : (filename.find("PRJ-") != std::string::npos ? "MATERIAL" : "ATTENDANCE");
+        std::string dbName = p_dbName;
+        if (const size_t pos = dbName.find_last_of("/\\"); pos != std::string::npos) dbName = dbName.substr(pos + 1);
+        std::string entity = (dbName == appConfig::g_dbNamePayroll) ? "EMPLOYEE"
+                            : (dbName == appConfig::g_dbNameProject) ? "PROJECT"
+                            : (dbName.find("PRJ-") != std::string::npos ? "MATERIAL" : "ATTENDANCE");
         system::logMessage(system::messageClassification::INFO, "DB INSERT ok db=" + p_dbName + " entity=" + entity);
         return true;
     }
@@ -408,7 +320,7 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
         sql = "UPDATE MATERIALS SET " + p_data + " WHERE MATERIAL_ID = '" + p_id + "';";
     } else if (
         // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
-        filename.find("-") != std::string::npos &&
+        filename.find('-') != std::string::npos &&
         filename.find(".db") != std::string::npos &&
         filename.find("PRJ") == std::string::npos) {
         // Attendance database - update by EMPLOYEE_ID
@@ -452,7 +364,7 @@ bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
     }
 
     std::string sql;
-    bool isNumericId = std::all_of(p_id.begin(), p_id.end(), [](const char c) { return std::isdigit(static_cast<unsigned char>(c)); });
+    bool isNumericId = std::ranges::all_of(p_id, [](const char c) { return std::isdigit(static_cast<unsigned char>(c)); });
 
     if (filename == appConfig::g_dbNamePayroll) {
         if (!isNumericId) {
@@ -468,7 +380,7 @@ bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
         sql = "DELETE FROM MATERIALS WHERE MATERIAL_ID = ?;";
     } else if (
         // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
-        filename.find("-") != std::string::npos &&
+        filename.find('-') != std::string::npos &&
         filename.find(".db") != std::string::npos &&
         filename.find("PRJ") == std::string::npos) {
         // Attendance database - delete by EMPLOYEE_ID
@@ -615,31 +527,37 @@ bool db::checkProjectChanges() {
     sqlite3_stmt* stmt = nullptr;
     bool hasGaps = false;
 
-    if (const auto sql = "SELECT PROJECT_ID FROM PROJECT_LIST ORDER BY PROJECT_ID;"; sqlite3_prepare_v2(dbPtr, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+    const auto sql = "SELECT PROJECT_ID FROM PROJECT_LIST ORDER BY PROJECT_ID;";
+    if (sqlite3_prepare_v2(dbPtr, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        sqlite3_close(dbPtr);
+        return hasGaps;
+    }
+
         int expectedId = 1;
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-            const char* projectIdText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-            if (projectIdText) {
-                // Extract numeric part from PRJ-xxxxx
-                std::string idStr(projectIdText);
-                if (idStr.length() >= 4 && idStr.substr(0, 4) == "PRJ-") {
-                    try {
-                        int currentId = std::stoi(idStr.substr(4));
-                        if (currentId != expectedId) {
-                            hasGaps = true;
-                            break;
-                        }
-                    } catch (...) {
-                        // Invalid format, consider it a gap
-                        hasGaps = true;
-                        break;
-                    }
+        const auto projectIdText = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        if (!projectIdText) {
+            expectedId++;
+            continue;
+        }
+
+        std::string idStr(projectIdText);
+        if (idStr.length() < 4 || idStr.substr(0, 4) != "PRJ-") {
+            expectedId++;
+            continue;
+        }
+            try {
+                if (const int currentId = std::stoi(idStr.substr(4)); currentId != expectedId) {
+                    hasGaps = true;
+                    break;
                 }
+            } catch (...) {
+                hasGaps = true;
+                break;
             }
             expectedId++;
         }
         sqlite3_finalize(stmt);
-    }
 
     sqlite3_close(dbPtr);
     return hasGaps;
@@ -666,7 +584,7 @@ bool db::rearrangeProjectIDs() {
 
     // Create a temporary table with sequential IDs in PRJ-xxxxx format
     // Using PRINTF to format as PRJ-00001, PRJ-00002, etc.
-    const char* createTemp =
+    const auto createTemp =
         "CREATE TEMPORARY TABLE TEMP_PROJECTS AS "
         "SELECT PRINTF('PRJ-%05d', ROW_NUMBER() OVER (ORDER BY PROJECT_ID)) AS NEW_ID, "
         "PROJECT_NAME, STATUS, START_DATE, NOTE "
@@ -690,7 +608,7 @@ bool db::rearrangeProjectIDs() {
     }
 
     // Copy data back with new sequential IDs
-    const char* copyBack =
+    const auto copyBack =
         "INSERT INTO PROJECT_LIST (PROJECT_ID, PROJECT_NAME, STATUS, START_DATE, NOTE) "
         "SELECT NEW_ID, PROJECT_NAME, STATUS, START_DATE, NOTE FROM TEMP_PROJECTS;";
 
@@ -721,7 +639,7 @@ bool db::rearrangeProjectIDs() {
 // // Fetch NAME for first employee: row=1, col=2 (1-based indices)
 // std::string name = db::fetchCell(dbPath, 1, 2);
 // if (name.empty()) {
-//     // empty string means either the cell is NULL/empty OR an error occured (e.g., row/col out-of-range)
+//     // empty string means either the cell is NULL/empty OR an error occurred (e.g., row/col out-of-range)
 //     // To disambiguate, you might check the ID column:
 //     // std::string id = db::fetchCell(dbPath, 1, 1);
 //     // if (id.empty()) { /* row doesn't exist or error */ } else { /* name is empty */ }
@@ -751,14 +669,11 @@ std::string db::fetchCell(const std::string& p_dbName, const size_t p_row, const
     } else if (p_dbName == appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject) {
         sql += "PROJECT_LIST";
     } else if (filename.find("PRJ-") != std::string::npos && filename.find(".db") != std::string::npos) {
-        // Material database (expense/PRJ-xxxxx.db)
         sql += "MATERIALS";
     } else if (
-        // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
-        filename.find("-") != std::string::npos &&
+        filename.find('-') != std::string::npos &&
         filename.find(".db") != std::string::npos &&
         filename.find("PRJ") == std::string::npos) {
-        // Attendance database
         sql += "WEEKLY_ATTENDANCE";
     } else {
         sqlite3_close(dbPtr);

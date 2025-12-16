@@ -1,10 +1,22 @@
 /*
  * CpET 140 Final Project — Database module header
+ * StructuraCost - Handler - Database module
  *
- * Contributors: Joshua Literal
+ * Contributors:
+ *  Joshua Literal
  *
  * Purpose
- * - Declares persistence functions for database operations
+ * - Provides persistence adapters for payroll and project management
+ * - Handle database creation, operations, and data retrieval
+ *
+ * Boundaries
+ * - No rendering and no direct UI calls
+ * - Storage details are hidden behind db.h interface
+ *
+ * Notes
+ * - Single-threaded by default; callers must synchronize if used from workers
+ * - Prefer explicit status results and avoid partial writes on failure
+ * - Supports SQLite database operations with encryption
  */
 
 #ifndef DB_H
