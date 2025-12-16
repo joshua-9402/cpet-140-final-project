@@ -1,3 +1,22 @@
+/*
+ * CpET 140 Final Project — System utilities module header
+ * StructuraCost - Handler - System module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Provide system-level utilities such as file operations, logging, and time management
+ * - Handle cross-platform file system interactions
+ *
+ * Boundaries
+ * - Used by all modules for common system operations
+ *
+ * Notes
+ * - Includes file deletion, directory creation, logging, and time fetching
+ * - Provides platform-specific browser opening functionality
+ */
+
 #ifndef CPET_140_FINAL_PROJECT_SYS_H
 #define CPET_140_FINAL_PROJECT_SYS_H
 

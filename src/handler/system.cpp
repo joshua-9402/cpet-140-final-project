@@ -1,20 +1,20 @@
 /*
-* CpET 140 Final Project — System Caller module
-* StructuraCost - Handler - System Call module
-*
-* Contributors:
-*  Joshua Literal
-*
-* Purpose
-* - Handle system-level operations such as file and directory management, and time retrieval.
-*
-* Boundaries
-* - Interacts with the operating system for file system operations.
-*
-* Notes
-* - This module abstracts away platform-specific details for file and directory handling.
-* - Simplifies OS interactions for higher-level application logic.
-*/
+ * CpET 140 Final Project — System Caller module
+ * StructuraCost - Handler - System Call module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Handle system-level operations such as file and directory management, and time retrieval.
+ *
+ * Boundaries
+ * - Interacts with the operating system for file system operations.
+ *
+ * Notes
+ * - This module abstracts away platform-specific details for file and directory handling.
+ * - Simplifies OS interactions for higher-level application logic.
+ */
 
 
 #include "system.h"
@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <fstream>
 #include "hello_imgui/hello_imgui.h"
+#include "../security/cryptography.h"
 #include <mutex>
 #include <atomic>
 #include <iostream>
@@ -488,6 +489,12 @@ bool system::openFileInBrowser(const std::string& filePath) {
 }
 
 void system::appShutdown() {
+    // Ensure databases are encrypted at shutdown if a session key exists
+    if (security::DBEncryptionSession::hasKey()) {
+        security::DBEncryptionSession::encryptAllDbs();
+        security::DBEncryptionSession::clear();
+    }
+
     std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
     for (const auto& entry : std::filesystem::directory_iterator("backup")) {
         if (std::filesystem::is_directory(entry)) {
