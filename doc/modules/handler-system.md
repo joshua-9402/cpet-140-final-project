@@ -33,6 +33,11 @@ Provides cross-platform system and filesystem helpers used by the application. T
 - `static void system::setLogToConsole(bool enabled)` / `static bool system::getLogToConsole()`
   - Enable/disable mirroring of `WARNING` and above to `stderr` (default: enabled).
 
+- `static void system::setCaptureStdStreams(bool enable)` / `static bool system::getCaptureStdStreams()`
+  - Capture terminal output: redirects `std::cout` to `INFO` logs and `std::cerr` to `ERROR` logs.
+  - When enabled, console mirroring is temporarily disabled to avoid duplicates/loops; original streams still receive output.
+  - Thread-safe and line-buffered; partial lines are flushed on newline or sync.
+
 - `static bool system::createDirectory(const std::string &p_directoryName)`
   - Creates the directory and parents as needed. Returns `true` if the directory exists after the call (i.e., already existed or was created successfully).
   - Uses `std::filesystem::create_directories` and falls back to platform `mkdir` if necessary.
@@ -107,6 +112,13 @@ system::createFile("data/.initialized");
 
 // Perform a graceful shutdown (will rotate backups and trigger app exit)
 system::appShutdown();
+
+// Capture stdout/stderr to logs (INFO/ERROR respectively)
+system::setCaptureStdStreams(true);
+std::cout << "Starting job..." << std::endl;    // -> logged as INFO
+std::cerr << "Warning: slow IO" << std::endl;  // -> logged as ERROR
+// Disable capture later if needed
+system::setCaptureStdStreams(false);
 ```
 
 ## Troubleshooting & debugging tips
