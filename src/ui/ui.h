@@ -1,3 +1,22 @@
+/*
+ * CpET 140 Final Project — User Interface module header
+ * StructuraCost - UI - User Interface module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Define the main UI construction and rendering functions
+ * - Manage user interface state and interactions
+ *
+ * Boundaries
+ * - Interacts with all modules to present data and handle user input
+ *
+ * Notes
+ * - Uses ImGui/HelloImGui for rendering
+ * - Manages login, payroll, project monitoring, and summary views
+ */
+
 #ifndef CPET_140_FINAL_PROJECT_UI_H
 #define CPET_140_FINAL_PROJECT_UI_H
 

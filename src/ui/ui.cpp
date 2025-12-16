@@ -248,7 +248,14 @@ static void loginUI() {
             if (auto* params = HelloImGui::GetRunnerParams()) {
                 params->appShallExit = true;
             }
+        } else {
+            loginErrorMessage = "Invalid username/password or decryption failed.";
         }
+    }
+
+    if (!loginErrorMessage.empty()) {
+        ImGui::SetCursorPos(ImVec2(25.0f, 280.0f));
+        ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "%s", loginErrorMessage.c_str());
     }
 
     ImGui::SetCursorPos(ImVec2(25.0f, 360.0f));
@@ -271,6 +278,11 @@ static void accountUI() {
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
     if (ImGui::Button("Log Out", fullWidthButtonSize(40))) {
+        // Encrypt all DBs before logging out (only if a session key exists)
+        if (security::DBEncryptionSession::hasKey()) {
+            security::DBEncryptionSession::encryptAllDbs();
+            security::DBEncryptionSession::clear();
+        }
         appConfig::g_auth = false;
         appConfig::g_testMode = false;
         ui::g_userName = "";
@@ -483,22 +495,14 @@ static void summaryUI() {
     ImGui::Separator();
 
     // Display all employees (up to 1000)
-    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
     int displayedEmployees = 0;
-    for (int row = 1; row <= 1000; ++row) {
-        const std::string employeeNo = db::fetchCell(employeeDB, static_cast<size_t>(row), 1);
-        if (employeeNo.empty()) break;
-
-        const std::string name = db::fetchCell(employeeDB, static_cast<size_t>(row), 2);
-        const std::string position = db::fetchCell(employeeDB, static_cast<size_t>(row), 3);
-        const std::string location = db::fetchCell(employeeDB, static_cast<size_t>(row), 4);
-
-        ImGui::Text("%s", employeeNo.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", name.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", position.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", location.c_str()); ImGui::NextColumn();
+    const auto empRows = monitor::listEmployees(1000);
+    for (const auto& er : empRows) {
+        ImGui::Text("%s", er.id.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.name.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.position.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.siteLocation.c_str()); ImGui::NextColumn();
         ImGui::Separator();
-
         ++displayedEmployees;
     }
 
@@ -650,28 +654,17 @@ static void payrollUI() {
     ImGui::Separator();
 
     // Display all employees (up to 1000)
-    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
     int displayedEmployees = 0;
-    for (int row = 1; row <= 1000; ++row) {
-        const std::string employeeNo = db::fetchCell(employeeDB, static_cast<size_t>(row), 1);
-        if (employeeNo.empty()) break;
-
-        const std::string name = db::fetchCell(employeeDB, static_cast<size_t>(row), 2);
-        const std::string position = db::fetchCell(employeeDB, static_cast<size_t>(row), 3);
-        const std::string location = db::fetchCell(employeeDB, static_cast<size_t>(row), 4);
-        const std::string salary = db::fetchCell(employeeDB, static_cast<size_t>(row), 5);
-        const std::string hoursWorked = db::fetchCell(employeeDB, static_cast<size_t>(row), 6);
-        const std::string advance = db::fetchCell(employeeDB, static_cast<size_t>(row), 7);
-
-        ImGui::Text("%s", employeeNo.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", name.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", position.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", location.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", salary.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", hoursWorked.c_str()); ImGui::NextColumn();
-        ImGui::Text("%s", advance.c_str()); ImGui::NextColumn();
+    const auto payrollRows = monitor::listEmployees(1000);
+    for (const auto& er : payrollRows) {
+        ImGui::Text("%s", er.id.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.name.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.position.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.siteLocation.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.salary.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.hoursWork.c_str()); ImGui::NextColumn();
+        ImGui::Text("%s", er.advance.c_str()); ImGui::NextColumn();
         ImGui::Separator();
-
         ++displayedEmployees;
     }
 
@@ -818,11 +811,10 @@ static void monitorUI() {
     ImGui::SameLine();
     ImGui::Checkbox("Show Headers##emp", &s_showHeadersEmployee);
 
-    const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
-    struct Column { const char* name; int index; };
+    struct Column { const char* name; };
     const std::vector<Column> columns = {
-        {"EMPLOYEE_ID", 1}, {"NAME", 2}, {"POSITION", 3}, {"SITE_LOCATION", 4},
-        {"SALARY", 5}, {"HOURS_WORK", 6}, {"ADVANCE", 7}
+        {"EMPLOYEE_ID"}, {"NAME"}, {"POSITION"}, {"SITE_LOCATION"},
+        {"SALARY"}, {"HOURS_WORK"}, {"ADVANCE"}
     };
 
     ImGui::BeginChild("EmployeeDBViewer", ImVec2(0, 0), true);
@@ -838,15 +830,18 @@ static void monitorUI() {
     }
 
     int shownEmployee = 0;
-    for (int row = 1; row <= s_maxRowsEmployee; ++row) {
-        if (const std::string idCell = db::fetchCell(dbPath, static_cast<size_t>(row), 1); idCell.empty()) break;
-
-        ImGui::PushID(row);
+    const auto rows = monitor::listEmployees(s_maxRowsEmployee);
+    for (size_t i = 0; i < rows.size(); ++i) {
+        const auto& er = rows[i];
+        ImGui::PushID(static_cast<int>(i) + 10000);
         ImGui::Columns(static_cast<int>(columns.size()), "EmpViewerRow");
-        for (const auto& c : columns) {
-            ImGui::TextWrapped("%s", db::fetchCell(dbPath, static_cast<size_t>(row), static_cast<size_t>(c.index)).c_str());
-            ImGui::NextColumn();
-        }
+        ImGui::TextWrapped("%s", er.id.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", er.name.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", er.position.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", er.siteLocation.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", er.salary.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", er.hoursWork.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", er.advance.c_str()); ImGui::NextColumn();
         ImGui::Columns(1);
         ImGui::PopID();
         ++shownEmployee;
@@ -1142,17 +1137,11 @@ static void monitorUI() {
     ImGui::SameLine();
     ImGui::Checkbox("Show Headers##att", &s_showHeadersAttendance);
 
-    std::string viewerWeekLabel = weekOptions[viewerWeekIndex];
-    // Replace slashes with hyphens for valid filename
-    std::ranges::replace(viewerWeekLabel, '/', '-');
+    const std::string viewerWeekLabel = weekOptions[viewerWeekIndex];
 
-    const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
-    const std::string dbPathAttendance = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
-                                        std::to_string(currentYear) + "/" + viewerWeekLabel + ".db";
-
-    struct ColumnAttendance { const char* name; int index; };
+    struct ColumnAttendance { const char* name; };
     const std::vector<ColumnAttendance> columnsAttendance = {
-        {"EMPLOYEE_ID", 1}, {"WEEK_START", 2}, {"SUN", 3}, {"MON", 4}, {"TUE", 5}, {"WED", 6}, {"THU", 7}, {"FRI", 8}, {"SAT", 9}
+        {"EMPLOYEE_ID"}, {"WEEK_START"}, {"SUN"}, {"MON"}, {"TUE"}, {"WED"}, {"THU"}, {"FRI"}, {"SAT"}
     };
 
     ImGui::BeginChild("AttendanceDBViewer", ImVec2(0, 0), true);
@@ -1168,15 +1157,20 @@ static void monitorUI() {
     }
 
     int shownAttendance = 0;
-    for (int row = 1; row <= s_maxRowsAttendance; ++row) {
-        if (const std::string idCell = db::fetchCell(dbPathAttendance, static_cast<size_t>(row), 1); idCell.empty()) break;
-
-        ImGui::PushID(30000 + row);
+    const auto attRows = monitor::listWeeklyAttendance(viewerWeekLabel, s_maxRowsAttendance);
+    for (size_t i = 0; i < attRows.size(); ++i) {
+        const auto& ar = attRows[i];
+        ImGui::PushID(30000 + static_cast<int>(i));
         ImGui::Columns(static_cast<int>(columnsAttendance.size()), "AttViewerRow");
-        for (const auto& c : columnsAttendance) {
-            ImGui::TextWrapped("%s", db::fetchCell(dbPathAttendance, static_cast<size_t>(row), static_cast<size_t>(c.index)).c_str());
-            ImGui::NextColumn();
-        }
+        ImGui::TextWrapped("%s", ar.employeeId.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", ar.weekStartIso.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", ar.sun.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", ar.mon.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", ar.tue.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", ar.wed.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", ar.thu.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", ar.fri.c_str()); ImGui::NextColumn();
+        ImGui::TextWrapped("%s", ar.sat.c_str()); ImGui::NextColumn();
         ImGui::Columns(1);
         ImGui::PopID();
         ++shownAttendance;
@@ -1339,7 +1333,7 @@ static void monitorUI() {
 
     const std::string dbPathProjects = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
     struct ColumnProjects { const char* name; int index; };
-    const std::vector<Column> columnsProjects = {
+    const std::vector<ColumnProjects> columnsProjects = {
         {"PROJECT_ID", 1}, {"PROJECT_NAME", 2}, {"STATUS", 3}, {"START_DATE", 4}, {"NOTE", 5}
     };
 
@@ -1568,7 +1562,7 @@ static void monitorUI() {
     const std::string dbPathMaterials = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
                                        appConfig::g_projectExpenseDirectory + viewerProjectIDStr + ".db";
     struct ColumnMaterials { const char* name; int index; };
-    const std::vector<Column> columnsMaterials = {
+    const std::vector<ColumnMaterials> columnsMaterials = {
         {"MATERIAL_ID", 1}, {"MATERIAL_NAME", 2}, {"QUANTITY", 3}, {"UNIT_PRICE", 4}
     };
 
@@ -1809,8 +1803,6 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
         }
     }
 
-    // Ensure HelloImGui does not create a DockSpace: keep the default full-screen window
-    // (ProvideFullScreenWindow). No explicit docking toggle is available in this version.
     params.imGuiWindowParams.defaultImGuiWindowType = HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
 
     // populate the UI registry (ensure it's available before selecting the current UI)
@@ -1824,35 +1816,27 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
     g_uiMap["test"] = testUI;
     g_uiMap["failed"] = failedUI;
 
-    // Load a custom font with only the default ASCII character set to save memory.
-    // By providing this callback, we take control of the font loading.
     params.callbacks.LoadAdditionalFonts = [a_fontLocation]() {
         const ImGuiIO& io = ImGui::GetIO();
-        // Clear any existing fonts to ensure we only load what we need.
         io.Fonts->Clear();
 
         const std::string fontPath = HelloImGui::AssetFileFullPath(a_fontLocation);
 
         ImFontConfig fontConfig;
-        // This is the crucial part for memory saving: load only the default character set.
         fontConfig.GlyphRanges = io.Fonts->GetGlyphRangesDefault();
 
         if (!fontPath.empty()) {
             io.Fonts->AddFontFromFileTTF(fontPath.c_str(), 22.0f, &fontConfig);
         } else {
-            // As a fallback, load ImGui's default font if our custom one fails, but still with the limited character set.
             io.Fonts->AddFontDefault(&fontConfig);
         }
     };
 
-    // PostInit: set application icon using HelloImGui backend pointers (GLFW/SDL)
     params.callbacks.PostInit = [&params]() {
-        // Resolve icon path from assets; prefer app_icon.png, fallback to business_logo.png
         std::string iconPath = HelloImGui::AssetFileFullPath("icons/app_icon.png");
         if (iconPath.empty()) iconPath = HelloImGui::AssetFileFullPath("icons/business_logo.png");
-        if (iconPath.empty()) return; // nothing to do
+        if (iconPath.empty()) return;
 
-        // Load image via stb_image as RGBA
         int w = 0, h = 0, comps = 0;
         unsigned char* pixels = stbi_load(iconPath.c_str(), &w, &h, &comps, 4);
         if (!pixels) return;
@@ -1865,16 +1849,14 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
             img.width = w;
             img.height = h;
             img.pixels = pixels;
-            // Set the GLFW window icon (GLFW makes its own copy)
             glfwSetWindowIcon(static_cast<GLFWwindow*>(bp.glfwWindow), 1, &img);
             stbi_image_free(pixels);
             return;
         }
-    #endif
+#endif
 
-    #ifdef UI_HAVE_SDL
+#ifdef UI_HAVE_SDL
         if (bp.sdlWindow) {
-            // Create an SDL_Surface from the RGBA pixel data
             SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormatFrom(
                 pixels, w, h, 32, w * 4, SDL_PIXELFORMAT_RGBA32);
             if (surf) {
@@ -1884,13 +1866,10 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
             stbi_image_free(pixels);
             return;
         }
-    #endif
+#endif
 
-        // If no supported backend, free pixels
         stbi_image_free(pixels);
     };
-
-    // Determine a start key and select the initial UI
 
     if (const std::string startKey = a_window.empty() ? "main" : toLower(a_window); startKey == "auth") {
         g_currentUI = loginUI;
@@ -1912,16 +1891,11 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
         g_currentUI = mainUI;
     }
 
-    //Use a wrapper so we can call the current UI each frame (no queued switching)
     params.callbacks.ShowGui = []() {if (g_currentUI) g_currentUI();};
 
-    // Window and GUI settings
-    // clamp sizes to reasonable bounds so caller can't accidentally create tiny or huge windows
     const int l_clampedWidth = std::clamp(a_widthPx, 50, 3840);
     const int l_clampedLength = std::clamp(a_heightPx, 50, 2160);
     params.appWindowParams.windowGeometry.size = { l_clampedWidth, l_clampedLength };
-
-    // Rename the whole application to "system" if there is no argument/s in the variable "title"
     params.appWindowParams.windowTitle = a_title.empty() ? "system" : a_title;
 
     HelloImGui::Run(params);
