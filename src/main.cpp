@@ -52,7 +52,6 @@ void systemCheck() {
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
 
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory);}
-    if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_payrollAttendanceDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_payrollAttendanceDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/")) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/");}
 
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory);}
