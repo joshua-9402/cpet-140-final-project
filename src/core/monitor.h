@@ -14,6 +14,7 @@
 #define MONITOR_H
 
 #include <string>
+#include <vector>
 struct PayrollSummary {
     int totalEmployees;
     double totalSalaryExpense;
@@ -26,6 +27,16 @@ struct ProjectSummary {
 };
 
 namespace monitor {
+    // Lightweight row for employee listings
+    struct EmployeeRow {
+        std::string id;
+        std::string name;
+        std::string position;
+        std::string siteLocation;
+        std::string salary;
+        std::string hoursWork;
+        std::string advance;
+    };
     // Project management
     bool addProject(
         const std::string& projectId,
@@ -62,20 +73,23 @@ namespace monitor {
 
     bool deleteEmployee(const std::string& employeeId);
 
-    // Worker monitoring helpers (dummy/sample data providers)
-    void loadWorkerAttendance(
-        std::string days[7],
-        std::string timeIn[7],
-        std::string timeOut[7]
-    );
+    // Employee listings for UI (DB-backed)
+    std::vector<EmployeeRow> listEmployees(int maxRows = 1000);
 
-    // Load weekly attendance hours for a specific employee and week label (e.g., "01/05-11").
-    // Returns true if found and fills outHours in order: SUN, MON, TUE, WED, THU, FRI, SAT.
-    bool loadWeeklyAttendance(
-        const std::string& employeeIdRaw,
-        const std::string& weekLabelUi,
-        std::string outHours[7]
-    );
+    struct AttendanceRow {
+        std::string employeeId;
+        std::string weekStartIso;
+        std::string sun;
+        std::string mon;
+        std::string tue;
+        std::string wed;
+        std::string thu;
+        std::string fri;
+        std::string sat;
+    };
+
+    // Weekly attendance listing for viewer
+    std::vector<AttendanceRow> listWeeklyAttendance(const std::string& weekLabelUi, int maxRows = 100);
 
     // Weekly attendance operations (single-call APIs for UI buttons)
     bool addWeeklyAttendance(
@@ -110,25 +124,6 @@ namespace monitor {
         const std::string& weekStartIso
     );
 
-    // Equipment monitoring calculator (sample)
-    double computeEquipmentCost(
-        std::string eqNames[3],
-        double hours[3],
-        double rate[3],
-        double totalOut[3],
-        std::string eqIDs[3]
-    );
-
-    // Project monitoring calculator (sample)
-    double computeProjectExpenses(
-        std::string projIDs[3],
-        std::string projNames[3],
-        std::string status[3],
-        std::string startDate[3],
-        double labor[3],
-        double equip[3],
-        double materials[3],
-        double totalOut[3]
-    );
+    // Deprecated sample calculators removed (not used by system)
 }
 #endif

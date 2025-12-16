@@ -1,5 +1,6 @@
 /*
  * CpET 140 Final Project — Monitoring / Reporting module
+ * StructuraCost - Core - Monitoring / Reporting module
  *
  * Contributors:
  *  Hershey Mae Tenorio
@@ -11,7 +12,7 @@
  *  - per-project expense totals, payroll/outflow summaries, and invoice/payment status
  *
  * Boundaries
- * - No UI rendering and n DB, or I/O operations.
+ * - No UI rendering and no DB, or I/O operations.
  * - Persistence or queries must go through the db adapter (db.h) or other handler / service modules.
  * - No system-level monitoring (CPU/memory) here.
  *
@@ -26,6 +27,7 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <vector>
 #include <cctype>
 #include "monitor.h"
 #include "../handler/db.h"
@@ -101,6 +103,26 @@ bool addEmployee(const std::string& name,
     return db::appendDatabase(dbPath, values);
 }
 
+std::vector<EmployeeRow> listEmployees(int maxRows) {
+    std::vector<EmployeeRow> rows;
+    if (maxRows < 1) return rows;
+    const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+    rows.reserve(static_cast<size_t>(std::min(maxRows, 1000)));
+    for (int row = 1; row <= maxRows; ++row) {
+        EmployeeRow er{};
+        er.id = db::fetchCell(employeeDB, static_cast<size_t>(row), 1);
+        if (er.id.empty()) break;
+        er.name = db::fetchCell(employeeDB, static_cast<size_t>(row), 2);
+        er.position = db::fetchCell(employeeDB, static_cast<size_t>(row), 3);
+        er.siteLocation = db::fetchCell(employeeDB, static_cast<size_t>(row), 4);
+        er.salary = db::fetchCell(employeeDB, static_cast<size_t>(row), 5);
+        er.hoursWork = db::fetchCell(employeeDB, static_cast<size_t>(row), 6);
+        er.advance = db::fetchCell(employeeDB, static_cast<size_t>(row), 7);
+        rows.emplace_back(std::move(er));
+    }
+    return rows;
+}
+
 bool updateEmployee(const std::string& newEmployeeId,
                     const std::string& name,
                     const std::string& position,
@@ -172,19 +194,6 @@ bool deleteEmployee(const std::string& employeeId) {
 }
 
 // === Worker Monitoring ===
-void loadWorkerAttendance(
-    std::string days[7],
-    std::string timeIn[7],
-    std::string timeOut[7]
-) {
-    days[0] = "Monday";    timeIn[0] = "0800";  timeOut[0] = "1600";
-    days[1] = "Tuesday";   timeIn[1] = "0700";  timeOut[1] = "1100";
-    days[2] = "Wednesday"; timeIn[2] = "0800";  timeOut[2] = "1500";
-    days[3] = "Thursday";  timeIn[3] = "0700";  timeOut[3] = "1800";
-    days[4] = "Friday";    timeIn[4] = "1000";  timeOut[4] = "1800";
-    days[5] = "Saturday";  timeIn[5] = "0630";  timeOut[5] = "1130";
-    days[6] = "Sunday";    timeIn[6] = "0100";  timeOut[6] = "0300";
-}
 
 // Helper: normalize raw user input to canonical EMP-xxxxx format
 static std::string normalizeEmployeeId(const std::string& raw) {
@@ -232,27 +241,28 @@ static std::string buildAttendanceDbPathFromWeekLabel(const std::string& weekLab
     return yearDir + "/" + safeWeekLabel + ".db";
 }
 
-bool loadWeeklyAttendance(
-    const std::string& employeeIdRaw,
-    const std::string& weekLabelUi,
-    std::string outHours[7]
-) {
-    const std::string empId = normalizeEmployeeId(employeeIdRaw);
-    if (empId.empty() || weekLabelUi.empty()) return false;
+// loadWeeklyAttendance removed as unused
 
+std::vector<AttendanceRow> listWeeklyAttendance(const std::string& weekLabelUi, int maxRows) {
+    std::vector<AttendanceRow> rows;
+    if (weekLabelUi.empty() || maxRows < 1) return rows;
     const std::string attendanceDbPath = buildAttendanceDbPathFromWeekLabel(weekLabelUi);
-    for (int row = 1; row <= 1000; ++row) {
-        const std::string idCell = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 1);
-        if (idCell.empty()) break;
-        if (idCell == empId) {
-            // Columns: 1=EMPLOYEE_ID, 2=WEEK_START, 3..9=SUN..SAT
-            for (int i = 0; i < 7; ++i) {
-                outHours[i] = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), static_cast<size_t>(3 + i));
-            }
-            return true;
-        }
+    rows.reserve(static_cast<size_t>(std::min(maxRows, 100)));
+    for (int row = 1; row <= maxRows; ++row) {
+        AttendanceRow ar{};
+        ar.employeeId = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 1);
+        if (ar.employeeId.empty()) break;
+        ar.weekStartIso = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 2);
+        ar.sun = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 3);
+        ar.mon = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 4);
+        ar.tue = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 5);
+        ar.wed = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 6);
+        ar.thu = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 7);
+        ar.fri = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 8);
+        ar.sat = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 9);
+        rows.emplace_back(std::move(ar));
     }
-    return false;
+    return rows;
 }
 
 bool addWeeklyAttendance(
@@ -349,56 +359,7 @@ bool deleteWeeklyAttendance(
     return okWeek && okBase;
 }
 
-// === Equipment Monitoring ===
-double computeEquipmentCost(
-    std::string eqNames[3],
-    double hours[3],
-    double rate[3],
-    double totalOut[3],
-    std::string eqIDs[3]
-) {
-    eqIDs[0] = "EQP-001"; eqNames[0] = "EQP-001"; hours[0] = 10; rate[0] = 500;
-    eqIDs[1] = "EQP-002"; eqNames[1] = "EQP-002";     hours[1] = 8;  rate[1] = 700;
-    eqIDs[2] = "EQP-003"; eqNames[2] = "EQP-003";     hours[2] = 12; rate[2] = 300;
-
-    double totalCost = 0;
-    for (int i = 0; i < 3; i++) {
-        totalOut[i] = hours[i] * rate[i];
-        totalCost += totalOut[i];
-    }
-    return totalCost;
-}
-
-// === Project Monitoring ===
-double computeProjectExpenses(
-    std::string projIDs[3],
-    std::string projNames[3],
-    std::string status[3],
-    std::string startDate[3],
-    double labor[3],
-    double equip[3],
-    double materials[3],
-    double totalOut[3]
-) {
-    projIDs[0] = "PRJ-00001"; projNames[0] = "MinSU Dormitory";
-    status[0] = "In Progress"; startDate[0] = "2025-01-15";
-    labor[0] = 20000; equip[0] = 15000; materials[0] = 10000;
-
-    projIDs[1] = "PRJ-00002"; projNames[1] = "MinSU Dormitory";
-    status[1] = "Completed"; startDate[1] = "2024-11-01";
-    labor[1] = 30000; equip[1] = 20000; materials[1] = 15000;
-
-    projIDs[2] = "PRJ-00003"; projNames[2] = "MinSU Dormitory";
-    status[2] = "Active"; startDate[2] = "2023-10-25";
-    labor[2] = 25000; equip[2] = 18000; materials[2] = 12000;
-
-    double grand = 0;
-    for (int i = 0; i < 3; i++) {
-        totalOut[i] = labor[i] + equip[i] + materials[i];
-        grand += totalOut[i];
-    }
-    return grand;
-}
+// Removed deprecated sample calculators (not used by the system)
 
 } // namespace monitor
 
