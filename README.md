@@ -1,5 +1,5 @@
-<p align="center">icon</p>
-<h1 align="center">StructuraCost</h1>
+<p align="center"><img src="assets/icons/app_icon.png" alt="app icon" width="128" style="display:block;margin:0 auto 6px;" /></p>
+<h1 align="center" style="margin-top:0.0rem;">StructuraCost</h1>
 
 <h6 align="center">This repository is the final project for CpET 140—Computer Programming 1 </h6>
 
