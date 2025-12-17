@@ -489,36 +489,295 @@ bool system::openFileInBrowser(const std::string& filePath) {
 }
 
 void system::appShutdown() {
-    // Ensure databases are encrypted at shutdown if a session key exists
-    if (security::DBEncryptionSession::hasKey()) {
-        security::DBEncryptionSession::encryptAllDbs();
-        security::DBEncryptionSession::clear();
-    }
+    try {
+        logMessage(messageClassification::INFO, "Application shutdown initiated.\n");
 
-    std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
-    for (const auto& entry : std::filesystem::directory_iterator("backup")) {
-        if (std::filesystem::is_directory(entry)) {
-            directories.emplace_back(std::filesystem::last_write_time(entry), entry.path());
+        // Ensure databases are encrypted at shutdown if a session key exists
+        try {
+            if (security::DBEncryptionSession::hasKey()) {
+                security::DBEncryptionSession::encryptAllDbs();
+                security::DBEncryptionSession::clear();
+            }
+        } catch (const std::exception& e) {
+            logMessage(messageClassification::WARNING, "Error during database encryption at shutdown: " + std::string(e.what()) + "\n");
         }
+
+        // Clean up old backups
+        try {
+            if (searchDirectory("backup")) {
+                std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
+                for (const auto& entry : std::filesystem::directory_iterator("backup")) {
+                    if (std::filesystem::is_directory(entry)) {
+                        directories.emplace_back(std::filesystem::last_write_time(entry), entry.path());
+                    }
+                }
+
+                if (directories.size() > 20) {
+                    std::partial_sort(directories.begin(), directories.begin() + 2, directories.end(),
+                                      [](auto const &a, auto const &b) { return a.first < b.first; });
+
+                    // Remove the two oldest backup directories
+                    std::filesystem::remove_all(directories[0].second);
+                    std::filesystem::remove_all(directories[1].second);
+                }
+            }
+        } catch (const std::exception& e) {
+            logMessage(messageClassification::WARNING, "Error cleaning old backups: " + std::string(e.what()) + "\n");
+        }
+
+        // Create new backups
+        try {
+            if (!searchDirectory("backup")) {
+                createDirectory("backup");
+            }
+            copyDirectory("data", "backup/data-" + timeDateString());
+            copyDirectory("logs", "backup/logs-" + timeDateString());
+        } catch (const std::exception& e) {
+            logMessage(messageClassification::WARNING, "Error creating backups: " + std::string(e.what()) + "\n");
+        }
+
+        logMessage(messageClassification::INFO, "Application shutdown completed successfully.\n");
+    } catch (const std::exception& e) {
+        logMessage(messageClassification::ERROR, "Critical error during shutdown: " + std::string(e.what()) + "\n");
+    } catch (...) {
+        logMessage(messageClassification::ERROR, "Unknown critical error during shutdown.\n");
     }
-
-    if (directories.size() > 20) {
-        // Partial sort the directories vector so the two oldest (smallest timestamp)
-        // elements are at indices 0 and 1. Use std::partial_sort with a comparator
-        // that compares the file_time_type (pair.first). This is more portable
-        // than std::ranges::partial_sort on older libstdc++.
-        // ReSharper disable once CppUseRangeAlgorithm
-        std::partial_sort(directories.begin(), directories.begin() + 2, directories.end(),
-                          [](auto const &a, auto const &b) { return a.first < b.first; });
-
-        // Remove the two oldest backup directories
-        std::filesystem::remove_all(directories[0].second);
-        std::filesystem::remove_all(directories[1].second);
-    }
-
-    copyDirectory("data", "backup/data-" + timeDateString());
-    copyDirectory("logs", "backup/logs-" + timeDateString());
-
-    logMessage(messageClassification::INFO, "Main Application Shutting Down.\n");
-    exit(0);
+    // Return normally to allow main() to exit gracefully
 }
+
+// ============================================================================
+// Input Validation System Implementation
+// ============================================================================
+
+std::string system::validateInput(const ValidationType validationType, const std::string& input) {
+    // Helper lambda functions for validation
+    auto isNotEmpty = [](const std::string& str) -> bool {
+        if (str.empty()) return false;
+        for (char c : str) {
+            if (!std::isspace(static_cast<unsigned char>(c))) return true;
+        }
+        return false;
+    };
+
+    auto isDigitsOnly = [](const std::string& str) -> bool {
+        if (str.empty()) return false;
+        for (char c : str) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) return false;
+        }
+        return true;
+    };
+
+    // Only letters and spaces (for names and positions)
+    auto isLettersAndSpacesOnly = [](const std::string& str) -> bool {
+        if (str.empty()) return false;
+        for (char c : str) {
+            if (!std::isalpha(static_cast<unsigned char>(c)) && !std::isspace(static_cast<unsigned char>(c))) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // Only digits and decimal point (for numeric values)
+    auto isValidDecimal = [](const std::string& str) -> bool {
+        if (str.empty()) return false;
+        bool hasDecimal = false;
+        for (char c : str) {
+            if (c == '.') {
+                if (hasDecimal) return false; // Multiple decimal points
+                hasDecimal = true;
+            } else if (!std::isdigit(static_cast<unsigned char>(c))) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    auto isValidProjectID = [](const std::string& str) -> bool {
+        if (str.length() < 9) return false; // "PRJ-" + at least 5 digits
+        if (str.substr(0, 4) != "PRJ-") return false;
+        for (size_t i = 4; i < str.length(); ++i) {
+            if (!std::isdigit(static_cast<unsigned char>(str[i]))) return false;
+        }
+        return true;
+    };
+
+    // Strict ISO 8601 date format validation (YYYY-MM-DD)
+    auto isValidISODate = [](const std::string& str) -> bool {
+        if (str.length() != 10) return false;
+        if (str[4] != '-' || str[7] != '-') return false;
+
+        // Validate all digits in correct positions
+        for (int i = 0; i < 10; ++i) {
+            if (i == 4 || i == 7) continue;
+            if (!std::isdigit(static_cast<unsigned char>(str[i]))) return false;
+        }
+
+        // Validate date ranges
+        try {
+            const int year = std::stoi(str.substr(0, 4));
+            const int month = std::stoi(str.substr(5, 2));
+            const int day = std::stoi(str.substr(8, 2));
+
+            // Year validation
+            if (year < 1900 || year > 2100) return false;
+
+            // Month validation
+            if (month < 1 || month > 12) return false;
+
+            // Day validation based on month
+            const int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+            int maxDay = daysInMonth[month - 1];
+
+            // Leap year check for February
+            if (month == 2) {
+                const bool isLeapYear = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+                if (isLeapYear) maxDay = 29;
+            }
+
+            return day >= 1 && day <= maxDay;
+        } catch (...) {
+            return false;
+        }
+    };
+
+    // Perform validation based on type
+    switch (validationType) {
+        case ValidationType::NOT_EMPTY:
+            return isNotEmpty(input) ? input : "";
+
+        case ValidationType::DIGITS_ONLY:
+            return isDigitsOnly(input) ? input : "";
+
+        case ValidationType::POSITIVE_INTEGER:
+            if (!isDigitsOnly(input)) return "";
+            try {
+                const long long val = std::stoll(input);
+                return val > 0 ? input : "";
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::NON_NEGATIVE_INTEGER:
+            if (!isDigitsOnly(input)) return "";
+            try {
+                const long long val = std::stoll(input);
+                return val >= 0 ? input : "";
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::POSITIVE_DECIMAL:
+            if (!isValidDecimal(input)) return "";
+            try {
+                const double val = std::stod(input);
+                return val > 0.0 ? input : "";
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::NON_NEGATIVE_DECIMAL:
+            if (!isValidDecimal(input)) return "";
+            try {
+                const double val = std::stod(input);
+                return val >= 0.0 ? input : "";
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::ALPHANUMERIC_SPACES:
+            if (!isNotEmpty(input)) return "";
+            for (char c : input) {
+                if (!std::isalnum(static_cast<unsigned char>(c)) &&
+                    !std::isspace(static_cast<unsigned char>(c))) {
+                    return "";
+                }
+            }
+            return input;
+
+        case ValidationType::PROJECT_ID_FORMAT:
+            return isValidProjectID(input) ? input : "";
+
+        case ValidationType::DATE_FORMAT:
+            return isValidISODate(input) ? input : "";
+
+        case ValidationType::EMPLOYEE_ID:
+            if (!isNotEmpty(input)) return "";
+            if (!isDigitsOnly(input)) return "";
+            try {
+                const long long val = std::stoll(input);
+                return val > 0 ? input : "";
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::NAME:
+            if (!isNotEmpty(input)) return "";
+            if (input.length() > 100) return "";
+            // Name must contain only letters and spaces
+            if (!isLettersAndSpacesOnly(input)) return "";
+            return input;
+
+        case ValidationType::POSITION:
+            if (!isNotEmpty(input)) return "";
+            if (input.length() > 50) return "";
+            // Position must contain only letters and spaces
+            if (!isLettersAndSpacesOnly(input)) return "";
+            return input;
+
+        case ValidationType::SALARY:
+            if (!isNotEmpty(input)) return "";
+            // Salary must be numeric (digits and decimal point only)
+            if (!isValidDecimal(input)) return "";
+            try {
+                const double val = std::stod(input);
+                return val > 0.0 ? input : "";
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::HOURS:
+            if (!isNotEmpty(input)) return "";
+            // Hours must be numeric (digits and decimal point only)
+            if (!isValidDecimal(input)) return "";
+            try {
+                const double val = std::stod(input);
+                if (val < 0.0 || val > 168.0) return ""; // Max hours in a week
+                return input;
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::ADVANCE:
+            // Empty is allowed for advance (defaults to 0)
+            if (input.empty() || !isNotEmpty(input)) return input;
+            // Advance must be numeric (digits and decimal point only)
+            if (!isValidDecimal(input)) return "";
+            try {
+                const double val = std::stod(input);
+                return val >= 0.0 ? input : "";
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::QUANTITY:
+            if (!isNotEmpty(input)) return "";
+            if (!isValidDecimal(input)) return "";
+            try {
+                const double val = std::stod(input);
+                return val >= 0.0 ? input : "";
+            } catch (...) {
+                return "";
+            }
+
+        case ValidationType::MATERIAL_ID:
+            return isNotEmpty(input) ? input : "";
+
+        default:
+            logMessage(messageClassification::WARNING, "Unknown validation type requested\n");
+            return "";
+    }
+}
+
+
+

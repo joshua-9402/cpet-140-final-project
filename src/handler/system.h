@@ -105,6 +105,37 @@ class system {
 
         // Application shutdown routine to clean up resources.
         static void appShutdown();
+
+        // ============================================================================
+        // Input Validation System
+        // ============================================================================
+
+        // Validation types for validateInput function
+        enum class ValidationType {
+            NOT_EMPTY,              // Check if input is not empty or whitespace
+            DIGITS_ONLY,            // Check if input contains only digits
+            POSITIVE_INTEGER,       // Check if input is a positive integer (> 0)
+            NON_NEGATIVE_INTEGER,   // Check if input is a non-negative integer (>= 0)
+            POSITIVE_DECIMAL,       // Check if input is a positive decimal number
+            NON_NEGATIVE_DECIMAL,   // Check if input is a non-negative decimal number
+            ALPHANUMERIC_SPACES,    // Check if input contains only alphanumeric and spaces
+            PROJECT_ID_FORMAT,      // Check if input matches PRJ-##### format
+            DATE_FORMAT,            // Check if input matches ISO 8601 date format (YYYY-MM-DD)
+            EMPLOYEE_ID,            // Validate employee ID (positive integer)
+            NAME,                   // Validate name (letters and spaces only, max 100 chars)
+            POSITION,               // Validate position (letters and spaces only, max 50 chars)
+            SALARY,                 // Validate salary (numbers and decimal point only, must be > 0)
+            HOURS,                  // Validate hours (numbers and decimal point only, 0-168)
+            ADVANCE,                // Validate advance (numbers and decimal point only, >= 0, can be empty)
+            QUANTITY,               // Validate quantity (non-negative decimal)
+            MATERIAL_ID             // Validate material ID (not empty)
+        };
+
+        // Validate input based on validation type
+        // Returns the input string if validation passes, empty string if it fails
+        // validationType: type of validation to perform
+        // input: the input string to validate
+        static std::string validateInput(ValidationType validationType, const std::string& input);
 };
 
 
