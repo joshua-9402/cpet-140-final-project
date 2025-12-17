@@ -233,12 +233,12 @@ static std::string buildAttendanceDbPathFromWeekLabel(const std::string& weekLab
     std::string safeWeekLabel = weekLabelUi;
     std::replace(safeWeekLabel.begin(), safeWeekLabel.end(), '/', '-');
 
-    const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
-    const std::string yearDir = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(currentYear);
-    if (!system::searchDirectory(yearDir)) {
-        system::createDirectory(yearDir);
+    const std::string attendanceDir = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                     appConfig::g_payrollAttendanceDirectory;
+    if (!system::searchDirectory(attendanceDir)) {
+        system::createDirectory(attendanceDir);
     }
-    return yearDir + "/" + safeWeekLabel + ".db";
+    return attendanceDir + safeWeekLabel + ".db";
 }
 
 // loadWeeklyAttendance removed as unused
