@@ -374,8 +374,8 @@ static void summaryUI() {
     // Statistics Cards
     constexpr float cardWidth = 280.0f;
     constexpr float cardHeight = 120.0f;
-    constexpr ImVec4 cardColor = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
-    constexpr ImVec4 accentColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
+    constexpr auto cardColor = ImVec4(0.15f, 0.15f, 0.18f, 1.0f);
+    constexpr auto accentColor = ImVec4(0.2f, 0.6f, 0.8f, 1.0f);
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, cardColor);
 
@@ -526,41 +526,68 @@ static void summaryUI() {
     ImGui::Spacing();
 
     static char projectIDForReport[128] = "";
+    static char weekStartDate[128] = "";
 
-    // Payslip Generation Button
-    if (ImGui::Button("Print All Payslips", ImVec2(350.0f, 50.0f))) {
+    // Payslip Generation Section
+    ImGui::BeginChild("PayslipReports", ImVec2(0, 150), true);
+    ImGui::Spacing();
+    ImGui::TextColored(ImVec4(0.2f, 0.6f, 0.8f, 1.0f), "Payslip Reports");
+    ImGui::Spacing();
+
+    if (ImGui::Button("Print All Payslips (Current)", ImVec2(350.0f, 50.0f))) {
         const std::string outFile = appConfig::g_dataDirectory + "payslips_" +
                                    std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "_" +
                                    std::to_string(system::fetchTime(system::PartDateTime::MONTH)) + "_" +
                                    std::to_string(system::fetchTime(system::PartDateTime::DAY)) + ".html";
-        const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png");
 
-        if (exportPayslipsHtml(outFile, logoPath)) {
+        if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); exportPayslipsHtml(outFile, logoPath)) {
             system::logMessage(system::messageClassification::INFO, "Payslips exported successfully to: " + outFile + "\n");
-            system::openFileInBrowser(outFile);
         } else {
             system::logMessage(system::messageClassification::ERROR, "Failed to export payslips\n");
         }
     }
 
     ImGui::SameLine();
-
-    // Project Report Generation
     ImGui::BeginGroup();
+    ImGui::Text("Week Start Date (YYYY-MM-DD):");
+    ImGui::SetNextItemWidth(200.0f);
+    ImGui::InputText("##weekStartDate", weekStartDate, IM_ARRAYSIZE(weekStartDate));
+    if (ImGui::Button("Print Payslips for Specific Week", ImVec2(350.0f, 50.0f))) {
+        const std::string weekDateStr(weekStartDate);
+
+        if (const std::string validatedDate = system::validateInput(system::ValidationType::DATE_FORMAT, weekDateStr); validatedDate.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "Invalid week start date format. Use YYYY-MM-DD (must be a Sunday)\n");
+        } else {
+            const std::string outFile = appConfig::g_dataDirectory + "payslips_week_" + validatedDate + ".html";
+
+            if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); exportPayslipsHtmlForWeek(outFile, logoPath, validatedDate)) {
+                system::logMessage(system::messageClassification::INFO, "Weekly payslips exported successfully to: " + outFile + "\n");
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "Failed to export weekly payslips\n");
+            }
+        }
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Project Reports - All in one row
+    ImGui::TextColored(ImVec4(0.2f, 0.6f, 0.8f, 1.0f), "Project Reports:");
+    ImGui::SameLine(200.0f);
     ImGui::Text("Project ID:");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(150.0f);
     ImGui::InputText("##projectIDReport", projectIDForReport, IM_ARRAYSIZE(projectIDForReport));
     ImGui::SameLine();
 
-    if (ImGui::Button("Print Project Report", ImVec2(350.0f, 50.0f))) {
+    if (ImGui::Button("Print Project Report", ImVec2(280.0f, 40.0f))) {
         std::string projectIDStr = normalizeProjectId(std::string(projectIDForReport));
         if (!projectIDStr.empty()) {
             const std::string outFile = buildProjectReportOutFile(projectIDStr);
             const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png");
             if (exportProjectReportHtml(projectIDStr, outFile, logoPath)) {
                 system::logMessage(system::messageClassification::INFO, "Project report exported successfully to: " + outFile + "\n");
-                system::openFileInBrowser(outFile);
             } else {
                 system::logMessage(system::messageClassification::ERROR, "Failed to export project report for " + projectIDStr + "\n");
             }
@@ -568,7 +595,8 @@ static void summaryUI() {
             system::logMessage(system::messageClassification::ERROR, "Please enter a Project ID\n");
         }
     }
-    ImGui::EndGroup();
+    ImGui::Spacing();
+    ImGui::EndChild();
 
     ImGui::Spacing();
     ImGui::Spacing();
@@ -698,58 +726,10 @@ static void monitorUI() {
     ImGui::SetWindowFontScale(1.0f);
     ImGui::Spacing();
 
-    ImGui::BeginChild("EmployeeManagement", ImVec2(0, 350), true);
+    ImGui::BeginChild("Employee Management", ImVec2(0, 400), true);
     ImGui::Spacing();
 
-    // Employee Form Fields - Row 1
-    ImGui::Text("Name:");
-    ImGui::SameLine(120.0f);
-    ImGui::SetNextItemWidth(300.0f);
-    ImGui::InputText("##name", name, IM_ARRAYSIZE(name));
-
-    ImGui::SameLine(450.0f);
-    ImGui::Text("Position:");
-    ImGui::SameLine(550.0f);
-    ImGui::SetNextItemWidth(250.0f);
-    ImGui::InputText("##position", position, IM_ARRAYSIZE(position));
-
-    ImGui::SameLine(830.0f);
-    ImGui::Text("Employee ID:");
-    ImGui::SameLine(950.0f);
-    ImGui::SetNextItemWidth(150.0f);
-    ImGui::InputText("##employeeID", employeeID, IM_ARRAYSIZE(employeeID));
-
-    ImGui::Spacing();
-
-    // Employee Form Fields - Row 2
-    ImGui::Text("Site Location:");
-    ImGui::SameLine(120.0f);
-    ImGui::SetNextItemWidth(250.0f);
-    ImGui::InputText("##location", location, IM_ARRAYSIZE(location));
-
-    ImGui::SameLine(400.0f);
-    ImGui::Text("Hourly Rate:");
-    ImGui::SameLine(510.0f);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputText("##salary", salary, IM_ARRAYSIZE(salary));
-
-    ImGui::SameLine(660.0f);
-    ImGui::Text("Hours Worked:");
-    ImGui::SameLine(780.0f);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputText("##hoursWorked", hoursWorked, IM_ARRAYSIZE(hoursWorked));
-
-    ImGui::SameLine(930.0f);
-    ImGui::Text("Advance:");
-    ImGui::SameLine(1020.0f);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputText("##advance", advance, IM_ARRAYSIZE(advance));
-
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
+    // Convert to strings for validation
     const std::string nameStr(name);
     const std::string positionStr(position);
     const std::string employeeIDStr(employeeID);
@@ -758,39 +738,170 @@ static void monitorUI() {
     const std::string hoursWorkedStr(hoursWorked);
     const std::string advanceStr(advance);
 
+    // Real-time validation
+    const bool nameValid = nameStr.empty() || !system::validateInput(system::ValidationType::NAME, nameStr).empty();
+    const bool positionValid = positionStr.empty() || !system::validateInput(system::ValidationType::POSITION, positionStr).empty();
+    const bool employeeIDValid = employeeIDStr.empty() || !system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr).empty();
+    const bool locationValid = locationStr.empty() || !system::validateInput(system::ValidationType::NAME, locationStr).empty();
+    const bool salaryValid = salaryStr.empty() || !system::validateInput(system::ValidationType::SALARY, salaryStr).empty();
+    const bool hoursValid = hoursWorkedStr.empty() || !system::validateInput(system::ValidationType::HOURS, hoursWorkedStr).empty();
+    const bool advanceValid = advanceStr.empty() || !system::validateInput(system::ValidationType::ADVANCE, advanceStr).empty();
+
+    // Employee Form Fields - Row 1
+    ImGui::Text("Name:");
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(300.0f);
+    if (!nameValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##name", name, IM_ARRAYSIZE(name));
+    if (!nameValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(450.0f);
+    ImGui::Text("Position:");
+    ImGui::SameLine(550.0f);
+    ImGui::SetNextItemWidth(250.0f);
+    if (!positionValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##position", position, IM_ARRAYSIZE(position));
+    if (!positionValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(830.0f);
+    ImGui::Text("Employee ID:");
+    ImGui::SameLine(950.0f);
+    ImGui::SetNextItemWidth(150.0f);
+    if (!employeeIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##employeeID", employeeID, IM_ARRAYSIZE(employeeID));
+    if (!employeeIDValid) ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+
+    // Employee Form Fields - Row 2
+    ImGui::Text("Site Location:");
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(250.0f);
+    if (!locationValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##location", location, IM_ARRAYSIZE(location));
+    if (!locationValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(400.0f);
+    ImGui::Text("Hourly Rate:");
+    ImGui::SameLine(510.0f);
+    ImGui::SetNextItemWidth(120.0f);
+    if (!salaryValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##salary", salary, IM_ARRAYSIZE(salary));
+    if (!salaryValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(660.0f);
+    ImGui::Text("Hours Worked:");
+    ImGui::SameLine(780.0f);
+    ImGui::SetNextItemWidth(120.0f);
+    if (!hoursValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##hoursWorked", hoursWorked, IM_ARRAYSIZE(hoursWorked));
+    if (!hoursValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(930.0f);
+    ImGui::Text("Advance:");
+    ImGui::SameLine(1020.0f);
+    ImGui::SetNextItemWidth(120.0f);
+    if (!advanceValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##advance", advance, IM_ARRAYSIZE(advance));
+    if (!advanceValid) ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
     // Employee Action Buttons
     if (ImGui::Button("Add New Employee", ImVec2(350.0f, 40.0f))) {
-        if (monitor::addEmployee(nameStr, positionStr, locationStr, salaryStr, hoursWorkedStr, advanceStr)) {
-            system::logMessage(system::messageClassification::INFO, "DB: New employee added successfully.\n");
-            name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
-            salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
+        // Validate all inputs before adding
+        const std::string validatedName = system::validateInput(system::ValidationType::NAME, nameStr);
+        const std::string validatedPosition = system::validateInput(system::ValidationType::POSITION, positionStr);
+        const std::string validatedLocation = system::validateInput(system::ValidationType::NAME, locationStr);
+        const std::string validatedSalary = system::validateInput(system::ValidationType::SALARY, salaryStr);
+        const std::string validatedHours = system::validateInput(system::ValidationType::HOURS, hoursWorkedStr);
+        const std::string validatedAdvance = system::validateInput(system::ValidationType::ADVANCE, advanceStr);
+
+        if (validatedName.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Name is required and must be valid (max 100 characters).\n");
+        } else if (validatedPosition.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Position is required and must be valid (max 50 characters).\n");
+        } else if (validatedLocation.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Site location is required and must be valid.\n");
+        } else if (validatedSalary.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Hourly rate must be a positive number.\n");
+        } else if (validatedHours.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Hours worked must be a valid number (0-168).\n");
+        } else if (validatedAdvance.empty() && !advanceStr.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Advance must be a non-negative number if provided.\n");
         } else {
-            system::logMessage(system::messageClassification::INFO, "DB: Failed to add new employee.\n");
+            if (monitor::addEmployee(validatedName, validatedPosition, validatedLocation, validatedSalary, validatedHours, validatedAdvance)) {
+                system::logMessage(system::messageClassification::INFO, "DB: New employee added successfully.\n");
+                name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
+                salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "DB: Failed to add new employee.\n");
+            }
         }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Update Employee", ImVec2(350.0f, 40.0f))) {
-        if (!employeeIDStr.empty()) {
-            if (monitor::updateEmployee(employeeIDStr, nameStr, positionStr, locationStr, salaryStr, hoursWorkedStr, advanceStr)) {
-                system::logMessage(system::messageClassification::INFO, "DB: Employee data updated successfully.\n");
-                name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
-                salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
-            } else {
-                system::logMessage(system::messageClassification::ERROR, "DB: Failed to update employee data.\n");
-            }
+        const std::string validatedEmployeeID = system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr);
+
+        if (validatedEmployeeID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Employee ID is required for update.\n");
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Employee ID is required for update.\n");
+            // Validate provided fields (allow partial updates)
+            std::string validatedName = nameStr.empty() ? nameStr : system::validateInput(system::ValidationType::NAME, nameStr);
+            std::string validatedPosition = positionStr.empty() ? positionStr : system::validateInput(system::ValidationType::POSITION, positionStr);
+            std::string validatedLocation = locationStr.empty() ? locationStr : system::validateInput(system::ValidationType::NAME, locationStr);
+            std::string validatedSalary = salaryStr.empty() ? salaryStr : system::validateInput(system::ValidationType::SALARY, salaryStr);
+            std::string validatedHours = hoursWorkedStr.empty() ? hoursWorkedStr : system::validateInput(system::ValidationType::HOURS, hoursWorkedStr);
+            std::string validatedAdvance = system::validateInput(system::ValidationType::ADVANCE, advanceStr);
+
+            bool hasValidationError = false;
+            if (!nameStr.empty() && validatedName.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid name provided.\n");
+                hasValidationError = true;
+            } else if (!positionStr.empty() && validatedPosition.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid position provided.\n");
+                hasValidationError = true;
+            } else if (!locationStr.empty() && validatedLocation.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid location provided.\n");
+                hasValidationError = true;
+            } else if (!salaryStr.empty() && validatedSalary.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid salary provided.\n");
+                hasValidationError = true;
+            } else if (!hoursWorkedStr.empty() && validatedHours.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid hours worked provided.\n");
+                hasValidationError = true;
+            } else if (!advanceStr.empty() && validatedAdvance.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid advance provided.\n");
+                hasValidationError = true;
+            }
+
+            if (!hasValidationError) {
+                if (monitor::updateEmployee(validatedEmployeeID, validatedName, validatedPosition, validatedLocation, validatedSalary, validatedHours, validatedAdvance)) {
+                    system::logMessage(system::messageClassification::INFO, "DB: Employee data updated successfully.\n");
+                    name[0] = '\0'; position[0] = '\0'; employeeID[0] = '\0'; location[0] = '\0';
+                    salary[0] = '\0'; hoursWorked[0] = '\0'; advance[0] = '\0';
+                } else {
+                    system::logMessage(system::messageClassification::ERROR, "DB: Failed to update employee data.\n");
+                }
+            }
         }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Delete Employee", ImVec2(350.0f, 40.0f))) {
-        if (monitor::deleteEmployee(employeeIDStr)) {
-            system::logMessage(system::messageClassification::INFO, "DB: Employee deleted successfully.\n");
-            employeeID[0] = '\0';
+        if (const std::string validatedEmployeeID = system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr); validatedEmployeeID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Employee ID is required for deletion.\n");
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete employee.\n");
+            if (monitor::deleteEmployee(validatedEmployeeID)) {
+                system::logMessage(system::messageClassification::INFO, "DB: Employee deleted successfully.\n");
+                employeeID[0] = '\0';
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete employee.\n");
+            }
         }
     }
 
@@ -943,10 +1054,18 @@ static void monitorUI() {
         }
     }
 
+    // Convert to strings for validation
+    const std::string attendanceEmpIDStr(attendanceEmployeeID);
+
+    // Validation for employee ID
+    const bool attendanceEmpIDValid = attendanceEmpIDStr.empty() || !system::validateInput(system::ValidationType::EMPLOYEE_ID, attendanceEmpIDStr).empty();
+
     ImGui::Text("Employee ID:");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(120.0f);
+    if (!attendanceEmpIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
     ImGui::InputText("##attendanceEmployeeID", attendanceEmployeeID, IM_ARRAYSIZE(attendanceEmployeeID));
+    if (!attendanceEmpIDValid) ImGui::PopStyleColor();
 
     ImGui::SameLine();
     ImGui::Text("  Week:");
@@ -988,7 +1107,6 @@ static void monitorUI() {
     static char* dayBuffers[] = { sunHours, monHours, tueHours, wedHours, thuHours, friHours, satHours };
     ImGui::InputText("##dayHours", dayBuffers[selectedDayForHours], IM_ARRAYSIZE(sunHours));
 
-    const std::string attendanceEmpIDStr(attendanceEmployeeID);
     const std::string weekStartStr = weekDates[selectedWeekIndex];
     const std::string weekLabel = weekOptions[selectedWeekIndex];
     const std::string sunHoursStr(sunHours);
@@ -1192,47 +1310,12 @@ static void monitorUI() {
     ImGui::SetWindowFontScale(1.0f);
     ImGui::Spacing();
 
-    ImGui::BeginChild("ProjectManagement", ImVec2(0, 600), true);
+    ImGui::BeginChild("ProjectManagement", ImVec2(0, 650), true);
     ImGui::Spacing();
 
     static char projectID[128], projectName[16384], status[128], startDate[128], notes[16384];
 
-    // Project Form Fields
-    ImGui::Text("Project ID:");
-    ImGui::SameLine(120.0f);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputText("##projectID", projectID, IM_ARRAYSIZE(projectID));
-
-    ImGui::SameLine(270.0f);
-    ImGui::Text("Project Name:");
-    ImGui::SameLine(400.0f);
-    ImGui::SetNextItemWidth(400.0f);
-    ImGui::InputText("##projectName", projectName, IM_ARRAYSIZE(projectName));
-
-    ImGui::Spacing();
-
-    ImGui::Text("Status:");
-    ImGui::SameLine(120.0f);
-    ImGui::SetNextItemWidth(150.0f);
-    static int statusIndex = 0;
-    const char* statusOptions[] = { "Active", "Completed", "On-Hold", "In Progress" };
-    ImGui::Combo("##status", &statusIndex, statusOptions, IM_ARRAYSIZE(statusOptions));
-    std::strncpy(status, statusOptions[statusIndex], sizeof(status) - 1);
-    status[sizeof(status) - 1] = '\0';
-
-    ImGui::SameLine(300.0f);
-    ImGui::Text("Start Date:");
-    ImGui::SameLine(400.0f);
-    ImGui::SetNextItemWidth(200.0f);
-    ImGui::InputText("##startDate", startDate, IM_ARRAYSIZE(startDate));
-
-    ImGui::Spacing();
-
-    ImGui::Text("Notes:");
-    ImGui::SameLine(120.0f);
-    ImGui::SetNextItemWidth(1000.0f);
-    ImGui::InputText("##notes", notes, IM_ARRAYSIZE(notes));
-
+    // Convert to strings for validation
     const std::string projectNameStr(projectName);
     const std::string statusStr(status);
     const std::string startDateStr(startDate);
@@ -1266,51 +1349,126 @@ static void monitorUI() {
         }
     }
 
+    // Real-time validation
+    const bool projectIDValid = projectIDStr.empty() || !system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr).empty();
+    const bool projectNameValid = projectNameStr.empty() || !system::validateInput(system::ValidationType::NAME, projectNameStr).empty();
+    const bool dateValid = startDateStr.empty() || !system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr).empty();
+
+    // Project Form Fields
+    ImGui::Text("Project ID:");
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(120.0f);
+    if (!projectIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##projectID", projectID, IM_ARRAYSIZE(projectID));
+    if (!projectIDValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(270.0f);
+    ImGui::Text("Project Name:");
+    ImGui::SameLine(400.0f);
+    ImGui::SetNextItemWidth(400.0f);
+    if (!projectNameValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##projectName", projectName, IM_ARRAYSIZE(projectName));
+    if (!projectNameValid) ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+
+    ImGui::Text("Status:");
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(150.0f);
+    static int statusIndex = 0;
+    const char* statusOptions[] = { "Active", "Completed", "On-Hold", "In Progress" };
+    ImGui::Combo("##status", &statusIndex, statusOptions, IM_ARRAYSIZE(statusOptions));
+    std::strncpy(status, statusOptions[statusIndex], sizeof(status) - 1);
+    status[sizeof(status) - 1] = '\0';
+
+    ImGui::SameLine(300.0f);
+    ImGui::Text("Start Date:");
+    ImGui::SameLine(400.0f);
+    ImGui::SetNextItemWidth(200.0f);
+    if (!dateValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##startDate", startDate, IM_ARRAYSIZE(startDate));
+    if (!dateValid) ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+
+    ImGui::Text("Notes:");
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(1000.0f);
+    ImGui::InputText("##notes", notes, IM_ARRAYSIZE(notes));
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
     // Project Action Buttons
     if (ImGui::Button("Add New Project", ImVec2(350.0f, 40.0f))) {
-        if (!projectIDStr.empty()) {
-            if (monitor::addProject(projectIDStr, projectNameStr, statusStr, startDateStr, notesStr)) {
+        // Validate project ID format
+        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
+        const std::string validatedProjectName = system::validateInput(system::ValidationType::NAME, projectNameStr);
+        const std::string validatedStartDate = system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr);
+
+        if (validatedProjectID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Project ID must follow format PRJ-##### (e.g., PRJ-00001).\n");
+        } else if (validatedProjectName.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Project name is required (max 100 characters).\n");
+        } else if (validatedStartDate.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Start date must follow format YYYY-MM-DD.\n");
+        } else {
+            if (monitor::addProject(validatedProjectID, validatedProjectName, statusStr, validatedStartDate, notesStr)) {
                 system::logMessage(system::messageClassification::INFO, "DB: New project added successfully.\n");
                 projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
             } else {
-                system::logMessage(system::messageClassification::INFO, "DB: Failed to add new project.\n");
+                system::logMessage(system::messageClassification::ERROR, "DB: Failed to add new project.\n");
             }
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Project ID is required.\n");
         }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Update Project", ImVec2(350.0f, 40.0f))) {
-        if (!projectIDStr.empty()) {
-            if (const std::string setClause = "PROJECT_NAME='" + projectNameStr + "', STATUS='" + statusStr + "', START_DATE='" + startDateStr + "', NOTE='" + notesStr + "'";
-                db::updateDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, projectIDStr, setClause)) {
-                system::logMessage(system::messageClassification::INFO, "DB: Project data updated successfully.\n");
-                projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
-            } else {
-                system::logMessage(system::messageClassification::ERROR, "DB: Failed to update project data.\n");
-            }
+        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
+
+        if (validatedProjectID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required for update.\n");
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Project ID is required.\n");
+            // Validate other fields if provided
+            std::string validatedProjectName = projectNameStr.empty() ? projectNameStr : system::validateInput(system::ValidationType::NAME, projectNameStr);
+            std::string validatedStartDate = startDateStr.empty() ? startDateStr : system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr);
+
+            bool hasValidationError = false;
+            if (!projectNameStr.empty() && validatedProjectName.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid project name provided.\n");
+                hasValidationError = true;
+            } else if (!startDateStr.empty() && validatedStartDate.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid start date format (use YYYY-MM-DD).\n");
+                hasValidationError = true;
+            }
+
+            if (!hasValidationError) {
+                if (const std::string setClause = "PROJECT_NAME='" + validatedProjectName + "', STATUS='" + statusStr + "', START_DATE='" + validatedStartDate + "', NOTE='" + notesStr + "'";
+                    db::updateDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, validatedProjectID, setClause)) {
+                    system::logMessage(system::messageClassification::INFO, "DB: Project data updated successfully.\n");
+                    projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
+                } else {
+                    system::logMessage(system::messageClassification::ERROR, "DB: Failed to update project data.\n");
+                }
+            }
         }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Delete Project", ImVec2(350.0f, 40.0f))) {
-        if (!projectIDStr.empty()) {
-            if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, projectIDStr)) {
+        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
+
+        if (validatedProjectID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required for deletion.\n");
+        } else {
+            if (db::deleteRow(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, validatedProjectID)) {
                 system::logMessage(system::messageClassification::INFO, "DB: Project deleted successfully.\n");
-                system::deleteFile(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory + projectIDStr + ".db");
+                system::deleteFile(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory + validatedProjectID + ".db");
                 projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete project.\n");
             }
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Project ID is required.\n");
         }
     }
 
@@ -1380,41 +1538,16 @@ static void monitorUI() {
     ImGui::SetWindowFontScale(1.0f);
     ImGui::Spacing();
 
-    ImGui::BeginChild("MaterialsManagement", ImVec2(0, 600), true);
+    ImGui::BeginChild("MaterialsManagement", ImVec2(0, 650), true);
     ImGui::Spacing();
 
     static char materialProjectID[128], materialID[128], materialName[16384], materialQuantity[128], materialUnitPrice[128];
 
-    // Materials Form Fields
-    ImGui::Text("Project ID:");
-    ImGui::SameLine(120.0f);
-    ImGui::SetNextItemWidth(120.0f);
-    ImGui::InputText("##materialProjectID", materialProjectID, IM_ARRAYSIZE(materialProjectID));
-
-    ImGui::SameLine(270.0f);
-    ImGui::Text("Material ID:");
-    ImGui::SameLine(380.0f);
-    ImGui::SetNextItemWidth(150.0f);
-    ImGui::InputText("##materialID", materialID, IM_ARRAYSIZE(materialID));
-
-    ImGui::SameLine(560.0f);
-    ImGui::Text("Material Name:");
-    ImGui::SameLine(690.0f);
-    ImGui::SetNextItemWidth(400.0f);
-    ImGui::InputText("##materialName", materialName, IM_ARRAYSIZE(materialName));
-
-    ImGui::Spacing();
-
-    ImGui::Text("Quantity:");
-    ImGui::SameLine(120.0f);
-    ImGui::SetNextItemWidth(150.0f);
-    ImGui::InputText("##materialQuantity", materialQuantity, IM_ARRAYSIZE(materialQuantity));
-
-    ImGui::SameLine(300.0f);
-    ImGui::Text("Unit Price (PHP):");
-    ImGui::SameLine(450.0f);
-    ImGui::SetNextItemWidth(150.0f);
-    ImGui::InputText("##materialUnitPrice", materialUnitPrice, IM_ARRAYSIZE(materialUnitPrice));
+    // Convert to strings and format project ID
+    const std::string materialIDStr(materialID);
+    const std::string materialNameStr(materialName);
+    const std::string materialQuantityStr(materialQuantity);
+    const std::string materialUnitPriceStr(materialUnitPrice);
 
     // Format material project ID
     std::string materialProjectIDStr;
@@ -1444,10 +1577,53 @@ static void monitorUI() {
         }
     }
 
-    const std::string materialIDStr(materialID);
-    const std::string materialNameStr(materialName);
-    const std::string materialQuantityStr(materialQuantity);
-    const std::string materialUnitPriceStr(materialUnitPrice);
+    // Real-time validation
+    const bool matProjectIDValid = materialProjectIDStr.empty() || !system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr).empty();
+    const bool matIDValid = materialIDStr.empty() || !system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr).empty();
+    const bool matNameValid = materialNameStr.empty() || !system::validateInput(system::ValidationType::NAME, materialNameStr).empty();
+    const bool matQuantityValid = materialQuantityStr.empty() || !system::validateInput(system::ValidationType::QUANTITY, materialQuantityStr).empty();
+    const bool matPriceValid = materialUnitPriceStr.empty() || !system::validateInput(system::ValidationType::SALARY, materialUnitPriceStr).empty();
+
+    // Materials Form Fields
+    ImGui::Text("Project ID:");
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(120.0f);
+    if (!matProjectIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##materialProjectID", materialProjectID, IM_ARRAYSIZE(materialProjectID));
+    if (!matProjectIDValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(270.0f);
+    ImGui::Text("Material ID:");
+    ImGui::SameLine(380.0f);
+    ImGui::SetNextItemWidth(150.0f);
+    if (!matIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##materialID", materialID, IM_ARRAYSIZE(materialID));
+    if (!matIDValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(560.0f);
+    ImGui::Text("Material Name:");
+    ImGui::SameLine(690.0f);
+    ImGui::SetNextItemWidth(400.0f);
+    if (!matNameValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##materialName", materialName, IM_ARRAYSIZE(materialName));
+    if (!matNameValid) ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+
+    ImGui::Text("Quantity:");
+    ImGui::SameLine(120.0f);
+    ImGui::SetNextItemWidth(150.0f);
+    if (!matQuantityValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##materialQuantity", materialQuantity, IM_ARRAYSIZE(materialQuantity));
+    if (!matQuantityValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(300.0f);
+    ImGui::Text("Unit Price (PHP):");
+    ImGui::SameLine(450.0f);
+    ImGui::SetNextItemWidth(150.0f);
+    if (!matPriceValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##materialUnitPrice", materialUnitPrice, IM_ARRAYSIZE(materialUnitPrice));
+    if (!matPriceValid) ImGui::PopStyleColor();
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -1455,57 +1631,100 @@ static void monitorUI() {
 
     // Materials Action Buttons
     if (ImGui::Button("Add New Material", ImVec2(350.0f, 40.0f))) {
-        if (!materialProjectIDStr.empty() && !materialIDStr.empty()) {
+        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr);
+        const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
+        const std::string validatedMaterialName = system::validateInput(system::ValidationType::NAME, materialNameStr);
+        const std::string validatedQuantity = system::validateInput(system::ValidationType::QUANTITY, materialQuantityStr);
+        const std::string validatedUnitPrice = system::validateInput(system::ValidationType::SALARY, materialUnitPriceStr);
+
+        if (validatedProjectID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required.\n");
+        } else if (validatedMaterialID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Material ID cannot be empty.\n");
+        } else if (validatedMaterialName.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Material name is required (max 100 characters).\n");
+        } else if (validatedQuantity.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Quantity must be a non-negative number.\n");
+        } else if (validatedUnitPrice.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Unit price must be a positive number.\n");
+        } else {
             const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
-                                             appConfig::g_projectExpenseDirectory + materialProjectIDStr + ".db";
-            const std::string m_data = "'" + materialIDStr + "', '" + materialNameStr + "', " + materialQuantityStr + ", " + materialUnitPriceStr;
+                                             appConfig::g_projectExpenseDirectory + validatedProjectID + ".db";
+            const std::string m_data = "'" + validatedMaterialID + "', '" + validatedMaterialName + "', " + validatedQuantity + ", " + validatedUnitPrice;
 
             if (db::appendDatabase(expenseDbPath, m_data)) {
                 system::logMessage(system::messageClassification::INFO, "DB: New material added successfully.\n");
                 materialProjectID[0] = '\0'; materialID[0] = '\0'; materialName[0] = '\0';
                 materialQuantity[0] = '\0'; materialUnitPrice[0] = '\0';
             } else {
-                system::logMessage(system::messageClassification::INFO, "DB: Failed to add new material.\n");
+                system::logMessage(system::messageClassification::ERROR, "DB: Failed to add new material.\n");
             }
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Project ID and Material ID are required.\n");
         }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Update Material", ImVec2(350.0f, 40.0f))) {
-        if (!materialProjectIDStr.empty() && !materialIDStr.empty()) {
-            const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
-                                             appConfig::g_projectExpenseDirectory + materialProjectIDStr + ".db";
-            const std::string setClause = "MATERIAL_NAME='" + materialNameStr + "', QUANTITY=" + materialQuantityStr + ", UNIT_PRICE=" + materialUnitPriceStr;
+        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr);
+        const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
 
-            if (db::updateDatabase(expenseDbPath, materialIDStr, setClause)) {
-                system::logMessage(system::messageClassification::INFO, "DB: Material data updated successfully.\n");
-                materialProjectID[0] = '\0'; materialID[0] = '\0'; materialName[0] = '\0';
-                materialQuantity[0] = '\0'; materialUnitPrice[0] = '\0';
-            } else {
-                system::logMessage(system::messageClassification::INFO, "DB: Failed to update material data.\n");
-            }
+        if (validatedProjectID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required.\n");
+        } else if (validatedMaterialID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Material ID cannot be empty.\n");
         } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Project ID and Material ID are required.\n");
+            // Validate other fields if provided
+            std::string validatedMaterialName = materialNameStr.empty() ? materialNameStr : system::validateInput(system::ValidationType::NAME, materialNameStr);
+            std::string validatedQuantity = materialQuantityStr.empty() ? materialQuantityStr : system::validateInput(system::ValidationType::QUANTITY, materialQuantityStr);
+            std::string validatedUnitPrice = materialUnitPriceStr.empty() ? materialUnitPriceStr : system::validateInput(system::ValidationType::SALARY, materialUnitPriceStr);
+
+            bool hasValidationError = false;
+            if (!materialNameStr.empty() && validatedMaterialName.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid material name provided.\n");
+                hasValidationError = true;
+            } else if (!materialQuantityStr.empty() && validatedQuantity.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid quantity provided.\n");
+                hasValidationError = true;
+            } else if (!materialUnitPriceStr.empty() && validatedUnitPrice.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid unit price provided.\n");
+                hasValidationError = true;
+            }
+
+            if (!hasValidationError) {
+                const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
+                                                 appConfig::g_projectExpenseDirectory + validatedProjectID + ".db";
+                const std::string setClause = "MATERIAL_NAME='" + validatedMaterialName + "', QUANTITY=" + validatedQuantity + ", UNIT_PRICE=" + validatedUnitPrice;
+
+                if (db::updateDatabase(expenseDbPath, validatedMaterialID, setClause)) {
+                    system::logMessage(system::messageClassification::INFO, "DB: Material data updated successfully.\n");
+                    materialProjectID[0] = '\0'; materialID[0] = '\0'; materialName[0] = '\0';
+                    materialQuantity[0] = '\0'; materialUnitPrice[0] = '\0';
+                } else {
+                    system::logMessage(system::messageClassification::ERROR, "DB: Failed to update material data.\n");
+                }
+            }
         }
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Delete Material", ImVec2(350.0f, 40.0f))) {
-        if (!materialProjectIDStr.empty() && !materialIDStr.empty()) {
-            const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
-                                             appConfig::g_projectExpenseDirectory + materialProjectIDStr + ".db";
+        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr);
+        const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
 
-            if (db::deleteRow(expenseDbPath, materialIDStr)) {
+        if (validatedProjectID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required.\n");
+        } else if (validatedMaterialID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Material ID cannot be empty.\n");
+        } else {
+            const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
+                                             appConfig::g_projectExpenseDirectory + validatedProjectID + ".db";
+
+            if (db::deleteRow(expenseDbPath, validatedMaterialID)) {
                 system::logMessage(system::messageClassification::INFO, "DB: Material deleted successfully.\n");
                 materialProjectID[0] = '\0'; materialID[0] = '\0'; materialName[0] = '\0';
                 materialQuantity[0] = '\0'; materialUnitPrice[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete material.\n");
             }
-        } else {
-            system::logMessage(system::messageClassification::ERROR, "DB: Project ID and Material ID are required.\n");
         }
     }
 
@@ -1900,3 +2119,4 @@ void ui::constructUI(const std::string &a_title, const std::string& a_fontLocati
 
     HelloImGui::Run(params);
 }
+
