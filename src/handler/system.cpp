@@ -47,6 +47,12 @@ namespace {
     std::atomic<system::messageClassification> g_minLevel{ system::messageClassification::INFO };
     std::atomic<bool> g_logToConsole{ true };
 
+    // Last log message tracking for duplicate detection
+    std::string g_lastLogMessage;
+    std::string g_lastLogLine;
+    int g_lastLogCount = 0;
+    std::streampos g_lastLogPosition = 0;
+
     // Std stream capture state
     std::atomic<bool> g_captureStd{ false };
     bool g_prevConsoleMirror = true;
@@ -207,16 +213,56 @@ void system::logMessage(const messageClassification classification, const std::s
     std::lock_guard<std::mutex> lock(g_logMutex);
     // Ensure logs directory exists
     static_cast<void>(createDirectory("logs"));
-    if (std::ofstream logFile(fileName, std::ios::app); logFile.is_open()) {
-        logFile << line;
-        // Ensure newline if caller forgot one
-        if (!message.empty() && message.back() != '\n') logFile << '\n';
-        logFile.flush();
+
+    // Check if this is a duplicate of the last message
+    if (message == g_lastLogMessage && !message.empty()) {
+        g_lastLogCount++;
+
+        // Update the last line in the log file with the count
+        if (std::fstream logFile(fileName, std::ios::in | std::ios::out); logFile.is_open()) {
+            // Seek to the last log position
+            logFile.seekp(0, std::ios::end);
+            const std::streampos fileSize = logFile.tellp();
+
+            // Only update if we have a valid last position
+            if (g_lastLogPosition > 0 && g_lastLogPosition < fileSize) {
+                // Go back and overwrite the last line
+                logFile.seekp(g_lastLogPosition);
+                const std::string updatedLine = "[" + timestamp + "] " + prefix + ": " + message + " (x" + std::to_string(g_lastLogCount + 1) + ")";
+                logFile << updatedLine;
+                // Pad with spaces to overwrite any remaining characters from the old line
+                const std::streamsize oldLength = g_lastLogLine.length();
+                const std::streamsize newLength = static_cast<std::streamsize>(updatedLine.length());
+                for (std::streamsize i = newLength; i < oldLength; ++i) {
+                    logFile << ' ';
+                }
+                if (!message.empty() && message.back() != '\n') logFile << '\n';
+                logFile.flush();
+                g_lastLogLine = updatedLine;
+            }
+        }
+    } else {
+        // New unique message
+        if (std::ofstream logFile(fileName, std::ios::app); logFile.is_open()) {
+            g_lastLogPosition = logFile.tellp();
+            logFile << line;
+            if (!message.empty() && message.back() != '\n') logFile << '\n';
+            logFile.flush();
+        }
+
+        g_lastLogMessage = message;
+        g_lastLogLine = line;
+        g_lastLogCount = 0;
     }
 
     // Optional console mirroring for warnings and above
     if (g_logToConsole.load() && static_cast<int>(classification) >= static_cast<int>(messageClassification::WARNING)) {
-        std::cerr << line;
+        if (message == g_lastLogMessage && g_lastLogCount > 0) {
+            // For console, just show the count
+            std::cerr << "\r" << line << " (x" << (g_lastLogCount + 1) << ")";
+        } else {
+            std::cerr << line;
+        }
         if (!message.empty() && message.back() != '\n') std::cerr << '\n';
     }
 }
