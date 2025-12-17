@@ -80,7 +80,7 @@ struct project {
 static std::string imageToDataUri(const std::string& imagePath) {
     std::ifstream file(imagePath, std::ios::binary);
     if (!file.is_open()) {
-        std::cerr << "Cannot open logo file: " << imagePath << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("Cannot open logo file: ") + imagePath + "\n");
         return "";
     }
 
@@ -131,13 +131,13 @@ std::vector<employee> fetchAllEmployees(const std::string &dbPath) {
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_open(dbPath.c_str(), &db) != SQLITE_OK) {
-        std::cerr << "fetchAllEmployees: failed to open DB: " << dbPath << " -> " << (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("fetchAllEmployees: failed to open DB: ") + dbPath + " -> " + (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") + "\n");
         if (db) sqlite3_close(db);
         return list;
     }
 
     if (const auto sql = "SELECT EMPLOYEE_ID, NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE FROM EMPLOYEES ORDER BY EMPLOYEE_ID;"; sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "fetchAllEmployees: prepare failed: " << (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("fetchAllEmployees: prepare failed: ") + (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") + "\n");
         sqlite3_close(db);
         return list;
     }
@@ -243,13 +243,13 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
 
     if (std::error_code errorCode; !std::filesystem::exists(dbPath, errorCode)) {
-        std::cerr << "exportPayslipsHtml: payroll DB not found at " << dbPath << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("exportPayslipsHtml: payroll DB not found at ") + dbPath + "\n");
         return false;
     }
 
     auto employees = fetchAllEmployees(dbPath);
     if (employees.empty()) {
-        std::cerr << "exportPayslipsHtml: no employees found in payroll DB (" << dbPath << ").\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("exportPayslipsHtml: no employees found in payroll DB (") + dbPath + ").\n");
         return false;
     }
 
@@ -309,7 +309,7 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
 
     std::ofstream f(outFile);
     if (!f.is_open()) {
-        std::cerr << "exportPayslipsHtml: cannot open output file: " << outFile << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("exportPayslipsHtml: cannot open output file: ") + outFile + "\n");
         return false;
     }
 
@@ -448,103 +448,57 @@ bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& lo
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
 
     if (std::error_code errorCode; !std::filesystem::exists(dbPath, errorCode)) {
-        std::cerr << "exportPayslipsHtmlForWeek: payroll DB not found at " << dbPath << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("exportPayslipsHtmlForWeek: payroll DB not found at ") + dbPath + "\n");
         return false;
     }
 
-    const auto baseEmployees = fetchAllEmployees(dbPath);
-    if (baseEmployees.empty()) {
-        std::cerr << "exportPayslipsHtmlForWeek: no employees found in payroll DB (" << dbPath << ").\n";
+    auto employees = fetchAllEmployees(dbPath);
+    if (employees.empty()) {
+        system::logMessage(system::messageClassification::ERROR, std::string("exportPayslipsHtmlForWeek: no employees found in payroll DB (") + dbPath + ").\n");
         return false;
     }
 
-    // Fetch weekly attendance data
-    const std::string attendanceDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
-                                        appConfig::g_payrollAttendanceDirectory +
-                                        std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/";
+    // Fetch weekly attendance data from the WEEKLY_ATTENDANCE table in base payroll DB
+    // This table mirrors all attendance data from individual weekly files
+    sqlite3* db = nullptr;
+    if (sqlite3_open(dbPath.c_str(), &db) == SQLITE_OK) {
+        for (auto& emp : employees) {
+            // Reset all hours to 0 - we ONLY use attendance data
+            emp.hoursWorked = 0.0;
+            emp.sunHours = 0.0;
+            emp.monHours = 0.0;
+            emp.tueHours = 0.0;
+            emp.wedHours = 0.0;
+            emp.thuHours = 0.0;
+            emp.friHours = 0.0;
+            emp.satHours = 0.0;
+            emp.weekStartDate = weekStartDate;
 
-    // Parse week start date to get year, month, and day
-    int year = 0, month = 0, day = 0; // Declare variables in the correct scope
-    try {
-        if (weekStartDate.size() >= 10) {
-            year = std::stoi(weekStartDate.substr(0, 4));
-            month = std::stoi(weekStartDate.substr(5, 2));
-            day = std::stoi(weekStartDate.substr(8, 2));
-        } else {
-            throw std::invalid_argument("Date string too short");
-        }
-    } catch (const std::exception &e) {
-        std::cerr << "exportPayslipsHtmlForWeek: invalid date format: " << weekStartDate << ". Error: " << e.what() << "\n";
-        return false;
-    }
-
-    // Suppress unused variable warnings by ensuring variables are used
-    (void)year;
-    (void)month;
-    (void)day;
-
-    // Calculate end date (6 days after start)
-    std::ostringstream endDateStream;
-    endDateStream << weekStartDate.substr(0, 8);
-    const int endDay = day + 6;
-    endDateStream << std::setw(2) << std::setfill('0') << endDay;
-    const std::string endDate = endDateStream.str();
-
-    // Construct database path: YYYY/MM-DD-DD.db
-    std::ostringstream dbName;
-    dbName << std::setw(2) << std::setfill('0') << month << "-"
-           << std::setw(2) << std::setfill('0') << day << "-"
-           << std::setw(2) << std::setfill('0') << endDay << ".db";
-
-    const std::string weekDbPath = attendanceDbPath + dbName.str();
-
-    // Build employees with weekly data
-    std::vector<employee> employees;
-    for (const auto& emp : baseEmployees) {
-        employee e = emp;
-        e.weekStartDate = weekStartDate;
-        // Reset all hours to 0 - we ONLY use attendance data
-        e.hoursWorked = 0.0;
-        e.sunHours = 0.0;
-        e.monHours = 0.0;
-        e.tueHours = 0.0;
-        e.wedHours = 0.0;
-        e.thuHours = 0.0;
-        e.friHours = 0.0;
-        e.satHours = 0.0;
-
-        // Try to fetch weekly attendance for this employee
-        if (std::filesystem::exists(weekDbPath)) {
-            sqlite3* db = nullptr;
             sqlite3_stmt* stmt = nullptr;
+            // Get the attendance for this specific week
+            const auto sql = "SELECT SUN, MON, TUE, WED, THU, FRI, SAT FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID = ? AND WEEK_START = ? LIMIT 1;";
 
-            if (sqlite3_open(weekDbPath.c_str(), &db) == SQLITE_OK) {
-                const auto sql = "SELECT SUN, MON, TUE, WED, THU, FRI, SAT FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID = ? AND WEEK_START = ? LIMIT 1;";
+            if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+                sqlite3_bind_int(stmt, 1, emp.id);
+                sqlite3_bind_text(stmt, 2, weekStartDate.c_str(), -1, SQLITE_TRANSIENT);
 
-                if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
-                    sqlite3_bind_int(stmt, 1, emp.id);
-                    sqlite3_bind_text(stmt, 2, weekStartDate.c_str(), -1, SQLITE_TRANSIENT);
+                if (sqlite3_step(stmt) == SQLITE_ROW) {
+                    emp.sunHours = sqlite3_column_double(stmt, 0);
+                    emp.monHours = sqlite3_column_double(stmt, 1);
+                    emp.tueHours = sqlite3_column_double(stmt, 2);
+                    emp.wedHours = sqlite3_column_double(stmt, 3);
+                    emp.thuHours = sqlite3_column_double(stmt, 4);
+                    emp.friHours = sqlite3_column_double(stmt, 5);
+                    emp.satHours = sqlite3_column_double(stmt, 6);
 
-                    if (sqlite3_step(stmt) == SQLITE_ROW) {
-                        e.sunHours = sqlite3_column_double(stmt, 0);
-                        e.monHours = sqlite3_column_double(stmt, 1);
-                        e.tueHours = sqlite3_column_double(stmt, 2);
-                        e.wedHours = sqlite3_column_double(stmt, 3);
-                        e.thuHours = sqlite3_column_double(stmt, 4);
-                        e.friHours = sqlite3_column_double(stmt, 5);
-                        e.satHours = sqlite3_column_double(stmt, 6);
-
-                        // Calculate total hours from daily breakdown
-                        e.hoursWorked = e.sunHours + e.monHours + e.tueHours + e.wedHours +
-                                       e.thuHours + e.friHours + e.satHours;
-                    }
-                    sqlite3_finalize(stmt);
+                    // Calculate total hours from daily breakdown (ACTUAL hours worked from attendance)
+                    emp.hoursWorked = emp.sunHours + emp.monHours + emp.tueHours +
+                                     emp.wedHours + emp.thuHours + emp.friHours + emp.satHours;
                 }
-                sqlite3_close(db);
+                sqlite3_finalize(stmt);
             }
         }
-
-        employees.push_back(e);
+        sqlite3_close(db);
     }
 
     std::string logoDataUri;
@@ -560,7 +514,7 @@ bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& lo
 
     std::ofstream f(outFile);
     if (!f.is_open()) {
-        std::cerr << "exportPayslipsHtmlForWeek: cannot open output file: " << outFile << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("exportPayslipsHtmlForWeek: cannot open output file: ") + outFile + "\n");
         return false;
     }
 
@@ -701,13 +655,13 @@ static std::vector<material> fetchProjectMaterials(const std::string &dbPath) {
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_open(dbPath.c_str(), &db) != SQLITE_OK) {
-        std::cerr << "fetchProjectMaterials: failed to open DB: " << dbPath << " -> " << (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("fetchProjectMaterials: failed to open DB: ") + dbPath + " -> " + (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") + "\n");
         if (db) sqlite3_close(db);
         return list;
     }
 
     if (const auto sql = "SELECT MATERIAL_ID, MATERIAL_NAME, QUANTITY, UNIT_PRICE FROM MATERIALS ORDER BY MATERIAL_ID;"; sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "fetchProjectMaterials: prepare failed: " << (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("fetchProjectMaterials: prepare failed: ") + (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") + "\n");
         sqlite3_close(db);
         return list;
     }
@@ -738,14 +692,14 @@ static project fetchProjectInfo(const std::string &projectId) {
     sqlite3_stmt* stmt = nullptr;
 
     if (sqlite3_open(dbPath.c_str(), &db) != SQLITE_OK) {
-        std::cerr << "fetchProjectInfo: failed to open DB: " << dbPath << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("fetchProjectInfo: failed to open DB: ") + dbPath + "\n");
         if (db) sqlite3_close(db);
         return proj;
     }
 
     const auto sql = "SELECT PROJECT_NAME, STATUS, START_DATE, NOTE FROM PROJECT_LIST WHERE PROJECT_ID = ? LIMIT 1;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::cerr << "fetchProjectInfo: prepare failed: " << (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("fetchProjectInfo: prepare failed: ") + (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") + "\n");
         sqlite3_close(db);
         return proj;
     }
@@ -1089,13 +1043,13 @@ static std::string makeProjectReportHtml(const project& proj, const std::string&
 // Export project report to HTML
 bool exportProjectReportHtml(const std::string& projectId, const std::string& outFile, const std::string& logoPath) {
     if (projectId.empty()) {
-        std::cerr << "exportProjectReportHtml: project ID is empty\n";
+        system::logMessage(system::messageClassification::ERROR, "exportProjectReportHtml: project ID is empty\n");
         return false;
     }
 
     const auto proj = fetchProjectInfo(projectId);
     if (proj.name.empty()) {
-        std::cerr << "exportProjectReportHtml: project not found: " << projectId << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("exportProjectReportHtml: project not found: ") + projectId + "\n");
         return false;
     }
 
@@ -1112,7 +1066,7 @@ bool exportProjectReportHtml(const std::string& projectId, const std::string& ou
 
     std::ofstream f(outFile);
     if (!f.is_open()) {
-        std::cerr << "exportProjectReportHtml: cannot open output file: " << outFile << "\n";
+        system::logMessage(system::messageClassification::ERROR, std::string("exportProjectReportHtml: cannot open output file: ") + outFile + "\n");
         return false;
     }
 
