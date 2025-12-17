@@ -16,6 +16,23 @@ set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "Disable automatic asset inst
 
 FetchContent_MakeAvailable(hello_imgui)
 
+# Ensure the application icon (assets/icons/app_icon.png) is visible to the hello_imgui packaging
+# helper. hello_imgui's macOS support will look for assets/app_settings/icon.png and convert it to
+# icon.icns during bundle creation. We copy the project's icon into the binary tree so the helper
+# can find it.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/icons/app_icon.png")
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets/app_settings")
+    configure_file("${CMAKE_SOURCE_DIR}/assets/icons/app_icon.png"
+                   "${CMAKE_BINARY_DIR}/assets/app_settings/icon.png"
+                   COPYONLY)
+endif()
+
+# Platform-specific source files
+set(PLATFORM_SOURCES "")
+if(APPLE)
+    list(APPEND PLATFORM_SOURCES src/ui/set_app_icon_macos.mm)
+endif()
+
 # Add your app
 hello_imgui_add_app(
         # Target name
@@ -56,6 +73,8 @@ hello_imgui_add_app(
         # UI Components
         src/ui/ui.cpp
         src/ui/ui.h
+
+        ${PLATFORM_SOURCES}
 
 
         # The Main Systems
@@ -291,9 +310,35 @@ endif()
 if(APPLE)
     install(TARGETS structuracost BUNDLE DESTINATION .)
     install(DIRECTORY assets/ DESTINATION "structuracost.app/Contents/Resources/assets")
+
+    # Ensure libsodium runtime is bundled into the app (if we linked a dylib from dependencies)
+    file(GLOB_RECURSE _FOUND_SODIUM "${CMAKE_SOURCE_DIR}/dependencies/libsodium/*libsodium*.dylib")
+    foreach(_s ${_FOUND_SODIUM})
+        if(EXISTS "${_s}")
+            install(FILES "${_s}" DESTINATION "structuracost.app/Contents/Frameworks")
+        endif()
+    endforeach()
+
+    # copy app icon into app resources (in addition to hello_imgui's conversion)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/assets/icons/app_icon.png")
+        install(FILES "${CMAKE_SOURCE_DIR}/assets/icons/app_icon.png" DESTINATION "structuracost.app/Contents/Resources/")
+    endif()
 elseif(WIN32)
     install(TARGETS structuracost RUNTIME DESTINATION ".")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/" DESTINATION "assets" PATTERN "*")
+
+    # If there are prebuilt libsodium dlls in dependencies, include them in the installer root
+    file(GLOB_RECURSE _WIN_SODIUM_DLLS "${CMAKE_SOURCE_DIR}/dependencies/libsodium/*.dll")
+    foreach(_dll ${_WIN_SODIUM_DLLS})
+        if(EXISTS "${_dll}")
+            install(FILES "${_dll}" DESTINATION ".")
+        endif()
+    endforeach()
+
+    # Add app icon to installer payload so installer can use it for shortcuts
+    if(EXISTS "${CMAKE_SOURCE_DIR}/assets/icons/app_icon.png")
+        install(FILES "${CMAKE_SOURCE_DIR}/assets/icons/app_icon.png" DESTINATION ".")
+    endif()
 else()
     install(TARGETS structuracost RUNTIME DESTINATION bin)
     install(DIRECTORY assets/ DESTINATION assets)
@@ -303,6 +348,14 @@ else()
     install(FILES ${CMAKE_SOURCE_DIR}/assets/icons/business_logo.png DESTINATION share/icons/hicolor/256x256/apps RENAME structuracost.png)
     set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_SOURCE_DIR}/packaging/linux/postinst.sh;")
     set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_SOURCE_DIR}/packaging/linux/postinst.sh")
+
+    # include any found libsodium shared objects in the package lib folder
+    file(GLOB_RECURSE _LIN_SODIUM "${CMAKE_SOURCE_DIR}/dependencies/libsodium/*.so")
+    foreach(_l ${_LIN_SODIUM})
+        if(EXISTS "${_l}")
+            install(FILES "${_l}" DESTINATION lib)
+        endif()
+    endforeach()
 endif()
 
 # -------------------------------
@@ -328,6 +381,8 @@ if(APPLE)
     if(SECURITY_FRAMEWORK)
         target_link_libraries(structuracost PRIVATE ${SECURITY_FRAMEWORK})
     endif()
+    # Add postinstall script for macOS packages
+    set(CPACK_POSTFLIGHT_SCRIPT "${CMAKE_SOURCE_DIR}/packaging/macos/postinstall")
 elseif(WIN32)
     set(CPACK_GENERATOR "NSIS")
     target_link_libraries(structuracost PRIVATE Advapi32)
@@ -339,6 +394,16 @@ elseif(WIN32)
     set(CPACK_NSIS_INSTALLED_ICON_NAME "structuracost.exe")
     set(CPACK_PACKAGE_EXECUTABLES "structuracost;StructuraCost")
     set(CPACK_CREATE_DESKTOP_LINKS "structuracost")
+    set(CPACK_NSIS_CREATE_ICONS_EXTRA
+        "CreateShortCut '$DESKTOP\\\\StructuraCost.lnk' '$INSTDIR\\\\structuracost.exe' '' '$INSTDIR\\\\structuracost.exe' 0")
+    set(CPACK_NSIS_DELETE_ICONS_EXTRA
+        "Delete '$DESKTOP\\\\StructuraCost.lnk'")
+    # Add PowerShell script to install directory for post-install libsodium download
+    install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1" DESTINATION ".")
+    # Add custom NSIS commands to run PowerShell script after installation
+    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+        ExecWait 'powershell -ExecutionPolicy Bypass -File \\\"$INSTDIR\\\\install_libsodium.ps1\\\" -InstallDir \\\"$INSTDIR\\\"'
+    ")
 else()
     set(CPACK_GENERATOR "TGZ")
     find_library(LIBSECRET_LIBRARY NAMES secret-1 libsecret-1)
