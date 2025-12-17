@@ -32,6 +32,7 @@
 #include <sqlite3.h>
 
 #include "../config/config.h"
+#include "system.h"
 
 
 struct employee {
@@ -44,6 +45,17 @@ struct employee {
     double advance{0.0};
     double others{0.0};
     std::string date;
+
+    // Weekly hours breakdown (Sunday to Saturday)
+    std::string weekStartDate;
+    double sunHours{0.0};
+    double monHours{0.0};
+    double tueHours{0.0};
+    double wedHours{0.0};
+    double thuHours{0.0};
+    double friHours{0.0};
+    double satHours{0.0};
+    bool hasWeeklyData{false};
 };
 
 struct material {
@@ -166,7 +178,9 @@ std::string makePayslipHtml(const employee& data, const std::string& logo) {
     o << "   <div class=\"info-column\">\n";
     o << "    <div><span class=\"info-label\">Employee No:</span> " << data.id << "</div>\n";
     o << "    <div><span class=\"info-label\">Name:</span> " << data.name << "</div>\n";
-    if (!data.date.empty()) {
+    if (!data.weekStartDate.empty()) {
+        o << "    <div><span class=\"info-label\">Week of:</span> " << data.weekStartDate << "</div>\n";
+    } else if (!data.date.empty()) {
         o << "    <div><span class=\"info-label\">Pay Period:</span> " << data.date << "</div>\n";
     }
     o << "   </div>\n";
@@ -176,6 +190,28 @@ std::string makePayslipHtml(const employee& data, const std::string& logo) {
     o << "   </div>\n";
     o << "  </div>\n";
     o << " </div>\n";
+
+    // Weekly Hours Table (if data available)
+    if (data.hasWeeklyData) {
+        o << " <div class=\"weekly-hours-section\">\n";
+        o << "  <div class=\"section-subtitle\">Daily Hours Worked</div>\n";
+        o << "  <table class=\"weekly-hours-table\">\n";
+        o << "   <tr>\n";
+        o << "    <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Total</th>\n";
+        o << "   </tr>\n";
+        o << "   <tr>\n";
+        o << "    <td>" << std::fixed << std::setprecision(1) << data.sunHours << "</td>\n";
+        o << "    <td>" << std::fixed << std::setprecision(1) << data.monHours << "</td>\n";
+        o << "    <td>" << std::fixed << std::setprecision(1) << data.tueHours << "</td>\n";
+        o << "    <td>" << std::fixed << std::setprecision(1) << data.wedHours << "</td>\n";
+        o << "    <td>" << std::fixed << std::setprecision(1) << data.thuHours << "</td>\n";
+        o << "    <td>" << std::fixed << std::setprecision(1) << data.friHours << "</td>\n";
+        o << "    <td>" << std::fixed << std::setprecision(1) << data.satHours << "</td>\n";
+        o << "    <td class=\"total-cell\"><strong>" << std::fixed << std::setprecision(1) << data.hoursWorked << "</strong></td>\n";
+        o << "   </tr>\n";
+        o << "  </table>\n";
+        o << " </div>\n";
+    }
 
     o << " <table class=\"pay-table\">\n";
     o << "  <tr><th colspan=\"2\">Earnings</th><th colspan=\"2\">Deductions</th></tr>\n";
@@ -256,7 +292,7 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
 
   .page {
     display: grid;
-    grid-template: repeat(6, 1fr) / 1fr 1fr;
+    grid-template: repeat(4, 1fr) / 1fr 1fr;
     gap: 0.05in;
     padding: 0.05in 0;
     height: 100%;
@@ -291,6 +327,13 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
   .info-column { display: flex; flex-direction: column; gap: 2px; }
   .info-label { font-weight: bold; color: #555; }
 
+  .weekly-hours-section { margin: 4px 0; }
+  .section-subtitle { font-weight: bold; color: #d88c28; font-size: 7.5px; margin-bottom: 2px; text-align: center; }
+  .weekly-hours-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 6.5px; }
+  .weekly-hours-table th { background: #d88c28; color: white; padding: 1px 2px; border: 1px solid #d88c28; text-align: center; font-size: 6.5px; }
+  .weekly-hours-table td { padding: 1px 2px; border: 1px solid #ddd; text-align: center; }
+  .weekly-hours-table td.total-cell { background: #f9f3e8; font-weight: bold; }
+
   .pay-table { width: 100%; border-collapse: collapse; margin: 1px 0 2px; font-size: 7px; }
   .pay-table th { background: #d88c28; color: white; padding: 2px; border: 1px solid #d88c28; font-size: 7px; }
   .pay-table td { padding: 2px 3px; border: 1px solid #ddd; }
@@ -310,7 +353,7 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
   .net-pay-label { font-size: 8px; font-weight: bold; }
   .net-pay-amount { font-size: 9px; font-weight: bold; }
 
-  .signature-section { display: flex; gap: 8px; margin-top: 15px; }
+  .signature-section { display: flex; gap: 8px; margin-top: 8px; }
   .signature-box { flex: 1; text-align: center; }
   .signature-line { border-top: 1px solid #333; margin: 4px 0 1px; }
   .signature-label { font-size: 6.5px; color: #666; }
@@ -326,7 +369,7 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
 )";
 
     // Render pages explicitly to avoid leaving a trailing blank page.
-    constexpr size_t perPage = 12;
+    constexpr size_t perPage = 8;  // Changed from 12 to 8 to accommodate weekly hours table
     const size_t total = employees.size();
     const size_t totalPages = (total + perPage - 1) / perPage;
 
@@ -347,6 +390,250 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
     f.close();
 
     std::cout << "Exported payslips to " << outFile << "\n";
+
+    const std::string absPath = std::filesystem::absolute(outFile).string();
+
+#ifdef _WIN32
+    std::string command = "start \"\" \"" + absPath + "\"";
+    std::system(command.c_str());
+#elif __APPLE__
+    std::string command = "open \"" + absPath + "\"";
+    std::system(command.c_str());
+#else
+    std::string command = "xdg-open \"" + absPath + "\"";
+    std::system(command.c_str());
+#endif
+
+    return true;
+}
+
+
+// Export payslips to HTML for a specific week with daily hours breakdown
+bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& logoPath, const std::string& weekStartDate) {
+    const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+
+    if (std::error_code errorCode; !std::filesystem::exists(dbPath, errorCode)) {
+        std::cerr << "exportPayslipsHtmlForWeek: payroll DB not found at " << dbPath << "\n";
+        return false;
+    }
+
+    const auto baseEmployees = fetchAllEmployees(dbPath);
+    if (baseEmployees.empty()) {
+        std::cerr << "exportPayslipsHtmlForWeek: no employees found in payroll DB (" << dbPath << ").\n";
+        return false;
+    }
+
+    // Fetch weekly attendance data
+    const std::string attendanceDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                        appConfig::g_payrollAttendanceDirectory +
+                                        std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/";
+
+    // Parse week start date to get year, month, and day
+    int year = 0, month = 0, day = 0; // Declare variables in the correct scope
+    try {
+        if (weekStartDate.size() >= 10) {
+            year = std::stoi(weekStartDate.substr(0, 4));
+            month = std::stoi(weekStartDate.substr(5, 2));
+            day = std::stoi(weekStartDate.substr(8, 2));
+        } else {
+            throw std::invalid_argument("Date string too short");
+        }
+    } catch (const std::exception &e) {
+        std::cerr << "exportPayslipsHtmlForWeek: invalid date format: " << weekStartDate << ". Error: " << e.what() << "\n";
+        return false;
+    }
+
+    // Suppress unused variable warnings by ensuring variables are used
+    (void)year;
+    (void)month;
+    (void)day;
+
+    // Calculate end date (6 days after start)
+    std::ostringstream endDateStream;
+    endDateStream << weekStartDate.substr(0, 8);
+    const int endDay = day + 6;
+    endDateStream << std::setw(2) << std::setfill('0') << endDay;
+    const std::string endDate = endDateStream.str();
+
+    // Construct database path: YYYY/MM-DD-DD.db
+    std::ostringstream dbName;
+    dbName << std::setw(2) << std::setfill('0') << month << "-"
+           << std::setw(2) << std::setfill('0') << day << "-"
+           << std::setw(2) << std::setfill('0') << endDay << ".db";
+
+    const std::string weekDbPath = attendanceDbPath + dbName.str();
+
+    // Build employees with weekly data
+    std::vector<employee> employees;
+    for (const auto& emp : baseEmployees) {
+        employee e = emp;
+        e.weekStartDate = weekStartDate;
+        e.hasWeeklyData = false;
+
+        // Try to fetch weekly attendance for this employee
+        if (std::filesystem::exists(weekDbPath)) {
+            sqlite3* db = nullptr;
+            sqlite3_stmt* stmt = nullptr;
+
+            if (sqlite3_open(weekDbPath.c_str(), &db) == SQLITE_OK) {
+                const auto sql = "SELECT SUN, MON, TUE, WED, THU, FRI, SAT FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID = ? AND WEEK_START = ? LIMIT 1;";
+
+                if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+                    sqlite3_bind_int(stmt, 1, emp.id);
+                    sqlite3_bind_text(stmt, 2, weekStartDate.c_str(), -1, SQLITE_TRANSIENT);
+
+                    if (sqlite3_step(stmt) == SQLITE_ROW) {
+                        e.sunHours = sqlite3_column_double(stmt, 0);
+                        e.monHours = sqlite3_column_double(stmt, 1);
+                        e.tueHours = sqlite3_column_double(stmt, 2);
+                        e.wedHours = sqlite3_column_double(stmt, 3);
+                        e.thuHours = sqlite3_column_double(stmt, 4);
+                        e.friHours = sqlite3_column_double(stmt, 5);
+                        e.satHours = sqlite3_column_double(stmt, 6);
+
+                        // Calculate total hours from daily breakdown
+                        e.hoursWorked = e.sunHours + e.monHours + e.tueHours + e.wedHours +
+                                       e.thuHours + e.friHours + e.satHours;
+                        e.hasWeeklyData = true;
+                    }
+                    sqlite3_finalize(stmt);
+                }
+                sqlite3_close(db);
+            }
+        }
+
+        employees.push_back(e);
+    }
+
+    std::string logoDataUri;
+    if (!logoPath.empty() && std::filesystem::exists(logoPath)) {
+        logoDataUri = imageToDataUri(logoPath);
+    }
+
+    try {
+        if (const auto parent = std::filesystem::path(outFile).parent_path(); !parent.empty()) {
+            std::filesystem::create_directories(parent);
+        }
+    } catch (...) {}
+
+    std::ofstream f(outFile);
+    if (!f.is_open()) {
+        std::cerr << "exportPayslipsHtmlForWeek: cannot open output file: " << outFile << "\n";
+        return false;
+    }
+
+    f << R"(<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Payslips - Week of )" << weekStartDate << R"(</title>
+<style>
+  @page { size: 8.5in 13in; margin: 0.3in 0.25in; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .container { width: 8in; height: 12.45in; margin: 0 auto; padding-top: 0.1in; }
+
+  .page {
+    display: grid;
+    grid-template: repeat(4, 1fr) / 1fr 1fr;
+    gap: 0.05in;
+    padding: 0.05in 0;
+    height: 100%;
+  }
+
+  .payslip {
+    border: 2px solid #d88c28;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 7px;
+    background: white;
+  }
+
+  .payslip-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding-bottom: 3px;
+    border-bottom: 2px solid #d88c28;
+    margin-bottom: 3px;
+  }
+
+  .company-logo { width: 35px; height: 35px; object-fit: contain; }
+  .company-info { flex: 1; text-align: center; }
+  .payslip-title { font-size: 12px; font-weight: bold; color: #d88c28; }
+
+  .info-section { margin: 4px 0 4px; }
+  .info-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .info-column { display: flex; flex-direction: column; gap: 2px; }
+  .info-label { font-weight: bold; color: #555; }
+
+  .weekly-hours-section { margin: 4px 0; }
+  .section-subtitle { font-weight: bold; color: #d88c28; font-size: 7.5px; margin-bottom: 2px; text-align: center; }
+  .weekly-hours-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 6.5px; }
+  .weekly-hours-table th { background: #d88c28; color: white; padding: 1px 2px; border: 1px solid #d88c28; text-align: center; font-size: 6.5px; }
+  .weekly-hours-table td { padding: 1px 2px; border: 1px solid #ddd; text-align: center; }
+  .weekly-hours-table td.total-cell { background: #f9f3e8; font-weight: bold; }
+
+  .pay-table { width: 100%; border-collapse: collapse; margin: 1px 0 2px; font-size: 7px; }
+  .pay-table th { background: #d88c28; color: white; padding: 2px; border: 1px solid #d88c28; font-size: 7px; }
+  .pay-table td { padding: 2px 3px; border: 1px solid #ddd; }
+  .pay-table td.amount { text-align: right; }
+  .pay-table tr.total-row { background: #f9f3e8; }
+  .pay-table tr.total-row td { border-top: 2px solid #d88c28; }
+
+  .net-pay {
+    display: flex;
+    justify-content: space-between;
+    background: #d88c28;
+    color: white;
+    padding: 3px 4px;
+    margin-bottom: 2px;
+    border-radius: 2px;
+  }
+  .net-pay-label { font-size: 8px; font-weight: bold; }
+  .net-pay-amount { font-size: 9px; font-weight: bold; }
+
+  .signature-section { display: flex; gap: 8px; margin-top: 8px; }
+  .signature-box { flex: 1; text-align: center; }
+  .signature-line { border-top: 1px solid #333; margin: 4px 0 1px; }
+  .signature-label { font-size: 6.5px; color: #666; }
+
+  @media print {
+    .container { width: auto; height: auto; }
+    .payslip { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+)";
+
+    constexpr size_t perPage = 8;
+    const size_t total = employees.size();
+    const size_t totalPages = (total + perPage - 1) / perPage;
+
+    for (size_t p = 0; p < totalPages; ++p) {
+        const bool isLast = (p + 1 == totalPages);
+        f << "<div class=\"page" << (isLast ? " last-page" : "") << "\">\n";
+
+        const size_t start = p * perPage;
+        const size_t end = std::min(start + perPage, total);
+        for (size_t i = start; i < end; ++i) {
+            f << makePayslipHtml(employees[i], logoDataUri) << "\n";
+        }
+
+        f << "</div>\n";
+    }
+
+    f << "</div>\n</body>\n</html>\n";
+    f.close();
+
+    std::cout << "Exported payslips for week of " << weekStartDate << " to " << outFile << "\n";
 
     const std::string absPath = std::filesystem::absolute(outFile).string();
 
