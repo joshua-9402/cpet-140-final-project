@@ -191,27 +191,20 @@ std::string makePayslipHtml(const employee& data, const std::string& logo) {
     o << "  </div>\n";
     o << " </div>\n";
 
-    // Weekly Hours Table (if data available)
-    if (data.hasWeeklyData) {
-        o << " <div class=\"weekly-hours-section\">\n";
-        o << "  <div class=\"section-subtitle\">Daily Hours Worked</div>\n";
-        o << "  <table class=\"weekly-hours-table\">\n";
-        o << "   <tr>\n";
-        o << "    <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Total</th>\n";
-        o << "   </tr>\n";
-        o << "   <tr>\n";
-        o << "    <td>" << std::fixed << std::setprecision(1) << data.sunHours << "</td>\n";
-        o << "    <td>" << std::fixed << std::setprecision(1) << data.monHours << "</td>\n";
-        o << "    <td>" << std::fixed << std::setprecision(1) << data.tueHours << "</td>\n";
-        o << "    <td>" << std::fixed << std::setprecision(1) << data.wedHours << "</td>\n";
-        o << "    <td>" << std::fixed << std::setprecision(1) << data.thuHours << "</td>\n";
-        o << "    <td>" << std::fixed << std::setprecision(1) << data.friHours << "</td>\n";
-        o << "    <td>" << std::fixed << std::setprecision(1) << data.satHours << "</td>\n";
-        o << "    <td class=\"total-cell\"><strong>" << std::fixed << std::setprecision(1) << data.hoursWorked << "</strong></td>\n";
-        o << "   </tr>\n";
-        o << "  </table>\n";
-        o << " </div>\n";
-    }
+    // Weekly Hours Display - ALWAYS show, even if hours are 0
+    o << " <div class=\"weekly-hours-section\">\n";
+    o << "  <div class=\"section-subtitle\">Daily Hours:</div>\n";
+    o << "  <div class=\"hours-inline\">\n";
+    o << "   <span class=\"day-hours\">Sun: <strong>" << std::fixed << std::setprecision(1) << data.sunHours << "</strong></span>\n";
+    o << "   <span class=\"day-hours\">Mon: <strong>" << std::fixed << std::setprecision(1) << data.monHours << "</strong></span>\n";
+    o << "   <span class=\"day-hours\">Tue: <strong>" << std::fixed << std::setprecision(1) << data.tueHours << "</strong></span>\n";
+    o << "   <span class=\"day-hours\">Wed: <strong>" << std::fixed << std::setprecision(1) << data.wedHours << "</strong></span>\n";
+    o << "   <span class=\"day-hours\">Thu: <strong>" << std::fixed << std::setprecision(1) << data.thuHours << "</strong></span>\n";
+    o << "   <span class=\"day-hours\">Fri: <strong>" << std::fixed << std::setprecision(1) << data.friHours << "</strong></span>\n";
+    o << "   <span class=\"day-hours\">Sat: <strong>" << std::fixed << std::setprecision(1) << data.satHours << "</strong></span>\n";
+    o << "   <span class=\"day-hours total-hours\">Total: <strong>" << std::fixed << std::setprecision(1) << data.hoursWorked << " hrs</strong></span>\n";
+    o << "  </div>\n";
+    o << " </div>\n";
 
     o << " <table class=\"pay-table\">\n";
     o << "  <tr><th colspan=\"2\">Earnings</th><th colspan=\"2\">Deductions</th></tr>\n";
@@ -254,10 +247,53 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
         return false;
     }
 
-    const auto employees = fetchAllEmployees(dbPath);
+    auto employees = fetchAllEmployees(dbPath);
     if (employees.empty()) {
         std::cerr << "exportPayslipsHtml: no employees found in payroll DB (" << dbPath << ").\n";
         return false;
+    }
+
+    // Fetch weekly attendance data from the WEEKLY_ATTENDANCE table in base payroll DB
+    // IMPORTANT: Hours worked ONLY come from weekly attendance, NOT from base payroll
+    // Weekly hours section ALWAYS displays, even if hours are 0
+    sqlite3* db = nullptr;
+    if (sqlite3_open(dbPath.c_str(), &db) == SQLITE_OK) {
+        for (auto& emp : employees) {
+            // Reset all hours to 0 - we ONLY use attendance data
+            emp.hoursWorked = 0.0;
+            emp.sunHours = 0.0;
+            emp.monHours = 0.0;
+            emp.tueHours = 0.0;
+            emp.wedHours = 0.0;
+            emp.thuHours = 0.0;
+            emp.friHours = 0.0;
+            emp.satHours = 0.0;
+
+            sqlite3_stmt* stmt = nullptr;
+            // Get the most recent week's attendance for this employee
+
+            if (const auto sql = "SELECT WEEK_START, SUN, MON, TUE, WED, THU, FRI, SAT FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID = ? ORDER BY WEEK_START DESC LIMIT 1;"; sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+                sqlite3_bind_int(stmt, 1, emp.id);
+
+                if (sqlite3_step(stmt) == SQLITE_ROW) {
+                    const unsigned char* weekStart = sqlite3_column_text(stmt, 0);
+                    emp.weekStartDate = weekStart ? reinterpret_cast<const char*>(weekStart) : "";
+                    emp.sunHours = sqlite3_column_double(stmt, 1);
+                    emp.monHours = sqlite3_column_double(stmt, 2);
+                    emp.tueHours = sqlite3_column_double(stmt, 3);
+                    emp.wedHours = sqlite3_column_double(stmt, 4);
+                    emp.thuHours = sqlite3_column_double(stmt, 5);
+                    emp.friHours = sqlite3_column_double(stmt, 6);
+                    emp.satHours = sqlite3_column_double(stmt, 7);
+
+                    // Calculate total hours from daily breakdown (ACTUAL hours worked from attendance)
+                    emp.hoursWorked = emp.sunHours + emp.monHours + emp.tueHours +
+                                     emp.wedHours + emp.thuHours + emp.friHours + emp.satHours;
+                }
+                sqlite3_finalize(stmt);
+            }
+        }
+        sqlite3_close(db);
     }
 
     std::string logoDataUri;
@@ -300,43 +336,42 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
 
   .payslip {
     border: 2px solid #d88c28;
-    padding: 4px;
-    border-radius: 4px;
+    padding: 3px;
+    border-radius: 3px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    font-size: 7px;
+    font-size: 6.5px;
     background: white;
   }
 
   .payslip-header {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding-bottom: 3px;
+    gap: 4px;
+    padding-bottom: 2px;
     border-bottom: 2px solid #d88c28;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
 
-  .company-logo { width: 35px; height: 35px; object-fit: contain; }
+  .company-logo { width: 30px; height: 30px; object-fit: contain; }
   .company-info { flex: 1; text-align: center; }
-  .payslip-title { font-size: 12px; font-weight: bold; color: #d88c28; }
+  .payslip-title { font-size: 10px; font-weight: bold; color: #d88c28; }
 
-  .info-section { margin: 4px 0 4px; }
-  .info-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .info-column { display: flex; flex-direction: column; gap: 2px; }
-  .info-label { font-weight: bold; color: #555; }
+  .info-section { margin: 2px 0; }
+  .info-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  .info-column { display: flex; flex-direction: column; gap: 1px; }
+  .info-label { font-weight: bold; color: #555; font-size: 6.5px; }
 
-  .weekly-hours-section { margin: 4px 0; }
-  .section-subtitle { font-weight: bold; color: #d88c28; font-size: 7.5px; margin-bottom: 2px; text-align: center; }
-  .weekly-hours-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 6.5px; }
-  .weekly-hours-table th { background: #d88c28; color: white; padding: 1px 2px; border: 1px solid #d88c28; text-align: center; font-size: 6.5px; }
-  .weekly-hours-table td { padding: 1px 2px; border: 1px solid #ddd; text-align: center; }
-  .weekly-hours-table td.total-cell { background: #f9f3e8; font-weight: bold; }
+  .weekly-hours-section { margin: 2px 0; background: #f9f3e8; padding: 2px 3px; border-radius: 2px; border: 1px solid #d88c28; }
+  .section-subtitle { font-weight: bold; color: #d88c28; font-size: 6px; margin-bottom: 1px; }
+  .hours-inline { display: flex; flex-wrap: wrap; gap: 2px; font-size: 5.5px; line-height: 1.2; }
+  .day-hours { padding: 0px 2px; background: white; border-radius: 1px; border: 1px solid #ddd; white-space: nowrap; }
+  .day-hours.total-hours { background: #d88c28; color: white; font-weight: bold; padding: 0px 3px; }
 
-  .pay-table { width: 100%; border-collapse: collapse; margin: 1px 0 2px; font-size: 7px; }
-  .pay-table th { background: #d88c28; color: white; padding: 2px; border: 1px solid #d88c28; font-size: 7px; }
-  .pay-table td { padding: 2px 3px; border: 1px solid #ddd; }
+  .pay-table { width: 100%; border-collapse: collapse; margin: 1px 0; font-size: 6px; }
+  .pay-table th { background: #d88c28; color: white; padding: 1px 2px; border: 1px solid #d88c28; font-size: 6px; }
+  .pay-table td { padding: 1px 2px; border: 1px solid #ddd; font-size: 6px; }
   .pay-table td.amount { text-align: right; }
   .pay-table tr.total-row { background: #f9f3e8; }
   .pay-table tr.total-row td { border-top: 2px solid #d88c28; }
@@ -346,17 +381,17 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
     justify-content: space-between;
     background: #d88c28;
     color: white;
-    padding: 3px 4px;
-    margin-bottom: 2px;
+    padding: 2px 3px;
+    margin: 1px 0;
     border-radius: 2px;
   }
-  .net-pay-label { font-size: 8px; font-weight: bold; }
-  .net-pay-amount { font-size: 9px; font-weight: bold; }
+  .net-pay-label { font-size: 7px; font-weight: bold; }
+  .net-pay-amount { font-size: 8px; font-weight: bold; }
 
-  .signature-section { display: flex; gap: 8px; margin-top: 8px; }
+  .signature-section { display: flex; gap: 5px; margin-top: 3px; }
   .signature-box { flex: 1; text-align: center; }
-  .signature-line { border-top: 1px solid #333; margin: 4px 0 1px; }
-  .signature-label { font-size: 6.5px; color: #666; }
+  .signature-line { border-top: 1px solid #333; margin: 2px 0 1px; }
+  .signature-label { font-size: 5.5px; color: #666; }
 
   @media print {
     .container { width: auto; height: auto; }
@@ -468,7 +503,15 @@ bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& lo
     for (const auto& emp : baseEmployees) {
         employee e = emp;
         e.weekStartDate = weekStartDate;
-        e.hasWeeklyData = false;
+        // Reset all hours to 0 - we ONLY use attendance data
+        e.hoursWorked = 0.0;
+        e.sunHours = 0.0;
+        e.monHours = 0.0;
+        e.tueHours = 0.0;
+        e.wedHours = 0.0;
+        e.thuHours = 0.0;
+        e.friHours = 0.0;
+        e.satHours = 0.0;
 
         // Try to fetch weekly attendance for this employee
         if (std::filesystem::exists(weekDbPath)) {
@@ -494,7 +537,6 @@ bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& lo
                         // Calculate total hours from daily breakdown
                         e.hoursWorked = e.sunHours + e.monHours + e.tueHours + e.wedHours +
                                        e.thuHours + e.friHours + e.satHours;
-                        e.hasWeeklyData = true;
                     }
                     sqlite3_finalize(stmt);
                 }
@@ -545,43 +587,42 @@ bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& lo
 
   .payslip {
     border: 2px solid #d88c28;
-    padding: 4px;
-    border-radius: 4px;
+    padding: 3px;
+    border-radius: 3px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    font-size: 7px;
+    font-size: 6.5px;
     background: white;
   }
 
   .payslip-header {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding-bottom: 3px;
+    gap: 4px;
+    padding-bottom: 2px;
     border-bottom: 2px solid #d88c28;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
 
-  .company-logo { width: 35px; height: 35px; object-fit: contain; }
+  .company-logo { width: 30px; height: 30px; object-fit: contain; }
   .company-info { flex: 1; text-align: center; }
-  .payslip-title { font-size: 12px; font-weight: bold; color: #d88c28; }
+  .payslip-title { font-size: 10px; font-weight: bold; color: #d88c28; }
 
-  .info-section { margin: 4px 0 4px; }
-  .info-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .info-column { display: flex; flex-direction: column; gap: 2px; }
-  .info-label { font-weight: bold; color: #555; }
+  .info-section { margin: 2px 0; }
+  .info-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  .info-column { display: flex; flex-direction: column; gap: 1px; }
+  .info-label { font-weight: bold; color: #555; font-size: 6.5px; }
 
-  .weekly-hours-section { margin: 4px 0; }
-  .section-subtitle { font-weight: bold; color: #d88c28; font-size: 7.5px; margin-bottom: 2px; text-align: center; }
-  .weekly-hours-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 6.5px; }
-  .weekly-hours-table th { background: #d88c28; color: white; padding: 1px 2px; border: 1px solid #d88c28; text-align: center; font-size: 6.5px; }
-  .weekly-hours-table td { padding: 1px 2px; border: 1px solid #ddd; text-align: center; }
-  .weekly-hours-table td.total-cell { background: #f9f3e8; font-weight: bold; }
+  .weekly-hours-section { margin: 2px 0; background: #f9f3e8; padding: 2px 3px; border-radius: 2px; border: 1px solid #d88c28; }
+  .section-subtitle { font-weight: bold; color: #d88c28; font-size: 6px; margin-bottom: 1px; }
+  .hours-inline { display: flex; flex-wrap: wrap; gap: 2px; font-size: 5.5px; line-height: 1.2; }
+  .day-hours { padding: 0px 2px; background: white; border-radius: 1px; border: 1px solid #ddd; white-space: nowrap; }
+  .day-hours.total-hours { background: #d88c28; color: white; font-weight: bold; padding: 0px 3px; }
 
-  .pay-table { width: 100%; border-collapse: collapse; margin: 1px 0 2px; font-size: 7px; }
-  .pay-table th { background: #d88c28; color: white; padding: 2px; border: 1px solid #d88c28; font-size: 7px; }
-  .pay-table td { padding: 2px 3px; border: 1px solid #ddd; }
+  .pay-table { width: 100%; border-collapse: collapse; margin: 1px 0; font-size: 6px; }
+  .pay-table th { background: #d88c28; color: white; padding: 1px 2px; border: 1px solid #d88c28; font-size: 6px; }
+  .pay-table td { padding: 1px 2px; border: 1px solid #ddd; font-size: 6px; }
   .pay-table td.amount { text-align: right; }
   .pay-table tr.total-row { background: #f9f3e8; }
   .pay-table tr.total-row td { border-top: 2px solid #d88c28; }
@@ -591,17 +632,17 @@ bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& lo
     justify-content: space-between;
     background: #d88c28;
     color: white;
-    padding: 3px 4px;
-    margin-bottom: 2px;
+    padding: 2px 3px;
+    margin: 1px 0;
     border-radius: 2px;
   }
-  .net-pay-label { font-size: 8px; font-weight: bold; }
-  .net-pay-amount { font-size: 9px; font-weight: bold; }
+  .net-pay-label { font-size: 7px; font-weight: bold; }
+  .net-pay-amount { font-size: 8px; font-weight: bold; }
 
-  .signature-section { display: flex; gap: 8px; margin-top: 8px; }
+  .signature-section { display: flex; gap: 5px; margin-top: 3px; }
   .signature-box { flex: 1; text-align: center; }
-  .signature-line { border-top: 1px solid #333; margin: 4px 0 1px; }
-  .signature-label { font-size: 6.5px; color: #666; }
+  .signature-line { border-top: 1px solid #333; margin: 2px 0 1px; }
+  .signature-label { font-size: 5.5px; color: #666; }
 
   @media print {
     .container { width: auto; height: auto; }
