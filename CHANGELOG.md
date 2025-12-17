@@ -1,76 +1,91 @@
 ## What's Changed
 
-### 🎉 Major Features & Enhancements
+### Automatic Attendance Synchronization
+- **New employees automatically prepared for attendance tracking** when added to base_payroll.db
+- **Employee deletion automatically removes all attendance records** across all weekly databases
+- **Employee ID updates automatically propagate** to all attendance records in both base_payroll.db and weekly databases
+- Scans all 52 weekly attendance databases (12 months) to ensure complete synchronization
+- Provides detailed logging of attendance record updates and deletions
+- Ensures data integrity between employee records and attendance tracking
 
-#### Print & Report Generation
-- Added comprehensive project report generation with HTML export to browser
-- Implemented pagination for materials in project report with enhanced styling and page breaks
-- Introduced HTML payslip generator with 2x4 layout options and improved margins
-- Implemented project and material structures with database fetching capabilities
-- Enhanced `print.cpp` and `print.h` with live data integration matching payslip styling
-- Added `openFileInBrowser` function to open generated reports in the system's default browser
+### Bug Fixes
+- Fixed ImGui "Missing EndGroup()" error in Generate Reports section
+- Removed leftover BeginChild/EndChild containers from UI refactoring
+- Corrected ImGui element pairing for proper UI rendering
+- **Fixed payslip generation to fetch data from database**: All payslip data now properly retrieved from WEEKLY_ATTENDANCE table
+- **Fixed missing weekly hours table in payslips**: Table now displays when attendance data exists in database
+- **Implemented duplicate log message detection**: Repeated log messages are combined into single line with count (e.g., "message (x5)")
+- **CRITICAL: Fixed employee ID data type mismatch** between EMPLOYEES (INTEGER) and WEEKLY_ATTENDANCE (now INTEGER)
+- **Ensured payroll computation properly links** base payroll and weekly attendance via matching INTEGER employee IDs
+- Employee IDs now stored as numeric values (1, 2, 3...) in both tables for proper database joins
+- **Fixed payslip distortion**: Reduced padding, margins, and font sizes to fit all content (including weekly hours) in 2x4 grid layout without overflow
 
-#### UI Improvements
-- Enhanced UI with project report printing and database viewer features (`ui.cpp`)
-- Implemented employee and project database viewers with enhanced UI elements
-- Implemented payroll computation functions and enhanced payroll UI
-- Simplified login UI by removing unused padding and error handling code
-- Refactored UI code to use constexpr for card dimensions for better performance
-- Enhanced passkey hashing functionality in UI components with improved logic
-- Renamed `basicAuth` to `mainAuth` for better clarity
+### Payslip Weekly Hours Table
+- **Weekly hours section now ALWAYS displays**, even when hours are 0 or no attendance data exists
+- Daily hours shown as compact inline badges: `Sun: 0.0  Mon: 0.0  Tue: 0.0` etc. (shows 0.0 when no data)
+- Total hours highlighted with orange background matching payslip theme
+- Display appears in light orange box with rounded corners
+- **Hours worked ONLY from weekly attendance database** - base payroll hours are ignored
+- **Employee IDs use numeric format only** (1, 2, 3...) matching base_payroll.db INTEGER PRIMARY KEY
+- Fetches most recent week's attendance data for each employee
+- Shows detailed daily work hours (Sunday through Saturday)
+- **Critical:** All payslip calculations based solely on attendance data, NOT base payroll HOURS_WORK field
 
-#### Monitoring System
-- Extended monitoring tools (`monitor.cpp/.h`) with richer project management and expense tracking
-- Added worker and equipment monitoring functions with cost calculations
-- Enhanced project management with ID checks and rearrangement functionality
-- Added payroll attendance directory creation functionality
-- Removed unused code and comments from monitor.cpp for cleaner codebase
-- Implemented background thread for periodic employee ID monitoring and rearrangement (`main.cpp`)
+### Input Validation System
+- Implemented comprehensive input validation system with multiple validation types (NAME, POSITION, SALARY, HOURS, ADVANCE, DATE_FORMAT, EMPLOYEE_ID, PROJECT_ID_FORMAT, QUANTITY, MATERIAL_ID)
+- Added real-time validation with visual feedback - invalid inputs display with bright red background (`ImVec4(0.6f, 0.15f, 0.15f, 1.0f)`)
+- Applied validation to all input fields across Employee Management, Project Management, and Materials & Expenses sections
+- Validation rules:
+  - Names and positions: Letters and spaces only (max 100/50 chars)
+  - Salary/prices: Positive decimal numbers only
+  - Hours: Decimal numbers in 0-168 range
+  - Advance: Non-negative decimal numbers (can be empty)
+  - Dates: Strict ISO 8601 format (YYYY-MM-DD) with date range validation
+  - Employee IDs: Positive integers only
+  - Project IDs: PRJ-##### format
 
-#### Database & Data Management
-- Updated database schema and added `fetchCell` function for improved data retrieval
-- Improved input validation and simplified SQL query preparation in `db.cpp`
-- Modified PROJECT_LIST table creation to avoid dropping existing table
-- Added file existence check before creating project database for better reliability
-- Removed obsolete materials database references for cleaner architecture
-- Added algorithm header for improved functionality
-- Updated `addProject` function to include projectId and improve parameter naming
+### Year-Based Attendance Directory System
+- Implemented automatic year-based attendance directory organization
+- Attendance databases now stored in `data/payroll/attendance/{YEAR}/` structure
+- Directory path automatically updates with current year at application startup
+- Uses lambda function initialization in config.cpp for dynamic year inclusion
+- Weekly attendance databases follow format: `MM-DD-DD.db` within year folder
 
-#### Payroll System
-- Refined payroll modules (`payroll.cpp/.h`) with attendance helpers and standardized naming
-- Standardized class naming and added attendance record functions
-- Removed unused attendance record functions from payroll.cpp
-- Removed unnecessary whitespace and comments for code cleanliness
-- Updated application titles and added payroll attendance directory
+### UI Improvements
+- Reorganized "Generate Reports" section in Summary UI with horizontal layout
+- Payslip Reports: All controls in single row (Print All button, week dropdown, Print Week button)
+- **Replaced text input with dropdown for week selection** in payslip generation (matches weekly attendance UI)
+- Week dropdown shows all Sundays in current year (e.g., "01/05-11", "01/12-18")
+- Project Reports: All controls in single row (Project ID input, Print Report button)
+- Removed child containers for cleaner, more compact design
+- Added validation for Employee ID in Weekly Attendance Management with red background indicator
+- Improved spacing and alignment throughout the UI
 
-#### System & Core
-- Updated `system.cpp/.h` to expose project report workflows and ensure logout returns to the login UI
-- Added project report generation function in system module
-- Enhanced UI flow management by encapsulating login and main UI logic in runUIFlow function
-- Improved application exit handling by adding null check for runner parameters
-- Streamlined application exit handling and improved parameter access
+### Report Generation Fixes
+- Fixed duplicate browser tabs opening when generating reports
+- Removed redundant `system::openFileInBrowser()` calls from UI layer
+- Print functions (`exportPayslipsHtml`, `exportPayslipsHtmlForWeek`, `exportProjectReportHtml`) now handle browser opening internally
+- Only one browser tab now opens per report generation
 
-### 🔒 Security & Authentication
-- Updated authentication logic to use hashed password with variable hash length
-- Updated `hashKey` function to accept variable hash length with validation
-- Updated authentication methods to include standard and admin users with role changes
-- Renamed `basicAuth` to `mainAuth` throughout the codebase for consistency
-- Enhanced username verification in `auth.cpp`
-- Removed deprecated admin authentication method
+### Application Shutdown Enhancement
+- Enhanced `appShutdown()` function with comprehensive error handling
+- Added try-catch blocks around database encryption, backup cleanup, and backup creation operations
+- Improved graceful shutdown to prevent "unexpected close" system warnings
+- Application now exits cleanly even if backup operations fail
+- Detailed error logging for shutdown operations
+- Removed `exit(0)` call - application returns normally from `main()`
 
-### 🛠️ Code Quality & Refactoring
-- Streamlined hash computation by combining variable declaration and condition check in `cryptography.cpp`
-- Corrected typo in boundaries section and removed unused includes in `monitor.h`
-- Improved code maintainability across multiple modules
+### Configuration Updates
+- Added `g_assetsDirectory` to application configuration
+- Added `g_payrollAttendanceDirectory` with year-based initialization
+- Improved config initialization with automatic year-based path setup
 
-### 🎨 Assets & Resources
-- Added `app_icon.png` application icon for improved branding
+### Code Quality
+- Refactored monitor.cpp to use config-based attendance directory paths
+- Removed hardcoded year paths throughout the codebase
+- Enhanced error messages and logging for better debugging
+- Improved validation logic consistency across all UI components
 
-### 🖥️ Platform Support
-- Fixed macOS Intel build in GitHub Actions to use `macos-13` runner instead of `macos-15`
-- Ensured proper architecture-matched libraries for x86_64 builds
-- Updated deployment target configuration for Intel and ARM64 builds
-- Enhanced cross-platform compatibility
 
 ## Supported Platforms
 
@@ -120,8 +135,9 @@ No additional dependencies required.
 
 ## Support
 
-For issues, questions, or feature requests, please visit the [Issues](https://github.com/joshua-9402/cpet-140-final-project/issues) page.
+For issues, questions, or feature requests, please visit the [Issues](
+https://github.com/joshua-9402/cpet-140-final-project/issues) page.
 
 ## Documentation
 
-See the [README](../README.md) for full documentation and usage instructions.
+See the [README](README.md) for full documentation and usage instructions.
