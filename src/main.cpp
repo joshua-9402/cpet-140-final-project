@@ -52,20 +52,20 @@ void systemCheck() {
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
 
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory);}
-    if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/")) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "/");}
+    if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_payrollAttendanceDirectory)) {
+        system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_payrollAttendanceDirectory);
+    }
 
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory);}
 
     // Only create base DBs if neither plaintext nor encrypted files exist
     const std::string payrollDb = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
-    const std::string payrollEnc = payrollDb + ".enc";
-    if (!system::searchFile(payrollDb) && !system::searchFile(payrollEnc)) {
+    if (const std::string payrollEnc = payrollDb + ".enc"; !system::searchFile(payrollDb) && !system::searchFile(payrollEnc)) {
         db::createDatabase(payrollDb);
     }
     const std::string projectDb = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
-    const std::string projectEnc = projectDb + ".enc";
-    if (!system::searchFile(projectDb) && !system::searchFile(projectEnc)) {
+    if (const std::string projectEnc = projectDb + ".enc"; !system::searchFile(projectDb) && !system::searchFile(projectEnc)) {
         db::createDatabase(projectDb);
     }
 }
@@ -110,7 +110,7 @@ int main() {
     // Background thread to monitor and rearrange employee IDs and project IDs periodically.
     std::thread([] {
         while (s_runBackground.load(std::memory_order_relaxed)) {
-            // Avoid touching databases while not authenticated (may be encrypted)
+            // Avoid touching databases while not authenticated (maybe encrypted)
             if (appConfig::g_auth) {
                 if (db::checkEmployeeChanges()) {
                     db::rearrangeEmployeeIDs();
@@ -128,6 +128,5 @@ int main() {
 
     // Perform cleanup after UI flow exits
     system::appShutdown();
-
     return 0;
 }
