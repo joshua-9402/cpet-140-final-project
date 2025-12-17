@@ -82,7 +82,7 @@ bool db::createDatabase(const std::string& p_dbName) {
         );
         // Integrate weekly attendance into base_payroll.db as a central ledger
         tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
-            "EMPLOYEE_ID TEXT NOT NULL,"
+            "EMPLOYEE_ID INTEGER NOT NULL,"
             "WEEK_START TEXT NOT NULL,"
             "SUN REAL NOT NULL,"
             "MON REAL NOT NULL,"
