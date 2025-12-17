@@ -526,15 +526,75 @@ static void summaryUI() {
     ImGui::Spacing();
 
     static char projectIDForReport[128] = "";
-    static char weekStartDate[128] = "";
 
-    // Payslip Generation Section
-    ImGui::BeginChild("PayslipReports", ImVec2(0, 150), true);
-    ImGui::Spacing();
-    ImGui::TextColored(ImVec4(0.2f, 0.6f, 0.8f, 1.0f), "Payslip Reports");
-    ImGui::Spacing();
+    // Generate week options for payslip dropdown (same logic as weekly attendance)
+    static std::vector<std::string> payslipWeekOptions;
+    static std::vector<std::string> payslipWeekDates;
+    static int selectedPayslipWeekIndex = 0;
 
-    if (ImGui::Button("Print All Payslips (Current)", ImVec2(350.0f, 50.0f))) {
+    if (payslipWeekOptions.empty()) {
+        const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
+        const int currentMonth = system::fetchTime(system::PartDateTime::MONTH);
+        const int currentDay = system::fetchTime(system::PartDateTime::DAY);
+
+        // Helper lambda to get day of week (0=Sunday, 6=Saturday)
+        auto getDayOfWeek = [](int year, int month, int day) -> int {
+            if (month < 3) {
+                month += 12;
+                year--;
+            }
+            int q = day;
+            int m = month;
+            int k = year % 100;
+            int j = year / 100;
+            int h = (q + ((13 * (m + 1)) / 5) + k + (k / 4) + (j / 4) - (2 * j)) % 7;
+            return (h + 6) % 7;
+        };
+
+        auto getDaysInMonth = [currentYear](int month) -> int {
+            if (month == 2) {
+                bool isLeap = (currentYear % 4 == 0 && currentYear % 100 != 0) || (currentYear % 400 == 0);
+                return isLeap ? 29 : 28;
+            }
+            if (month == 4 || month == 6 || month == 9 || month == 11) return 30;
+            return 31;
+        };
+
+        for (int month = 1; month <= 12; month++) {
+            const int daysInMonth = getDaysInMonth(month);
+            for (int day = 1; day <= daysInMonth; day++) {
+                if (getDayOfWeek(currentYear, month, day) == 0) {
+                    int endDay = day + 6;
+                    int endMonth = month;
+                    if (endDay > daysInMonth) {
+                        endDay -= daysInMonth;
+                        endMonth = (month % 12) + 1;
+                    }
+
+                    std::ostringstream label, dateRange;
+                    label << std::setfill('0') << std::setw(2) << month << "/"
+                          << std::setw(2) << day;
+                    if (endMonth != month) {
+                        label << "-" << std::setw(2) << endMonth << "/" << std::setw(2) << endDay;
+                    } else {
+                        label << "-" << std::setw(2) << endDay;
+                    }
+
+                    dateRange << currentYear << "-" << std::setfill('0')
+                              << std::setw(2) << month << "-" << std::setw(2) << day;
+
+                    payslipWeekOptions.push_back(label.str());
+                    payslipWeekDates.push_back(dateRange.str());
+                }
+            }
+        }
+    }
+
+    // Payslip Reports - All in one row
+    ImGui::TextColored(ImVec4(0.2f, 0.6f, 0.8f, 1.0f), "Payslip Reports:");
+    ImGui::SameLine(200.0f);
+
+    if (ImGui::Button("Print Payslips (Current)", ImVec2(280.0f, 40.0f))) {
         const std::string outFile = appConfig::g_dataDirectory + "payslips_" +
                                    std::to_string(system::fetchTime(system::PartDateTime::YEAR)) + "_" +
                                    std::to_string(system::fetchTime(system::PartDateTime::MONTH)) + "_" +
@@ -548,23 +608,31 @@ static void summaryUI() {
     }
 
     ImGui::SameLine();
-    ImGui::BeginGroup();
-    ImGui::Text("Week Start Date (YYYY-MM-DD):");
-    ImGui::SetNextItemWidth(200.0f);
-    ImGui::InputText("##weekStartDate", weekStartDate, IM_ARRAYSIZE(weekStartDate));
-    if (ImGui::Button("Print Payslips for Specific Week", ImVec2(350.0f, 50.0f))) {
-        const std::string weekDateStr(weekStartDate);
-
-        if (const std::string validatedDate = system::validateInput(system::ValidationType::DATE_FORMAT, weekDateStr); validatedDate.empty()) {
-            system::logMessage(system::messageClassification::WARNING, "Invalid week start date format. Use YYYY-MM-DD (must be a Sunday)\n");
-        } else {
-            const std::string outFile = appConfig::g_dataDirectory + "payslips_week_" + validatedDate + ".html";
-
-            if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); exportPayslipsHtmlForWeek(outFile, logoPath, validatedDate)) {
-                system::logMessage(system::messageClassification::INFO, "Weekly payslips exported successfully to: " + outFile + "\n");
-            } else {
-                system::logMessage(system::messageClassification::ERROR, "Failed to export weekly payslips\n");
+    ImGui::Text("Week:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(150.0f);
+    if (ImGui::BeginCombo("##weekSelectorPayslip", payslipWeekOptions[selectedPayslipWeekIndex].c_str())) {
+        for (int i = 0; i < payslipWeekOptions.size(); i++) {
+            bool isSelected = (selectedPayslipWeekIndex == i);
+            if (ImGui::Selectable(payslipWeekOptions[i].c_str(), isSelected)) {
+                selectedPayslipWeekIndex = i;
             }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+
+    if (ImGui::Button("Print Payslips for Week", ImVec2(250.0f, 40.0f))) {
+        const std::string weekDateStr = payslipWeekDates[selectedPayslipWeekIndex];
+        const std::string outFile = appConfig::g_dataDirectory + "payslips_week_" + weekDateStr + ".html";
+
+        if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); exportPayslipsHtmlForWeek(outFile, logoPath, weekDateStr)) {
+            system::logMessage(system::messageClassification::INFO, "Weekly payslips exported successfully to: " + outFile + "\n");
+        } else {
+            system::logMessage(system::messageClassification::ERROR, "Failed to export weekly payslips\n");
         }
     }
 
@@ -595,10 +663,6 @@ static void summaryUI() {
             system::logMessage(system::messageClassification::ERROR, "Please enter a Project ID\n");
         }
     }
-    ImGui::Spacing();
-    ImGui::EndChild();
-
-    ImGui::Spacing();
     ImGui::Spacing();
 
     // Footer with current date/time
