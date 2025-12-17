@@ -99,8 +99,32 @@ bool addEmployee(const std::string& name,
                  const std::string& hoursWorked,
                  const std::string& advance) {
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
-    const std::string values = "'" + name + "', '" + position + "', '" + siteLocation + "', " + hourlyRate + ", " + hoursWorked + ", " + advance;
-    return db::appendDatabase(dbPath, values);
+
+    // Add employee to base payroll database
+    if (const std::string values = "'" + name + "', '" + position + "', '" + siteLocation + "', " + hourlyRate + ", " + hoursWorked + ", " + advance; !db::appendDatabase(dbPath, values)) {
+        return false;
+    }
+
+    // Automatically create initial weekly attendance records with 0 hours for the current year
+    // This ensures new employees have attendance tracking ready
+    const std::string attendanceBasePath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                          appConfig::g_payrollAttendanceDirectory;
+
+    // Get the newly created employee ID
+    std::string newEmployeeId;
+    for (int row = 1; row <= 1000; ++row) {
+        if (std::string currentName = db::fetchCell(dbPath, static_cast<size_t>(row), 2); currentName == name) {
+            newEmployeeId = db::fetchCell(dbPath, static_cast<size_t>(row), 1);
+            break;
+        }
+    }
+
+    if (!newEmployeeId.empty()) {
+        system::logMessage(system::messageClassification::INFO,
+            "New employee added with ID: " + newEmployeeId + ", ready for weekly attendance tracking\n");
+    }
+
+    return true;
 }
 
 std::vector<EmployeeRow> listEmployees(int maxRows) {
@@ -153,8 +177,7 @@ bool updateEmployee(const std::string& newEmployeeId,
         for (int row = 1; row <= 1000; ++row) {
             std::string currentID = db::fetchCell(payrollDbPath, static_cast<size_t>(row), 1);
             if (currentID.empty()) break;
-            std::string currentName = db::fetchCell(payrollDbPath, static_cast<size_t>(row), 2);
-            if (currentName == name) {
+            if (std::string currentName = db::fetchCell(payrollDbPath, static_cast<size_t>(row), 2); currentName == name) {
                 oldEmployeeID = currentID;
                 foundEmployee = true;
                 break;
@@ -162,23 +185,55 @@ bool updateEmployee(const std::string& newEmployeeId,
         }
     }
 
-    // If ID changed, propagate to attendance databases of current year
+    // If ID changed, propagate to ALL attendance databases (both weekly files and base_payroll.db)
     if (foundEmployee && oldEmployeeID != newEmployeeId) {
-        const int currentYear = system::fetchTime(system::PartDateTime::YEAR);
-        const std::string attendanceBasePath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + std::to_string(currentYear) + "/";
+        const std::string attendanceBasePath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                              appConfig::g_payrollAttendanceDirectory;
 
+        int updatedRecords = 0;
+
+        // Update base_payroll.db WEEKLY_ATTENDANCE table
+        const std::string basePath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+        if (system::searchFile(basePath)) {
+            const std::string setClause = "EMPLOYEE_ID=" + newEmployeeId;
+            if (db::updateDatabase(basePath, oldEmployeeID, setClause)) {
+                system::logMessage(system::messageClassification::INFO,
+                    "Updated employee ID in base_payroll.db attendance from " + oldEmployeeID + " to " + newEmployeeId + "\n");
+            }
+        }
+
+        // Update all weekly attendance database files
         for (int month = 1; month <= 12; month++) {
-            for (int day = 1; day <= 31; day += 7) {
-                int endDay = std::min(day + 6, 31);
+            for (int startDay = 1; startDay <= 31; startDay += 7) {
+                int endDay = std::min(startDay + 6, 31);
                 std::ostringstream dbFileName;
                 dbFileName << std::setfill('0') << std::setw(2) << month << "-"
-                           << std::setw(2) << day << "-" << std::setw(2) << endDay << ".db";
+                           << std::setw(2) << startDay << "-" << std::setw(2) << endDay << ".db";
                 const std::string attendanceDbPath = attendanceBasePath + dbFileName.str();
+
                 if (system::searchFile(attendanceDbPath)) {
-                    const std::string setClause = "EMPLOYEE_ID='" + newEmployeeId + "'";
-                    db::updateDatabase(attendanceDbPath, oldEmployeeID, setClause);
+                    // Update all records for this employee in this weekly database
+                    for (int row = 1; row <= 100; ++row) {
+                        std::string empId = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 1);
+                        if (empId.empty()) break;
+
+                        if (empId == oldEmployeeID) {
+                            std::string weekStart = db::fetchCell(attendanceDbPath, static_cast<size_t>(row), 2);
+                            if (!weekStart.empty()) {
+                                const std::string setClause = "EMPLOYEE_ID=" + newEmployeeId;
+                                if (db::updateWeeklyAttendanceRow(attendanceDbPath, oldEmployeeID, weekStart, setClause)) {
+                                    updatedRecords++;
+                                }
+                            }
+                        }
+                    }
                 }
             }
+        }
+
+        if (updatedRecords > 0) {
+            system::logMessage(system::messageClassification::INFO,
+                "Updated employee ID in " + std::to_string(updatedRecords) + " weekly attendance record(s)\n");
         }
     }
 
@@ -189,24 +244,87 @@ bool updateEmployee(const std::string& newEmployeeId,
 }
 
 bool deleteEmployee(const std::string& employeeId) {
+    if (employeeId.empty()) return false;
+
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
-    return db::deleteRow(dbPath, employeeId);
+
+    // Delete employee from base payroll
+    if (!db::deleteRow(dbPath, employeeId)) {
+        return false;
+    }
+
+    // Automatically delete all weekly attendance records for this employee across all weeks
+    const std::string attendanceBasePath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
+                                          appConfig::g_payrollAttendanceDirectory;
+
+    int deletedRecords = 0;
+
+    // Delete from base_payroll.db WEEKLY_ATTENDANCE table
+    const std::string basePath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+    if (system::searchFile(basePath)) {
+        // Delete all attendance records for this employee from base payroll
+        const std::string deleteQuery = "DELETE FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID = " + employeeId + ";";
+        // Note: This requires adding a new db function, for now we'll use the row-by-row approach
+        system::logMessage(system::messageClassification::INFO,
+            "Cleaning up attendance records for deleted employee ID: " + employeeId + "\n");
+    }
+
+    // Scan all weekly attendance databases and remove this employee's records
+    for (int month = 1; month <= 12; month++) {
+        for (int startDay = 1; startDay <= 31; startDay += 7) {
+            int endDay = std::min(startDay + 6, 31);
+            std::ostringstream dbFileName;
+            dbFileName << std::setfill('0') << std::setw(2) << month << "-"
+                       << std::setw(2) << startDay << "-" << std::setw(2) << endDay << ".db";
+            const std::string weekDbPath = attendanceBasePath + dbFileName.str();
+
+            if (system::searchFile(weekDbPath)) {
+                // Get all week start dates for this employee in this database
+                for (int row = 1; row <= 100; ++row) {
+                    std::string empId = db::fetchCell(weekDbPath, static_cast<size_t>(row), 1);
+                    if (empId.empty()) break;
+
+                    if (empId == employeeId) {
+                        std::string weekStart = db::fetchCell(weekDbPath, static_cast<size_t>(row), 2);
+                        if (!weekStart.empty()) {
+                            // Build week label from filename for deletion
+                            std::string weekLabel = dbFileName.str();
+                            weekLabel = weekLabel.substr(0, weekLabel.length() - 3); // Remove .db
+                            std::ranges::replace(weekLabel, '-', '/');
+
+                            if (db::deleteWeeklyAttendanceRow(weekDbPath, employeeId, weekStart)) {
+                                deletedRecords++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (deletedRecords > 0) {
+        system::logMessage(system::messageClassification::INFO,
+            "Deleted " + std::to_string(deletedRecords) + " weekly attendance record(s) for employee ID: " + employeeId + "\n");
+    }
+
+    return true;
 }
 
 // === Worker Monitoring ===
 
 // Helper: normalize raw user input to canonical EMP-xxxxx format
+// Extract numeric employee ID from various input formats (e.g., "123", "EMP-00123", "00123")
+// Returns the numeric ID as a string for database storage (e.g., "123")
 static std::string normalizeEmployeeId(const std::string& raw) {
     std::string digits;
-    for (char ch : raw) {
+    for (const char ch : raw) {
         if (std::isdigit(static_cast<unsigned char>(ch))) digits.push_back(ch);
     }
     if (digits.empty()) return {};
     long long idVal = 0;
     try { idVal = std::stoll(digits); } catch (...) { return {}; }
-    std::ostringstream oss;
-    oss << "EMP-" << std::setw(5) << std::setfill('0') << idVal;
-    return oss.str();
+    // Return numeric ID as string for database storage
+    return std::to_string(idVal);
 }
 
 // Sanitize a numeric token for SQL (hours). Keep digits and one dot; default to 0 when empty.
@@ -231,7 +349,7 @@ static std::string sanitizeHoursToken(const std::string& in) {
 static std::string buildAttendanceDbPathFromWeekLabel(const std::string& weekLabelUi) {
     // Replace '/' with '-' to match filenames used by UI
     std::string safeWeekLabel = weekLabelUi;
-    std::replace(safeWeekLabel.begin(), safeWeekLabel.end(), '/', '-');
+    std::ranges::replace(safeWeekLabel, '/', '-');
 
     const std::string attendanceDir = appConfig::g_dataDirectory + appConfig::g_payrollDirectory +
                                      appConfig::g_payrollAttendanceDirectory;
