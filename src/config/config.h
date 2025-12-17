@@ -34,6 +34,7 @@ class appConfig {
         static std::string g_errorTitle;          // Error Window Title
 
         static std::string g_fontName;            // Default font path (relative to assets)
+        static std::string g_assetsDirectory;     // Assets directory path
         static std::string g_dataDirectory;       // Data directory path
         static std::string g_projectDirectory;    // Projects directory path
         static std::string g_payrollDirectory;    // Payroll database directory path
