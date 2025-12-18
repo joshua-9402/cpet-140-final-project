@@ -819,6 +819,18 @@ std::string system::validateInput(const ValidationType validationType, const std
         case ValidationType::MATERIAL_ID:
             return isNotEmpty(input) ? input : "";
 
+        case ValidationType::SITE_LOCATION:
+            if (!isNotEmpty(input)) return "";
+            // Accept "Main Office", "Warehouse", or "PRJ-XXXXX" format
+            if (input == "Main Office" || input == "Warehouse") {
+                return input;
+            }
+            // Check if it matches PRJ-XXXXX format
+            if (isValidProjectID(input)) {
+                return input;
+            }
+            return "";
+
         default:
             logMessage(messageClassification::WARNING, "Unknown validation type requested\n");
             return "";

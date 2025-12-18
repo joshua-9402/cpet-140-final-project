@@ -128,7 +128,8 @@ class system {
             HOURS,                  // Validate hours (numbers and decimal point only, 0-168)
             ADVANCE,                // Validate advance (numbers and decimal point only, >= 0, can be empty)
             QUANTITY,               // Validate quantity (non-negative decimal)
-            MATERIAL_ID             // Validate material ID (not empty)
+            MATERIAL_ID,            // Validate material ID (not empty)
+            SITE_LOCATION           // Validate site location (Main Office, Warehouse, or PRJ-XXXXX)
         };
 
         // Validate input based on validation type
