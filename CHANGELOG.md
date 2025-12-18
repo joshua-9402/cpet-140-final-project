@@ -35,16 +35,6 @@
   - ✅ Created `verify_release_build.ps1` and `verify_release_build.bat` for manual verification
   - ✅ Uses `dumpbin` to inspect executable dependencies post-build
 
-- **Multi-Layer Protection Strategy**
-  1. **Global environment** - Set `CMAKE_BUILD_TYPE=Release` workflow-wide
-  2. **Pre-project configuration** - Sets MSVC runtime library before any targets
-  3. **Global compiler flags** - Removes debug flags, forces release flags for all platforms
-  4. **Dependency configuration** - Ensures FetchContent uses correct runtime
-  5. **Target-specific enforcement** - Double-checks main executable settings
-  6. **Explicit command-line flags** - Override any defaults with explicit Release settings
-  7. **Post-build verification** - Validates final executable doesn't link debug DLLs
-  8. **Visual feedback** - Red banners and warnings in build logs
-
 - **What This Fixes**
   - ❌ **Before:** `ucrtbased.dll`, `vcruntime140d.dll` → Error 0xc000007b on Windows
   - ✅ **After:** `ucrtbase.dll`, `vcruntime140.dll` → Works with VC++ Redistributable
