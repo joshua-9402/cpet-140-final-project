@@ -1,7 +1,5 @@
 ## What's Changed
 
-### December 18, 2024 - Employee Management & Project Payroll Enhancements
-
 #### Site Location Dropdown with Dynamic Project List
 - **Replaced text input with dropdown** for Site Location in Employee Management
   - Fixed options: "Main Office" and "Warehouse"
