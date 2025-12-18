@@ -100,6 +100,60 @@ target_include_directories(structuracost PRIVATE
         ${CMAKE_SOURCE_DIR}/dependencies/sqlite
 )
 
+# Windows-specific configuration to fix 0xc000007b error
+if(WIN32)
+    # Ensure we're building for the correct architecture
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(CMAKE_GENERATOR_PLATFORM x64)
+        add_definitions(-D_WIN64)
+    else()
+        set(CMAKE_GENERATOR_PLATFORM Win32)
+    endif()
+
+    # Set runtime library to MultiThreadedDLL for Release, MultiThreadedDebugDLL for Debug
+    set_property(TARGET structuracost PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+    # Copy required DLLs to output directory after build
+    add_custom_command(TARGET structuracost POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Checking for required DLLs..."
+        COMMENT "Post-build DLL check for Windows"
+    )
+
+    # If libsodium.dll exists in dependencies, copy it
+    file(GLOB_RECURSE SODIUM_DLLS "${CMAKE_SOURCE_DIR}/dependencies/libsodium/*.dll")
+    if(SODIUM_DLLS)
+        # Filter for correct architecture
+        foreach(DLL_PATH ${SODIUM_DLLS})
+            string(TOUPPER "${DLL_PATH}" DLL_PATH_UPPER)
+            if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+                # 64-bit build - look for x64/Win64/AMD64 DLLs
+                if(DLL_PATH_UPPER MATCHES "X64" OR DLL_PATH_UPPER MATCHES "WIN64" OR DLL_PATH_UPPER MATCHES "AMD64")
+                    add_custom_command(TARGET structuracost POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "${DLL_PATH}"
+                        "$<TARGET_FILE_DIR:structuracost>/libsodium.dll"
+                        COMMENT "Copying libsodium.dll (x64) to output directory"
+                    )
+                    break()
+                endif()
+            else()
+                # 32-bit build - look for Win32/x86 DLLs
+                if(DLL_PATH_UPPER MATCHES "WIN32" OR DLL_PATH_UPPER MATCHES "\\bX86\\b")
+                    add_custom_command(TARGET structuracost POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "${DLL_PATH}"
+                        "$<TARGET_FILE_DIR:structuracost>/libsodium.dll"
+                        COMMENT "Copying libsodium.dll (Win32) to output directory"
+                    )
+                    break()
+                endif()
+            endif()
+        endforeach()
+    endif()
+endif()
+
+
 # -------------------------------
 # libsodium configuration
 # -------------------------------
@@ -400,6 +454,8 @@ elseif(WIN32)
         "Delete '$DESKTOP\\\\StructuraCost.lnk'")
     # Add PowerShell script to install directory for post-install libsodium download
     install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1" DESTINATION ".")
+    # Add Windows README
+    install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt" DESTINATION ".")
     # Add custom NSIS commands to run PowerShell script after installation
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
         ExecWait 'powershell -ExecutionPolicy Bypass -File \\\"$INSTDIR\\\\install_libsodium.ps1\\\" -InstallDir \\\"$INSTDIR\\\"'
