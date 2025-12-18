@@ -65,6 +65,15 @@ struct material {
     double unitPrice{0.0};
 };
 
+struct payrollEmployee {
+    std::string id;
+    std::string name;
+    std::string position;
+    double hourlyRate{0.0};
+    double totalHours{0.0};
+    double totalCost{0.0};
+};
+
 struct project {
     std::string id;
     std::string name;
@@ -72,7 +81,9 @@ struct project {
     std::string startDate;
     std::string note;
     std::vector<material> materials;
+    std::vector<payrollEmployee> payrollEmployees;
     double totalMaterialCost{0.0};
+    double totalPayrollCost{0.0};
 };
 
 
@@ -680,6 +691,41 @@ static std::vector<material> fetchProjectMaterials(const std::string &dbPath) {
     return list;
 }
 
+// Fetch payroll employees from a project expense database
+static std::vector<payrollEmployee> fetchProjectPayroll(const std::string &dbPath) {
+    std::vector<payrollEmployee> list;
+
+    sqlite3* db = nullptr;
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_open(dbPath.c_str(), &db) != SQLITE_OK) {
+        system::logMessage(system::messageClassification::ERROR, std::string("fetchProjectPayroll: failed to open DB: ") + dbPath + " -> " + (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") + "\n");
+        if (db) sqlite3_close(db);
+        return list;
+    }
+
+    if (const auto sql = "SELECT EMPLOYEE_ID, EMPLOYEE_NAME, POSITION, HOURLY_RATE, TOTAL_HOURS, TOTAL_COST FROM PAYROLL_EXPENSES ORDER BY EMPLOYEE_ID;"; sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        system::logMessage(system::messageClassification::ERROR, std::string("fetchProjectPayroll: prepare failed: ") + (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") + "\n");
+        sqlite3_close(db);
+        return list;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        payrollEmployee p;
+        p.id = std::to_string(sqlite3_column_int(stmt, 0));
+        p.name = colTextSafe(stmt, 1);
+        p.position = colTextSafe(stmt, 2);
+        p.hourlyRate = sqlite3_column_double(stmt, 3);
+        p.totalHours = sqlite3_column_double(stmt, 4);
+        p.totalCost = sqlite3_column_double(stmt, 5);
+        list.push_back(p);
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    return list;
+}
+
 
 // Fetch project info from the project database
 static project fetchProjectInfo(const std::string &projectId) {
@@ -724,6 +770,14 @@ static project fetchProjectInfo(const std::string &projectId) {
         // Calculate total material cost
         for (const auto& mat : proj.materials) {
             proj.totalMaterialCost += mat.quantity * mat.unitPrice;
+        }
+
+        // Fetch payroll expenses
+        proj.payrollEmployees = fetchProjectPayroll(materialDbPath);
+
+        // Calculate total payroll cost
+        for (const auto& emp : proj.payrollEmployees) {
+            proj.totalPayrollCost += emp.totalCost;
         }
     }
 
@@ -1015,15 +1069,65 @@ static std::string makeProjectReportHtml(const project& proj, const std::string&
 )";
     }
 
+    // PAYROLL EXPENSES SECTION
+    o << R"(
+  <div class="section-title">Payroll Expenses</div>
+)";
+
+    if (!proj.payrollEmployees.empty()) {
+        o << R"(  <table class="materials-table">
+    <thead>
+      <tr>
+        <th>Employee ID</th>
+        <th>Employee Name</th>
+        <th>Position</th>
+        <th style="text-align: right;">Hourly Rate (₱)</th>
+        <th style="text-align: right;">Total Hours</th>
+        <th style="text-align: right;">Total Cost (₱)</th>
+      </tr>
+    </thead>
+    <tbody>
+)";
+
+        for (const auto& emp : proj.payrollEmployees) {
+            o << "      <tr>\n";
+            o << "        <td>" << emp.id << "</td>\n";
+            o << "        <td>" << emp.name << "</td>\n";
+            o << "        <td>" << emp.position << "</td>\n";
+            o << "        <td class=\"amount\">₱" << std::fixed << std::setprecision(2) << emp.hourlyRate << "</td>\n";
+            o << "        <td class=\"amount\">" << std::fixed << std::setprecision(2) << emp.totalHours << "</td>\n";
+            o << "        <td class=\"amount\">₱" << std::fixed << std::setprecision(2) << emp.totalCost << "</td>\n";
+            o << "      </tr>\n";
+        }
+
+        o << R"(      <tr class="total-row">
+        <td colspan="5" style="text-align: right;">Total Payroll Cost:</td>
+        <td class="amount">₱)" << std::fixed << std::setprecision(2) << proj.totalPayrollCost << R"(</td>
+      </tr>
+    </tbody>
+  </table>
+)";
+    } else {
+        o << R"(  <p style="color: #666; font-style: italic; margin: 15px 0;">No payroll expenses recorded for this project.</p>
+)";
+    }
+
+    // SUMMARY BOX
+    const double grandTotal = proj.totalMaterialCost + proj.totalPayrollCost;
+
     o << R"(
   <div class="summary-box">
     <div class="summary-item">
       <span>Total Materials:</span>
       <span>₱)" << std::fixed << std::setprecision(2) << proj.totalMaterialCost << R"(</span>
     </div>
+    <div class="summary-item">
+      <span>Total Payroll:</span>
+      <span>₱)" << std::fixed << std::setprecision(2) << proj.totalPayrollCost << R"(</span>
+    </div>
     <div class="summary-item grand-total">
       <span>PROJECT TOTAL COST:</span>
-      <span>₱)" << std::fixed << std::setprecision(2) << proj.totalMaterialCost << R"(</span>
+      <span>₱)" << std::fixed << std::setprecision(2) << grandTotal << R"(</span>
     </div>
   </div>
 
