@@ -91,17 +91,20 @@ FetchContent_MakeAvailable(hello_imgui)
 if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
     # Get ALL targets including dependencies
     function(force_release_runtime_on_all_targets)
-        # Get all targets recursively
+        # Get all targets recursively (only non-imported targets)
         get_directory_property(all_targets DIRECTORY ${CMAKE_SOURCE_DIR} BUILDSYSTEM_TARGETS)
-        get_directory_property(imported_targets DIRECTORY ${CMAKE_SOURCE_DIR} IMPORTED_TARGETS)
 
-        set(targets_to_fix ${all_targets} ${imported_targets})
-
-        foreach(target ${targets_to_fix})
+        foreach(target ${all_targets})
             if(TARGET ${target})
+                # Check if target is IMPORTED (cannot modify IMPORTED targets)
+                get_target_property(is_imported ${target} IMPORTED)
+                if(is_imported)
+                    continue()
+                endif()
+
                 get_target_property(target_type ${target} TYPE)
 
-                # Apply to executable and library targets
+                # Apply to executable and library targets (skip INTERFACE_LIBRARY)
                 if(NOT target_type STREQUAL "INTERFACE_LIBRARY")
                     message(STATUS "🔧 Forcing Release runtime on: ${target}")
 
