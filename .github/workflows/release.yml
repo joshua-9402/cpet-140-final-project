@@ -163,12 +163,15 @@ jobs:
         echo "CMAKE_BUILD_TYPE: Release"
         echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
         
+        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
+        VERSION="${VERSION#v}"  # Remove leading 'v'
+        
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -G Ninja \
-          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+          -DCPACK_PACKAGE_VERSION="${VERSION}"
         
         echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(nproc)
@@ -186,7 +189,9 @@ jobs:
 
     - name: Build DEB installer via CPack
       run: |
-        cmake -B build -DCPACK_GENERATOR=DEB -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
+        VERSION="${VERSION#v}"  # Remove leading 'v'
+        cmake -B build -DCPACK_GENERATOR=DEB -DCPACK_PACKAGE_VERSION="${VERSION}"
         cmake --build build --target package
         ls -1 build | grep -E '\.deb$' || true
 
@@ -249,13 +254,16 @@ jobs:
         echo "CMAKE_BUILD_TYPE: Release"
         echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
         
+        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
+        VERSION="${VERSION#v}"  # Remove leading 'v'
+        
         # Suppress sqlite3 overread warning that may be treated as error in this environment
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
           -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
           -G Ninja \
-          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+          -DCPACK_PACKAGE_VERSION="${VERSION}"
         
         echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(nproc)
@@ -273,7 +281,9 @@ jobs:
 
     - name: Build RPM installer via CPack
       run: |
-        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
+        VERSION="${VERSION#v}"  # Remove leading 'v'
+        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION="${VERSION}"
         cmake --build build --target package
         ls -1 build | grep -E '\.rpm$' || true
 
@@ -336,13 +346,16 @@ jobs:
         echo "CMAKE_BUILD_TYPE: Release"
         echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
         
+        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
+        VERSION="${VERSION#v}"  # Remove leading 'v'
+        
         # Added flags to suppress sqlite3 overread warning treated as error
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
           -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
           -G Ninja \
-          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+          -DCPACK_PACKAGE_VERSION="${VERSION}"
         
         echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(nproc)
@@ -360,7 +373,9 @@ jobs:
 
     - name: Build RPM installer via CPack (SUSE)
       run: |
-        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
+        VERSION="${VERSION#v}"  # Remove leading 'v'
+        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION="${VERSION}"
         cmake --build build --target package
         ls -1 build | grep -E '\.rpm$' || true
 
@@ -417,13 +432,21 @@ jobs:
         echo "CMAKE_BUILD_TYPE: Release"
         echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
         
+        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
+        VERSION="${VERSION#v}"  # Remove leading 'v'
+        
+        ARCH_FLAG=""
+        if [ "${{ matrix.target }}" = "intel" ]; then
+          ARCH_FLAG="-DCMAKE_OSX_ARCHITECTURES=x86_64"
+        fi
+        
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
-          ${{ matrix.target == 'intel' && '-DCMAKE_OSX_ARCHITECTURES=x86_64' || '' }} \
-          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} \
+          ${ARCH_FLAG} \
+          -DCPACK_PACKAGE_VERSION="${VERSION}" \
           -DCPACK_GENERATOR="DragNDrop;productbuild" \
           -G Ninja
         
@@ -606,16 +629,26 @@ jobs:
         Write-Host ""
         
         # Configure with NSIS only - EXPLICITLY ENFORCE RELEASE MODE
-        cmake -B build `
-          -DCMAKE_BUILD_TYPE=Release `
-          -DCMAKE_C_FLAGS_RELEASE="/O2 /MD /DNDEBUG" `
-          -DCMAKE_CXX_FLAGS_RELEASE="/O2 /MD /DNDEBUG" `
-          -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreadedDLL" `
-          -DCMAKE_INSTALL_PREFIX=. `
-          -G Ninja `
-          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} `
-          -DCPACK_GENERATOR="NSIS" `
-          ${{ matrix.arch == 'arm64' && '-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64' || '' }}
+        $version = "${{ needs.prepare-version.outputs.version_numeric }}" -replace '^v', ''
+        
+        $cmakeArgs = @(
+          '-B', 'build',
+          '-DCMAKE_BUILD_TYPE=Release',
+          '-DCMAKE_C_FLAGS_RELEASE=/O2 /MD /DNDEBUG',
+          '-DCMAKE_CXX_FLAGS_RELEASE=/O2 /MD /DNDEBUG',
+          '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL',
+          '-DCMAKE_INSTALL_PREFIX=.',
+          '-G', 'Ninja',
+          "-DCPACK_PACKAGE_VERSION=$version",
+          '-DCPACK_GENERATOR=NSIS'
+        )
+        
+        if ('${{ matrix.arch }}' -eq 'arm64') {
+          $cmakeArgs += '-DCMAKE_SYSTEM_NAME=Windows'
+          $cmakeArgs += '-DCMAKE_SYSTEM_PROCESSOR=ARM64'
+        }
+        
+        & cmake @cmakeArgs
         
         Write-Host ""
         Write-Host "=== Building in RELEASE mode with /MD runtime ===" -ForegroundColor Cyan

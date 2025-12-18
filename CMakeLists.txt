@@ -367,8 +367,8 @@ endif()
 if(NOT LIBSODIUM_FOUND AND WIN32)
     set(LOCAL_LIBSODIUM_ROOT "${CMAKE_SOURCE_DIR}/dependencies/libsodium")
     if(NOT EXISTS "${LOCAL_LIBSODIUM_ROOT}/include/sodium.h")
-        return()
-    endif()
+        message(WARNING "libsodium headers not found at ${LOCAL_LIBSODIUM_ROOT}/include/sodium.h - will attempt to use system libsodium")
+    else()
 
     target_include_directories(structuracost PRIVATE "${LOCAL_LIBSODIUM_ROOT}/include")
     file(GLOB_RECURSE _TMP_LIBS "${LOCAL_LIBSODIUM_ROOT}/*libsodium.lib")
@@ -459,6 +459,7 @@ if(NOT LIBSODIUM_FOUND AND WIN32)
 
     target_link_libraries(structuracost PRIVATE "${_BEST_LIB}")
     set(LIBSODIUM_FOUND TRUE)
+    endif()  # end of else block for libsodium header check
 endif()
 
 # Try system paths (Linux)
@@ -477,7 +478,7 @@ if(NOT LIBSODIUM_FOUND AND UNIX AND NOT APPLE AND (EXISTS "/usr/include/sodium.h
 
 # Error if not found
 if(NOT LIBSODIUM_FOUND)
-    return()
+    message(WARNING "libsodium not found - some security features may not be available. The build will continue but may fail at link time if libsodium symbols are required.")
 endif()
 
 
