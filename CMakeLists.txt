@@ -452,13 +452,16 @@ elseif(WIN32)
         "CreateShortCut '$DESKTOP\\\\StructuraCost.lnk' '$INSTDIR\\\\structuracost.exe' '' '$INSTDIR\\\\structuracost.exe' 0")
     set(CPACK_NSIS_DELETE_ICONS_EXTRA
         "Delete '$DESKTOP\\\\StructuraCost.lnk'")
-    # Add PowerShell script to install directory for post-install libsodium download
+    # Add dependency installer scripts
+    install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1" DESTINATION ".")
     install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1" DESTINATION ".")
-    # Add Windows README
+    # Add Windows README and troubleshooting guide
     install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt" DESTINATION ".")
-    # Add custom NSIS commands to run PowerShell script after installation
+    install(FILES "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md" DESTINATION "doc")
+    # Add custom NSIS commands to run comprehensive dependency installer after installation
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-        ExecWait 'powershell -ExecutionPolicy Bypass -File \\\"$INSTDIR\\\\install_libsodium.ps1\\\" -InstallDir \\\"$INSTDIR\\\"'
+        DetailPrint 'Installing required dependencies...'
+        ExecWait 'powershell -ExecutionPolicy Bypass -WindowStyle Normal -File \\\"$INSTDIR\\\\install_dependencies.ps1\\\" -InstallDir \\\"$INSTDIR\\\"'
     ")
 else()
     set(CPACK_GENERATOR "TGZ")
