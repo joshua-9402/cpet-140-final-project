@@ -28,6 +28,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include "../../dependencies/sqlite/sqlite3.h"
 #include "ui.h"
 
 #include "hello_imgui/hello_imgui.h"
@@ -1388,6 +1389,69 @@ static void monitorUI() {
         }
     }
 
+    ImGui::SameLine();
+    if (ImGui::Button("Load Weekly Attendance", ImVec2(350.0f, 40.0f))) {
+        if (!formattedEmpID.empty() && !weekStartStr.empty()) {
+            // Search for attendance in database
+            const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+
+            sqlite3* db = nullptr;
+            if (sqlite3_open(dbPath.c_str(), &db) == SQLITE_OK) {
+                sqlite3_stmt* stmt = nullptr;
+                const char* sql = "SELECT SUN, MON, TUE, WED, THU, FRI, SAT FROM WEEKLY_ATTENDANCE WHERE EMPLOYEE_ID = ? AND WEEK_START = ? LIMIT 1;";
+
+                if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
+                    // Extract numeric employee ID
+                    std::string digits;
+                    for (char ch : attendanceEmpIDStr) {
+                        if (std::isdigit(static_cast<unsigned char>(ch))) {
+                            digits.push_back(ch);
+                        }
+                    }
+                    int empIdNum = 0;
+                    if (!digits.empty()) {
+                        try { empIdNum = std::stoi(digits); } catch (...) { empIdNum = 0; }
+                    }
+
+                    sqlite3_bind_int(stmt, 1, empIdNum);
+                    sqlite3_bind_text(stmt, 2, weekStartStr.c_str(), -1, SQLITE_TRANSIENT);
+
+                    if (sqlite3_step(stmt) == SQLITE_ROW) {
+                        // Found the attendance record - populate all fields
+                        double sunVal = sqlite3_column_double(stmt, 0);
+                        double monVal = sqlite3_column_double(stmt, 1);
+                        double tueVal = sqlite3_column_double(stmt, 2);
+                        double wedVal = sqlite3_column_double(stmt, 3);
+                        double thuVal = sqlite3_column_double(stmt, 4);
+                        double friVal = sqlite3_column_double(stmt, 5);
+                        double satVal = sqlite3_column_double(stmt, 6);
+
+                        // Copy to input buffers
+                        snprintf(sunHours, sizeof(sunHours), "%.1f", sunVal);
+                        snprintf(monHours, sizeof(monHours), "%.1f", monVal);
+                        snprintf(tueHours, sizeof(tueHours), "%.1f", tueVal);
+                        snprintf(wedHours, sizeof(wedHours), "%.1f", wedVal);
+                        snprintf(thuHours, sizeof(thuHours), "%.1f", thuVal);
+                        snprintf(friHours, sizeof(friHours), "%.1f", friVal);
+                        snprintf(satHours, sizeof(satHours), "%.1f", satVal);
+
+                        system::logMessage(system::messageClassification::INFO, "Attendance: Weekly attendance loaded successfully for " + formattedEmpID + "\n");
+                    } else {
+                        system::logMessage(system::messageClassification::WARNING, "Attendance: No attendance record found for Employee " + formattedEmpID + " for week " + weekStartStr + "\n");
+                    }
+                    sqlite3_finalize(stmt);
+                } else {
+                    system::logMessage(system::messageClassification::ERROR, "Attendance: Database query failed\n");
+                }
+                sqlite3_close(db);
+            } else {
+                system::logMessage(system::messageClassification::ERROR, "Attendance: Failed to open database\n");
+            }
+        } else {
+            system::logMessage(system::messageClassification::WARNING, "Attendance: Employee ID and Week are required to load attendance data.\n");
+        }
+    }
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -1969,6 +2033,57 @@ static void monitorUI() {
                 materialQuantity[0] = '\0'; materialUnitPrice[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete material.\n");
+            }
+        }
+    }
+
+    if (ImGui::Button("Load Material", ImVec2(350.0f, 40.0f))) {
+        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr);
+        const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
+
+        if (validatedProjectID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required to load material data.\n");
+        } else if (validatedMaterialID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Material ID is required to load material data.\n");
+        } else {
+            // Search for material in database
+            const std::string expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
+                                             appConfig::g_projectExpenseDirectory + validatedProjectID + ".db";
+
+            if (!std::filesystem::exists(expenseDbPath)) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Project expense database not found for " + validatedProjectID + "\n");
+            } else {
+                bool foundMaterial = false;
+
+                for (int row = 1; row <= 1000; ++row) {
+                    std::string currentID = db::fetchCell(expenseDbPath, static_cast<size_t>(row), 1);
+                    if (currentID.empty()) break;
+
+                    if (currentID == validatedMaterialID) {
+                        // Found the material - populate all fields
+                        std::string matName = db::fetchCell(expenseDbPath, static_cast<size_t>(row), 2);
+                        std::string matQuantity = db::fetchCell(expenseDbPath, static_cast<size_t>(row), 3);
+                        std::string matUnitPrice = db::fetchCell(expenseDbPath, static_cast<size_t>(row), 4);
+
+                        // Copy to input buffers
+                        std::strncpy(materialName, matName.c_str(), sizeof(materialName) - 1);
+                        materialName[sizeof(materialName) - 1] = '\0';
+
+                        std::strncpy(materialQuantity, matQuantity.c_str(), sizeof(materialQuantity) - 1);
+                        materialQuantity[sizeof(materialQuantity) - 1] = '\0';
+
+                        std::strncpy(materialUnitPrice, matUnitPrice.c_str(), sizeof(materialUnitPrice) - 1);
+                        materialUnitPrice[sizeof(materialUnitPrice) - 1] = '\0';
+
+                        system::logMessage(system::messageClassification::INFO, "DB: Material data loaded successfully for " + validatedMaterialID + "\n");
+                        foundMaterial = true;
+                        break;
+                    }
+                }
+
+                if (!foundMaterial) {
+                    system::logMessage(system::messageClassification::WARNING, "DB: Material " + validatedMaterialID + " not found in project " + validatedProjectID + "\n");
+                }
             }
         }
     }
