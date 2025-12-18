@@ -321,7 +321,7 @@ static void selectorUI() {
     ImGui::SetWindowFontScale(1.7f); // Larger greeting
     ImGui::Text("%s", l_greetings.c_str());
     ImGui::SetWindowFontScale(1.0f); // Reset font scale
-    ImGui::SetCursorPos(ImVec2(40.0f, 145.0f));
+    ImGui::SetCursorPos(ImVec2(60.0f, 155.0f));
     ImGui::Text("%s", ui::g_userName.c_str());
 
     // Navigation buttons control the right pane
@@ -782,6 +782,7 @@ static void monitorUI() {
     ImGui::Separator();
     ImGui::Spacing();
 
+
     // ==============================================
     // EMPLOYEE MANAGEMENT SECTION
     // ==============================================
@@ -806,7 +807,7 @@ static void monitorUI() {
     const bool nameValid = nameStr.empty() || !system::validateInput(system::ValidationType::NAME, nameStr).empty();
     const bool positionValid = positionStr.empty() || !system::validateInput(system::ValidationType::POSITION, positionStr).empty();
     const bool employeeIDValid = employeeIDStr.empty() || !system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr).empty();
-    const bool locationValid = locationStr.empty() || !system::validateInput(system::ValidationType::NAME, locationStr).empty();
+    const bool locationValid = locationStr.empty() || !system::validateInput(system::ValidationType::SITE_LOCATION, locationStr).empty();
     const bool salaryValid = salaryStr.empty() || !system::validateInput(system::ValidationType::SALARY, salaryStr).empty();
     const bool hoursValid = hoursWorkedStr.empty() || !system::validateInput(system::ValidationType::HOURS, hoursWorkedStr).empty();
     const bool advanceValid = advanceStr.empty() || !system::validateInput(system::ValidationType::ADVANCE, advanceStr).empty();
@@ -841,9 +842,47 @@ static void monitorUI() {
     ImGui::Text("Site Location:");
     ImGui::SameLine(120.0f);
     ImGui::SetNextItemWidth(250.0f);
-    if (!locationValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##location", location, IM_ARRAYSIZE(location));
-    if (!locationValid) ImGui::PopStyleColor();
+
+    // Build site location options: Main Office, Warehouse, and all project IDs
+    static std::vector<std::string> siteLocationOptions;
+    static int selectedLocationIndex = 0;
+    static bool optionsInitialized = false;
+
+    // Refresh project list periodically or on first load
+    static int refreshCounter = 0;
+    if (!optionsInitialized || refreshCounter++ % 60 == 0) { // Refresh every 60 frames
+        siteLocationOptions.clear();
+        siteLocationOptions.push_back("Main Office");
+        siteLocationOptions.push_back("Warehouse");
+
+        // Add all project IDs from database
+        std::vector<std::string> projectIDs = monitor::listProjectIDs();
+        for (const auto& projId : projectIDs) {
+            siteLocationOptions.push_back(projId);
+        }
+        optionsInitialized = true;
+
+        // Try to match current location value to dropdown index
+        const std::string currentLocation(location);
+        for (size_t i = 0; i < siteLocationOptions.size(); ++i) {
+            if (siteLocationOptions[i] == currentLocation) {
+                selectedLocationIndex = static_cast<int>(i);
+                break;
+            }
+        }
+    }
+
+    // Create array of const char* for ImGui::Combo
+    std::vector<const char*> locationCStrings;
+    for (const auto& opt : siteLocationOptions) {
+        locationCStrings.push_back(opt.c_str());
+    }
+
+    if (ImGui::Combo("##location", &selectedLocationIndex, locationCStrings.data(), static_cast<int>(locationCStrings.size()))) {
+        // Update location buffer when selection changes
+        std::strncpy(location, siteLocationOptions[selectedLocationIndex].c_str(), sizeof(location) - 1);
+        location[sizeof(location) - 1] = '\0';
+    }
 
     ImGui::SameLine(400.0f);
     ImGui::Text("Hourly Rate:");
@@ -875,11 +914,11 @@ static void monitorUI() {
     ImGui::Spacing();
 
     // Employee Action Buttons
-    if (ImGui::Button("Add New Employee", ImVec2(350.0f, 40.0f))) {
+    if (ImGui::Button("Add New Employee", ImVec2(260.0f, 40.0f))) {
         // Validate all inputs before adding
         const std::string validatedName = system::validateInput(system::ValidationType::NAME, nameStr);
         const std::string validatedPosition = system::validateInput(system::ValidationType::POSITION, positionStr);
-        const std::string validatedLocation = system::validateInput(system::ValidationType::NAME, locationStr);
+        const std::string validatedLocation = system::validateInput(system::ValidationType::SITE_LOCATION, locationStr);
         const std::string validatedSalary = system::validateInput(system::ValidationType::SALARY, salaryStr);
         const std::string validatedHours = system::validateInput(system::ValidationType::HOURS, hoursWorkedStr);
         const std::string validatedAdvance = system::validateInput(system::ValidationType::ADVANCE, advanceStr);
@@ -908,7 +947,7 @@ static void monitorUI() {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Update Employee", ImVec2(350.0f, 40.0f))) {
+    if (ImGui::Button("Update Employee", ImVec2(260.0f, 40.0f))) {
         const std::string validatedEmployeeID = system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr);
 
         if (validatedEmployeeID.empty()) {
@@ -917,7 +956,7 @@ static void monitorUI() {
             // Validate provided fields (allow partial updates)
             std::string validatedName = nameStr.empty() ? nameStr : system::validateInput(system::ValidationType::NAME, nameStr);
             std::string validatedPosition = positionStr.empty() ? positionStr : system::validateInput(system::ValidationType::POSITION, positionStr);
-            std::string validatedLocation = locationStr.empty() ? locationStr : system::validateInput(system::ValidationType::NAME, locationStr);
+            std::string validatedLocation = locationStr.empty() ? locationStr : system::validateInput(system::ValidationType::SITE_LOCATION, locationStr);
             std::string validatedSalary = salaryStr.empty() ? salaryStr : system::validateInput(system::ValidationType::SALARY, salaryStr);
             std::string validatedHours = hoursWorkedStr.empty() ? hoursWorkedStr : system::validateInput(system::ValidationType::HOURS, hoursWorkedStr);
             std::string validatedAdvance = system::validateInput(system::ValidationType::ADVANCE, advanceStr);
@@ -956,7 +995,7 @@ static void monitorUI() {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Delete Employee", ImVec2(350.0f, 40.0f))) {
+    if (ImGui::Button("Delete Employee", ImVec2(260.0f, 40.0f))) {
         if (const std::string validatedEmployeeID = system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr); validatedEmployeeID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Employee ID is required for deletion.\n");
         } else {
@@ -965,6 +1004,71 @@ static void monitorUI() {
                 employeeID[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete employee.\n");
+            }
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Load Employee", ImVec2(260.0f, 40.0f))) {
+        const std::string validatedEmployeeID = system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr);
+
+        if (validatedEmployeeID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Employee ID is required to load employee data.\n");
+        } else {
+            // Search for employee in database
+            const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
+            bool foundEmployee = false;
+
+            for (int row = 1; row <= 1000; ++row) {
+                std::string currentID = db::fetchCell(dbPath, static_cast<size_t>(row), 1);
+                if (currentID.empty()) break;
+
+                if (currentID == validatedEmployeeID) {
+                    // Found the employee - populate all fields
+                    std::string empName = db::fetchCell(dbPath, static_cast<size_t>(row), 2);
+                    std::string empPosition = db::fetchCell(dbPath, static_cast<size_t>(row), 3);
+                    std::string empLocation = db::fetchCell(dbPath, static_cast<size_t>(row), 4);
+                    std::string empSalary = db::fetchCell(dbPath, static_cast<size_t>(row), 5);
+                    std::string empHours = db::fetchCell(dbPath, static_cast<size_t>(row), 6);
+                    std::string empAdvance = db::fetchCell(dbPath, static_cast<size_t>(row), 7);
+
+                    // Copy to input buffers
+                    std::strncpy(name, empName.c_str(), sizeof(name) - 1);
+                    name[sizeof(name) - 1] = '\0';
+
+                    std::strncpy(position, empPosition.c_str(), sizeof(position) - 1);
+                    position[sizeof(position) - 1] = '\0';
+
+                    std::strncpy(location, empLocation.c_str(), sizeof(location) - 1);
+                    location[sizeof(location) - 1] = '\0';
+
+                    std::strncpy(salary, empSalary.c_str(), sizeof(salary) - 1);
+                    salary[sizeof(salary) - 1] = '\0';
+
+                    std::strncpy(hoursWorked, empHours.c_str(), sizeof(hoursWorked) - 1);
+                    hoursWorked[sizeof(hoursWorked) - 1] = '\0';
+
+                    std::strncpy(advance, empAdvance.c_str(), sizeof(advance) - 1);
+                    advance[sizeof(advance) - 1] = '\0';
+
+                    // Update site location dropdown index to match loaded location
+                    for (size_t i = 0; i < siteLocationOptions.size(); ++i) {
+                        if (siteLocationOptions[i] == empLocation) {
+                            selectedLocationIndex = static_cast<int>(i);
+                            break;
+                        }
+                    }
+
+                    foundEmployee = true;
+                    system::logMessage(system::messageClassification::INFO,
+                        "DB: Loaded employee data for ID " + validatedEmployeeID + " (" + empName + ")\n");
+                    break;
+                }
+            }
+
+            if (!foundEmployee) {
+                system::logMessage(system::messageClassification::WARNING,
+                    "DB: Employee ID " + validatedEmployeeID + " not found in database.\n");
             }
         }
     }
@@ -1377,12 +1481,13 @@ static void monitorUI() {
     ImGui::BeginChild("ProjectManagement", ImVec2(0, 650), true);
     ImGui::Spacing();
 
-    static char projectID[128], projectName[16384], status[128], startDate[128], notes[16384];
+    static char projectID[128], projectName[16384], status[128], startDate[128], endDate[128], notes[16384];
 
     // Convert to strings for validation
     const std::string projectNameStr(projectName);
     const std::string statusStr(status);
     const std::string startDateStr(startDate);
+    const std::string endDateStr(endDate);
     const std::string notesStr(notes);
 
     // Format project ID
@@ -1416,7 +1521,8 @@ static void monitorUI() {
     // Real-time validation
     const bool projectIDValid = projectIDStr.empty() || !system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr).empty();
     const bool projectNameValid = projectNameStr.empty() || !system::validateInput(system::ValidationType::NAME, projectNameStr).empty();
-    const bool dateValid = startDateStr.empty() || !system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr).empty();
+    const bool startDateValid = startDateStr.empty() || !system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr).empty();
+    const bool endDateValid = endDateStr.empty() || !system::validateInput(system::ValidationType::DATE_FORMAT, endDateStr).empty();
 
     // Project Form Fields
     ImGui::Text("Project ID:");
@@ -1449,9 +1555,17 @@ static void monitorUI() {
     ImGui::Text("Start Date:");
     ImGui::SameLine(400.0f);
     ImGui::SetNextItemWidth(200.0f);
-    if (!dateValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    if (!startDateValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
     ImGui::InputText("##startDate", startDate, IM_ARRAYSIZE(startDate));
-    if (!dateValid) ImGui::PopStyleColor();
+    if (!startDateValid) ImGui::PopStyleColor();
+
+    ImGui::SameLine(630.0f);
+    ImGui::Text("End Date:");
+    ImGui::SameLine(720.0f);
+    ImGui::SetNextItemWidth(200.0f);
+    if (!endDateValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
+    ImGui::InputText("##endDate", endDate, IM_ARRAYSIZE(endDate));
+    if (!endDateValid) ImGui::PopStyleColor();
 
     ImGui::Spacing();
 
@@ -1465,11 +1579,12 @@ static void monitorUI() {
     ImGui::Spacing();
 
     // Project Action Buttons
-    if (ImGui::Button("Add New Project", ImVec2(350.0f, 40.0f))) {
+    if (ImGui::Button("Add New Project", ImVec2(260.0f, 40.0f))) {
         // Validate project ID format
         const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
         const std::string validatedProjectName = system::validateInput(system::ValidationType::NAME, projectNameStr);
         const std::string validatedStartDate = system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr);
+        const std::string validatedEndDate = endDateStr.empty() ? endDateStr : system::validateInput(system::ValidationType::DATE_FORMAT, endDateStr);
 
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Project ID must follow format PRJ-##### (e.g., PRJ-00001).\n");
@@ -1477,10 +1592,12 @@ static void monitorUI() {
             system::logMessage(system::messageClassification::WARNING, "DB: Project name is required (max 100 characters).\n");
         } else if (validatedStartDate.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Start date must follow format YYYY-MM-DD.\n");
+        } else if (!endDateStr.empty() && validatedEndDate.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: End date must follow format YYYY-MM-DD if provided.\n");
         } else {
-            if (monitor::addProject(validatedProjectID, validatedProjectName, statusStr, validatedStartDate, notesStr)) {
+            if (monitor::addProject(validatedProjectID, validatedProjectName, statusStr, validatedStartDate, validatedEndDate, notesStr)) {
                 system::logMessage(system::messageClassification::INFO, "DB: New project added successfully.\n");
-                projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
+                projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; endDate[0] = '\0'; notes[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::ERROR, "DB: Failed to add new project.\n");
             }
@@ -1488,7 +1605,7 @@ static void monitorUI() {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Update Project", ImVec2(350.0f, 40.0f))) {
+    if (ImGui::Button("Update Project", ImVec2(260.0f, 40.0f))) {
         const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
 
         if (validatedProjectID.empty()) {
@@ -1497,6 +1614,7 @@ static void monitorUI() {
             // Validate other fields if provided
             std::string validatedProjectName = projectNameStr.empty() ? projectNameStr : system::validateInput(system::ValidationType::NAME, projectNameStr);
             std::string validatedStartDate = startDateStr.empty() ? startDateStr : system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr);
+            std::string validatedEndDate = endDateStr.empty() ? endDateStr : system::validateInput(system::ValidationType::DATE_FORMAT, endDateStr);
 
             bool hasValidationError = false;
             if (!projectNameStr.empty() && validatedProjectName.empty()) {
@@ -1505,13 +1623,16 @@ static void monitorUI() {
             } else if (!startDateStr.empty() && validatedStartDate.empty()) {
                 system::logMessage(system::messageClassification::WARNING, "DB: Invalid start date format (use YYYY-MM-DD).\n");
                 hasValidationError = true;
+            } else if (!endDateStr.empty() && validatedEndDate.empty()) {
+                system::logMessage(system::messageClassification::WARNING, "DB: Invalid end date format (use YYYY-MM-DD).\n");
+                hasValidationError = true;
             }
 
             if (!hasValidationError) {
-                if (const std::string setClause = "PROJECT_NAME='" + validatedProjectName + "', STATUS='" + statusStr + "', START_DATE='" + validatedStartDate + "', NOTE='" + notesStr + "'";
+                if (const std::string setClause = "PROJECT_NAME='" + validatedProjectName + "', STATUS='" + statusStr + "', START_DATE='" + validatedStartDate + "', END_DATE='" + validatedEndDate + "', NOTE='" + notesStr + "'";
                     db::updateDatabase(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject, validatedProjectID, setClause)) {
                     system::logMessage(system::messageClassification::INFO, "DB: Project data updated successfully.\n");
-                    projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
+                    projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; endDate[0] = '\0'; notes[0] = '\0';
                 } else {
                     system::logMessage(system::messageClassification::ERROR, "DB: Failed to update project data.\n");
                 }
@@ -1520,7 +1641,7 @@ static void monitorUI() {
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Delete Project", ImVec2(350.0f, 40.0f))) {
+    if (ImGui::Button("Delete Project", ImVec2(260.0f, 40.0f))) {
         const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
 
         if (validatedProjectID.empty()) {
@@ -1532,6 +1653,66 @@ static void monitorUI() {
                 projectID[0] = '\0'; projectName[0] = '\0'; status[0] = '\0'; startDate[0] = '\0'; notes[0] = '\0';
             } else {
                 system::logMessage(system::messageClassification::ERROR, "DB: Failed to delete project.\n");
+            }
+        }
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Load Project", ImVec2(260.0f, 40.0f))) {
+        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
+
+        if (validatedProjectID.empty()) {
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID is required to load project data.\n");
+        } else {
+            // Search for project in database
+            const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
+            bool foundProject = false;
+
+            for (int row = 1; row <= 1000; ++row) {
+                std::string currentID = db::fetchCell(dbPath, static_cast<size_t>(row), 1);
+                if (currentID.empty()) break;
+
+                if (currentID == validatedProjectID) {
+                    // Found the project - populate all fields
+                    std::string prjName = db::fetchCell(dbPath, static_cast<size_t>(row), 2);
+                    std::string prjStatus = db::fetchCell(dbPath, static_cast<size_t>(row), 3);
+                    std::string prjStartDate = db::fetchCell(dbPath, static_cast<size_t>(row), 4);
+                    std::string prjEndDate = db::fetchCell(dbPath, static_cast<size_t>(row), 5);
+                    std::string prjNotes = db::fetchCell(dbPath, static_cast<size_t>(row), 6);
+
+                    // Copy to input buffers
+                    std::strncpy(projectName, prjName.c_str(), sizeof(projectName) - 1);
+                    projectName[sizeof(projectName) - 1] = '\0';
+
+                    std::strncpy(startDate, prjStartDate.c_str(), sizeof(startDate) - 1);
+                    startDate[sizeof(startDate) - 1] = '\0';
+
+                    std::strncpy(endDate, prjEndDate.c_str(), sizeof(endDate) - 1);
+                    endDate[sizeof(endDate) - 1] = '\0';
+
+                    std::strncpy(notes, prjNotes.c_str(), sizeof(notes) - 1);
+                    notes[sizeof(notes) - 1] = '\0';
+
+                    // Update status dropdown index to match loaded status
+                    for (int i = 0; i < IM_ARRAYSIZE(statusOptions); ++i) {
+                        if (std::string(statusOptions[i]) == prjStatus) {
+                            statusIndex = i;
+                            std::strncpy(status, statusOptions[i], sizeof(status) - 1);
+                            status[sizeof(status) - 1] = '\0';
+                            break;
+                        }
+                    }
+
+                    foundProject = true;
+                    system::logMessage(system::messageClassification::INFO,
+                        "DB: Loaded project data for ID " + validatedProjectID + " (" + prjName + ")\n");
+                    break;
+                }
+            }
+
+            if (!foundProject) {
+                system::logMessage(system::messageClassification::WARNING,
+                    "DB: Project ID " + validatedProjectID + " not found in database.\n");
             }
         }
     }
@@ -1556,7 +1737,7 @@ static void monitorUI() {
     const std::string dbPathProjects = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
     struct ColumnProjects { const char* name; int index; };
     const std::vector<ColumnProjects> columnsProjects = {
-        {"PROJECT_ID", 1}, {"PROJECT_NAME", 2}, {"STATUS", 3}, {"START_DATE", 4}, {"NOTE", 5}
+        {"PROJECT_ID", 1}, {"PROJECT_NAME", 2}, {"STATUS", 3}, {"START_DATE", 4}, {"END_DATE", 5}, {"NOTE", 6}
     };
 
     ImGui::BeginChild("ProjectDBViewer", ImVec2(0, 0), true);
