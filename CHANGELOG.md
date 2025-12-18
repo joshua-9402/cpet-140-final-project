@@ -1,6 +1,6 @@
 ## What's Changed
 
-#### Windows Release Build Configuration Fix - MULTI-PLATFORM ENFORCEMENT (December 18, 2024)
+#### Windows Release Build Configuration Fix - MULTI-PLATFORM ENFORCEMENT
 - **EXPLICITLY ENFORCED Release builds across ALL platforms and workflows**
   - ✅ **Global environment variable** `CMAKE_BUILD_TYPE=Release` set in release.yml
   - ✅ **Explicit compiler flags** for ALL operating systems:
