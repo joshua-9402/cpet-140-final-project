@@ -7,7 +7,8 @@ param(
 Write-Host "Checking executable dependencies for: $ExecutablePath" -ForegroundColor Cyan
 Write-Host ""
 
-if (-not (Test-Path $ExecutablePath)) {
+if (-not (Test-Path $ExecutablePath))
+{
     Write-Host "ERROR: Executable not found: $ExecutablePath" -ForegroundColor Red
     exit 1
 }
@@ -15,7 +16,8 @@ if (-not (Test-Path $ExecutablePath)) {
 # Check if dumpbin is available
 $dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
 
-if ($dumpbin) {
+if ($null -ne $dumpbin)
+{
     Write-Host "Using dumpbin to check dependencies..." -ForegroundColor Yellow
     Write-Host ""
 
@@ -30,17 +32,21 @@ if ($dumpbin) {
 
     # Check for debug runtime DLLs
     $hasDebugRuntime = $false
-    if ($deps -match "ucrtbased\.dll|vcruntime140d\.dll|msvcp140d\.dll") {
+    if ($deps -match "ucrtbased\.dll|vcruntime140d\.dll|msvcp140d\.dll")
+    {
         Write-Host "❌ ERROR: Executable is linked against DEBUG runtime libraries!" -ForegroundColor Red
         Write-Host ""
 
-        if ($deps -match "ucrtbased\.dll") {
+        if ($deps -match "ucrtbased\.dll")
+        {
             Write-Host "  Found: ucrtbased.dll (Debug Universal C Runtime)" -ForegroundColor Red
         }
-        if ($deps -match "vcruntime140d\.dll") {
+        if ($deps -match "vcruntime140d\.dll")
+        {
             Write-Host "  Found: vcruntime140d.dll (Debug VC++ Runtime)" -ForegroundColor Red
         }
-        if ($deps -match "msvcp140d\.dll") {
+        if ($deps -match "msvcp140d\.dll")
+        {
             Write-Host "  Found: msvcp140d.dll (Debug C++ Standard Library)" -ForegroundColor Red
         }
 
@@ -57,19 +63,24 @@ if ($dumpbin) {
 
     # Check for release runtime DLLs
     $hasReleaseRuntime = $false
-    if ($deps -match "ucrtbase\.dll|vcruntime140\.dll") {
-        if (-not $hasDebugRuntime) {
+    if ($deps -match "ucrtbase\.dll|vcruntime140\.dll")
+    {
+        if (-not $hasDebugRuntime)
+        {
             Write-Host "✅ SUCCESS: Using correct RELEASE runtime libraries" -ForegroundColor Green
             Write-Host ""
         }
 
-        if ($deps -match "ucrtbase\.dll") {
+        if ($deps -match "ucrtbase\.dll")
+        {
             Write-Host "  ✓ ucrtbase.dll (Release Universal C Runtime)" -ForegroundColor Green
         }
-        if ($deps -match "vcruntime140\.dll") {
+        if ($deps -match "vcruntime140\.dll")
+        {
             Write-Host "  ✓ vcruntime140.dll (Release VC++ Runtime)" -ForegroundColor Green
         }
-        if ($deps -match "msvcp140\.dll") {
+        if ($deps -match "msvcp140\.dll")
+        {
             Write-Host "  ✓ msvcp140.dll (Release C++ Standard Library)" -ForegroundColor Green
         }
 
@@ -78,17 +89,23 @@ if ($dumpbin) {
 
     Write-Host ""
 
-    if ($hasDebugRuntime) {
+    if ($hasDebugRuntime)
+    {
         exit 1
-    } elseif ($hasReleaseRuntime) {
+    }
+    elseif ($hasReleaseRuntime)
+    {
         Write-Host "Build verification PASSED ✓" -ForegroundColor Green
         exit 0
-    } else {
+    }
+    else
+    {
         Write-Host "Warning: Could not determine runtime library type" -ForegroundColor Yellow
         exit 0
     }
-
-} else {
+}
+else
+{
     Write-Host "Warning: dumpbin not found. Skipping dependency verification." -ForegroundColor Yellow
     Write-Host "(dumpbin is part of Visual Studio Build Tools)" -ForegroundColor Gray
     Write-Host ""
