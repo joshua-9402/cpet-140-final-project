@@ -100,6 +100,7 @@ bool db::createDatabase(const std::string& p_dbName) {
             "PROJECT_NAME TEXT NOT NULL,"
             "STATUS TEXT NOT NULL,"
             "START_DATE TEXT NOT NULL,"
+            "END_DATE TEXT,"
             "NOTE TEXT"
             ");"
         );
@@ -111,6 +112,15 @@ bool db::createDatabase(const std::string& p_dbName) {
             "MATERIAL_NAME TEXT NOT NULL,"
             "QUANTITY REAL NOT NULL,"
             "UNIT_PRICE REAL NOT NULL"
+            ");"
+        );
+        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS PAYROLL_EXPENSES ("
+            "EMPLOYEE_ID INTEGER PRIMARY KEY,"
+            "EMPLOYEE_NAME TEXT NOT NULL,"
+            "POSITION TEXT NOT NULL,"
+            "HOURLY_RATE REAL NOT NULL,"
+            "TOTAL_HOURS REAL NOT NULL DEFAULT 0,"
+            "TOTAL_COST REAL NOT NULL DEFAULT 0"
             ");"
         );
     } else if (
@@ -242,7 +252,7 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
         sqlite = "INSERT INTO EMPLOYEES (NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE) VALUES (" + p_data + ");";
     } else if (p_dbName == appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject) {
         // ...existing code...
-        sqlite = "INSERT INTO PROJECT_LIST (PROJECT_ID, PROJECT_NAME, STATUS, START_DATE, NOTE) VALUES (" + p_data + ");";
+        sqlite = "INSERT INTO PROJECT_LIST (PROJECT_ID, PROJECT_NAME, STATUS, START_DATE, END_DATE, NOTE) VALUES (" + p_data + ");";
 
         // Extract PROJECT_ID from p_data to create corresponding expense database
         // ...existing code...
@@ -815,3 +825,72 @@ bool db::deleteWeeklyAttendanceRow(const std::string& p_dbName, const std::strin
     system::logMessage(system::messageClassification::WARNING, "DB ATTENDANCE DELETE no-op or failed db=" + p_dbName);
     return false;
 }
+
+// Insert or upsert a payroll expense row. valuesCsv should be:
+//  1, 'John Doe', 'Engineer', 50.0, 0, 0
+bool db::insertPayrollExpense(const std::string& p_dbName, const std::string& valuesCsv) {
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB PAYROLL_EXPENSE INSERT failed (open) db=" + p_dbName);
+        return false;
+    }
+
+    const std::string sql =
+        "INSERT INTO PAYROLL_EXPENSES (EMPLOYEE_ID, EMPLOYEE_NAME, POSITION, HOURLY_RATE, TOTAL_HOURS, TOTAL_COST) VALUES (" + valuesCsv + ") "
+        "ON CONFLICT(EMPLOYEE_ID) DO UPDATE SET "
+        "EMPLOYEE_NAME=excluded.EMPLOYEE_NAME, POSITION=excluded.POSITION, HOURLY_RATE=excluded.HOURLY_RATE;";
+
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPtr);
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB PAYROLL_EXPENSE INSERT ok db=" + p_dbName);
+        return true;
+    }
+    system::logMessage(system::messageClassification::ERROR, "DB PAYROLL_EXPENSE INSERT failed db=" + p_dbName);
+    return false;
+}
+
+bool db::updatePayrollExpense(const std::string& p_dbName, const std::string& employeeId, const std::string& setClause) {
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB PAYROLL_EXPENSE UPDATE failed (open) db=" + p_dbName);
+        return false;
+    }
+    const std::string sql = "UPDATE PAYROLL_EXPENSES SET " + setClause +
+                            " WHERE EMPLOYEE_ID = " + employeeId + ";";
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPtr);
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB PAYROLL_EXPENSE UPDATE ok db=" + p_dbName);
+        return true;
+    }
+    system::logMessage(system::messageClassification::ERROR, "DB PAYROLL_EXPENSE UPDATE failed db=" + p_dbName);
+    return false;
+}
+
+bool db::deletePayrollExpense(const std::string& p_dbName, const std::string& employeeId) {
+    sqlite3* dbPtr = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
+        if (dbPtr) sqlite3_close(dbPtr);
+        system::logMessage(system::messageClassification::ERROR, "DB PAYROLL_EXPENSE DELETE failed (open) db=" + p_dbName);
+        return false;
+    }
+    const std::string sql = "DELETE FROM PAYROLL_EXPENSES WHERE EMPLOYEE_ID=" + employeeId + ";";
+    char* err = nullptr;
+    const int rc = sqlite3_exec(dbPtr, sql.c_str(), nullptr, nullptr, &err);
+    if (err) sqlite3_free(err);
+    sqlite3_close(dbPtr);
+    if (rc == SQLITE_OK) {
+        system::logMessage(system::messageClassification::INFO, "DB PAYROLL_EXPENSE DELETE ok db=" + p_dbName);
+        return true;
+    }
+    system::logMessage(system::messageClassification::WARNING, "DB PAYROLL_EXPENSE DELETE no-op or failed db=" + p_dbName);
+    return false;
+}
+

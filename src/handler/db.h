@@ -50,5 +50,10 @@ class db {
         static bool insertWeeklyAttendance(const std::string& p_dbName, const std::string& valuesCsv);
         static bool updateWeeklyAttendanceRow(const std::string& p_dbName, const std::string& employeeId, const std::string& weekStartIso, const std::string& setClause);
         static bool deleteWeeklyAttendanceRow(const std::string& p_dbName, const std::string& employeeId, const std::string& weekStartIso);
+
+        // Project payroll expenses operations
+        static bool insertPayrollExpense(const std::string& p_dbName, const std::string& valuesCsv);
+        static bool updatePayrollExpense(const std::string& p_dbName, const std::string& employeeId, const std::string& setClause);
+        static bool deletePayrollExpense(const std::string& p_dbName, const std::string& employeeId);
 };
 #endif // DB_H
