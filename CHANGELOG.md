@@ -1,14 +1,31 @@
 ## What's Changed
 
-#### Windows Release Build Configuration Fix (December 18, 2025)
-- **Fixed GitHub Actions building with Debug runtime libraries instead of Release**
-  - ✅ Set default build type to `Release` when not specified
-  - ✅ Properly configured MSVC runtime library settings (`/MD` for Release, `/MDd` for Debug)
-  - ✅ Eliminated dependency on debug DLLs (`ucrtbased.dll`, `vcruntime140d.dll`)
-  - ✅ Release builds now correctly link against release runtime libraries (`ucrtbase.dll`, `vcruntime140.dll`)
-  - Release builds can now be distributed with standard Visual C++ Redistributables
+#### Windows Release Build Configuration Fix (December 18, 2024) - COMPREHENSIVE UPDATE
+- **Completely eliminated Debug runtime library dependencies in Release builds**
+  - ✅ Set `CMAKE_MSVC_RUNTIME_LIBRARY` globally **before** project() to apply to all dependencies
+  - ✅ Explicitly removed all `/MDd`, `/MTd`, and `_DEBUG` flags from Release configurations
+  - ✅ Force `/MD` and `NDEBUG` flags for all Release build types
+  - ✅ Applied runtime library settings to all FetchContent dependencies (including hello_imgui)
+  - ✅ Double-enforced runtime settings on main target for extra safety
+  
+- **Build Verification System**
+  - ✅ Added automated verification scripts to detect debug DLLs
+  - ✅ GitHub Actions now **fails the build** if debug runtime libraries are detected
+  - ✅ Created `verify_release_build.ps1` and `verify_release_build.bat` for manual verification
+  - ✅ Uses `dumpbin` to inspect executable dependencies post-build
+  
+- **Multi-Layer Protection**
+  1. **Pre-project configuration** - Sets MSVC runtime library before any targets
+  2. **Global compiler flags** - Removes debug flags, forces release flags
+  3. **Dependency configuration** - Ensures FetchContent uses correct runtime
+  4. **Target-specific enforcement** - Double-checks main executable settings
+  5. **Post-build verification** - Validates final executable doesn't link debug DLLs
+  
+- **What This Fixes**
+  - ❌ **Before:** `ucrtbased.dll`, `vcruntime140d.dll` → Error 0xc000007b
+  - ✅ **After:** `ucrtbase.dll`, `vcruntime140.dll` → Works with VC++ Redistributable
 
-
+#### Windows Error 0xc000007b Fix - AUTOMATIC INSTALLATION
 ## Supported Platforms
 
 ### Linux

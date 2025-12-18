@@ -159,6 +159,49 @@ jobs:
           exit 1
         }
 
+    - name: Verify Release Build (Check Runtime Libraries)
+      if: inputs.build_type == 'Release'
+      shell: pwsh
+      run: |
+        Write-Host "=== Verifying Release Build ===" -ForegroundColor Cyan
+        $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
+        
+        if ($exe) {
+          # Run verification script if it exists
+          if (Test-Path "packaging/windows/verify_release_build.ps1") {
+            & powershell -ExecutionPolicy Bypass -File "packaging/windows/verify_release_build.ps1" -ExecutablePath $exe.FullName
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host ""
+              Write-Host "===================================================================" -ForegroundColor Red
+              Write-Host "CRITICAL ERROR: Build contains DEBUG runtime dependencies!" -ForegroundColor Red
+              Write-Host "This will cause error 0xc000007b on systems without debug DLLs." -ForegroundColor Red
+              Write-Host "===================================================================" -ForegroundColor Red
+              exit 1
+            }
+          } else {
+            Write-Host "Verification script not found, performing basic check..."
+            
+            # Basic check
+            $dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
+            if ($dumpbin) {
+              $deps = & dumpbin /dependents $exe.FullName 2>&1 | Out-String
+              Write-Host "Dependencies:" -ForegroundColor Yellow
+              Write-Host $deps
+              
+              if ($deps -match "ucrtbased\.dll|vcruntime140d\.dll|msvcp140d\.dll") {
+                Write-Host ""
+                Write-Host "ERROR: Debug runtime DLLs detected in Release build!" -ForegroundColor Red
+                exit 1
+              } else {
+                Write-Host ""
+                Write-Host "✓ No debug runtime DLLs detected" -ForegroundColor Green
+              }
+            } else {
+              Write-Host "dumpbin not available, skipping verification"
+            }
+          }
+        }
+
     - name: Package artifacts
       shell: pwsh
       run: |

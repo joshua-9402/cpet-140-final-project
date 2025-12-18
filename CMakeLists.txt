@@ -1,4 +1,14 @@
 cmake_minimum_required(VERSION 3.22) # minimum CMake version
+
+# CRITICAL: Set MSVC runtime library BEFORE project() to ensure all dependencies use correct runtime
+# This MUST come before project() to apply to all targets including dependencies
+if(WIN32 AND MSVC)
+    # Use CMAKE_POLICY to set MSVC runtime library policy
+    cmake_policy(SET CMP0091 NEW)
+    # Force MultiThreadedDLL for Release, MultiThreadedDebugDLL for Debug
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "MSVC runtime library" FORCE)
+endif()
+
 project(cpet_140_final_project) # project name
 
 # Set default build type to Release if not specified
@@ -12,7 +22,37 @@ set(CMAKE_CXX_STANDARD 20) # set C++ standard to C++20 (AppleClang doesn't suppo
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Force Release runtime libraries for MSVC - apply globally to all targets
+if(MSVC)
+    # Remove any existing /MDd or /MTd flags and replace with /MD for Release
+    foreach(flag_var
+        CMAKE_C_FLAGS CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
+        CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+        string(REPLACE "/MDd" "/MD" ${flag_var} "${${flag_var}}")
+        string(REPLACE "/MTd" "/MT" ${flag_var} "${${flag_var}}")
+        string(REPLACE "/D_DEBUG" "" ${flag_var} "${${flag_var}}")
+        # Ensure /MD is set for release builds
+        if(flag_var MATCHES "RELEASE|MINSIZEREL|RELWITHDEBINFO")
+            if(NOT ${flag_var} MATCHES "/MD")
+                set(${flag_var} "${${flag_var}} /MD")
+            endif()
+        endif()
+    endforeach()
+
+    # Explicitly set for all configurations
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MD /DNDEBUG")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /DNDEBUG")
+
+    message(STATUS "MSVC Runtime: Using /MD for Release builds (MultiThreadedDLL)")
+endif()
+
 include(FetchContent) # Fetch Hello ImGui (automatic download)
+
+# Force all FetchContent dependencies to use Release configuration
+if(MSVC)
+    set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "" FORCE)
+endif()
 
 FetchContent_Declare(
         hello_imgui
@@ -118,17 +158,22 @@ if(WIN32)
         set(CMAKE_GENERATOR_PLATFORM Win32)
     endif()
 
-    # Set runtime library properly based on build type
-    # For Release builds: use MultiThreadedDLL (MD)
-    # For Debug builds: use MultiThreadedDebugDLL (MDd)
+    # Additional enforcement of Release runtime for the main target
+    # (Global settings should already handle this, but double-check)
     if(MSVC)
         set_property(TARGET structuracost PROPERTY
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
-        # Force Release runtime libraries for Release builds
+        # Explicitly force /MD for Release configurations
         target_compile_options(structuracost PRIVATE
-            $<$<CONFIG:Release>:/MD>
-            $<$<CONFIG:Debug>:/MDd>
+            $<$<CONFIG:Release>:/MD /DNDEBUG>
+            $<$<CONFIG:Debug>:/MDd /D_DEBUG>
+        )
+
+        # Remove any lingering debug flags from Release builds
+        target_compile_definitions(structuracost PRIVATE
+            $<$<CONFIG:Release>:NDEBUG>
+            $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
         )
     endif()
 

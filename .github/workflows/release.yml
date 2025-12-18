@@ -555,6 +555,45 @@ jobs:
           ${{ matrix.arch == 'arm64' && '-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64' || '' }}
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
 
+    - name: Verify Release Build (Check for Debug DLLs)
+      shell: pwsh
+      run: |
+        Write-Host "=== Verifying Release Build ===" -ForegroundColor Cyan
+        $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
+        if ($exe) {
+          Write-Host "Found executable: $($exe.FullName)"
+          
+          # Run verification script
+          if (Test-Path "packaging/windows/verify_release_build.ps1") {
+            & powershell -ExecutionPolicy Bypass -File "packaging/windows/verify_release_build.ps1" -ExecutablePath $exe.FullName
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host ""
+              Write-Host "===================================================================" -ForegroundColor Red
+              Write-Host "CRITICAL ERROR: Build contains DEBUG runtime dependencies!" -ForegroundColor Red
+              Write-Host "This will cause error 0xc000007b on systems without debug DLLs." -ForegroundColor Red
+              Write-Host "===================================================================" -ForegroundColor Red
+              exit 1
+            }
+          } else {
+            Write-Host "Verification script not found, skipping detailed check"
+            
+            # Basic check using dumpbin if available
+            $dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
+            if ($dumpbin) {
+              $deps = & dumpbin /dependents $exe.FullName 2>&1 | Out-String
+              if ($deps -match "ucrtbased\.dll|vcruntime140d\.dll") {
+                Write-Host "ERROR: Debug DLLs detected!" -ForegroundColor Red
+                Write-Host $deps
+                exit 1
+              } else {
+                Write-Host "✓ No debug DLLs detected" -ForegroundColor Green
+              }
+            }
+          }
+        } else {
+          Write-Host "Warning: Executable not found for verification"
+        }
+
     - name: Make ZIP package (fallback)
       shell: pwsh
       run: |
