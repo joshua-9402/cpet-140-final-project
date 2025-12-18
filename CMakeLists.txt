@@ -48,10 +48,25 @@ endif()
 
 include(FetchContent) # Fetch Hello ImGui (automatic download)
 
-# Force all FetchContent dependencies to use Release configuration
+# ============================================================================
+# ULTRA-AGGRESSIVE RELEASE MODE ENFORCEMENT FOR DEPENDENCIES
+# ============================================================================
+# ABSOLUTELY NO DEBUG DLLS ALLOWED - NOT IN MAIN EXECUTABLE, NOT IN ANY DEPENDENCY!
 if(MSVC)
     set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" CACHE STRING "" FORCE)
+
+    # FORCE ALL DEPENDENCIES TO BUILD IN RELEASE MODE ONLY
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        message(STATUS "🚨 ENFORCING RELEASE MODE FOR ALL DEPENDENCIES 🚨")
+        message(STATUS "🚫 DEBUG DLLS ARE ABSOLUTELY FORBIDDEN 🚫")
+
+        # Override FetchContent to always use Release for dependencies
+        set(CMAKE_CONFIGURATION_TYPES "Release" CACHE STRING "" FORCE)
+
+        # Force all subprojects to use Release runtime
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL" CACHE STRING "" FORCE)
+    endif()
 endif()
 
 FetchContent_Declare(
@@ -62,7 +77,59 @@ set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED ON CACHE BOOL "Download FreeType if n
 set(HELLOIMGUI_DOWNLOAD_GLFW_IF_NEEDED ON CACHE BOOL "Download GLFW if needed" FORCE)
 set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "Disable automatic asset install" FORCE)
 
+# FORCE hello_imgui and ALL its dependencies to use Release runtime
+if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(CMAKE_BUILD_TYPE_INIT "Release" CACHE STRING "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+endif()
+
 FetchContent_MakeAvailable(hello_imgui)
+
+# ============================================================================
+# POST-FETCH: FORCE ALL DEPENDENCY TARGETS TO USE RELEASE RUNTIME
+# ============================================================================
+if(MSVC AND CMAKE_BUILD_TYPE STREQUAL "Release")
+    # Get ALL targets including dependencies
+    function(force_release_runtime_on_all_targets)
+        # Get all targets recursively
+        get_directory_property(all_targets DIRECTORY ${CMAKE_SOURCE_DIR} BUILDSYSTEM_TARGETS)
+        get_directory_property(imported_targets DIRECTORY ${CMAKE_SOURCE_DIR} IMPORTED_TARGETS)
+
+        set(targets_to_fix ${all_targets} ${imported_targets})
+
+        foreach(target ${targets_to_fix})
+            if(TARGET ${target})
+                get_target_property(target_type ${target} TYPE)
+
+                # Apply to executable and library targets
+                if(NOT target_type STREQUAL "INTERFACE_LIBRARY")
+                    message(STATUS "🔧 Forcing Release runtime on: ${target}")
+
+                    # Set MSVC runtime library
+                    set_property(TARGET ${target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+
+                    # Remove debug flags
+                    target_compile_options(${target} PRIVATE
+                        $<$<CONFIG:Release>:/MD>
+                        $<$<CONFIG:Release>:/DNDEBUG>
+                    )
+
+                    # Remove _DEBUG definition
+                    get_target_property(compile_defs ${target} COMPILE_DEFINITIONS)
+                    if(compile_defs)
+                        list(REMOVE_ITEM compile_defs "_DEBUG")
+                        set_property(TARGET ${target} PROPERTY COMPILE_DEFINITIONS ${compile_defs})
+                    endif()
+                endif()
+            endif()
+        endforeach()
+    endfunction()
+
+    # Apply to all targets
+    force_release_runtime_on_all_targets()
+
+    message(STATUS "✅ ALL TARGETS FORCED TO RELEASE RUNTIME")
+endif()
 
 # Ensure the application icon (assets/icons/app_icon.png) is visible to the hello_imgui packaging
 # helper. hello_imgui's macOS support will look for assets/app_settings/icon.png and convert it to

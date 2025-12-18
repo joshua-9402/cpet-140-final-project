@@ -9,13 +9,13 @@
     - **macOS**: `-O3 -DNDEBUG`
   - ✅ **Bold warnings** in GitHub Actions output when configuring Release builds
   - ✅ **Build verification** confirms Release mode completion on all platforms
-  
+
 - **Per-Platform Enforcement in ALL Workflows**
   - ✅ `release.yml` - All Linux (Debian, RPM, SUSE), macOS, Windows builds
   - ✅ `build-windows.yml` - Explicit `/MD` runtime enforcement with warnings
   - ✅ `build-linux.yml` - Explicit `-O3 -DNDEBUG` flags
   - ✅ `build-macos.yml` - Explicit `-O3 -DNDEBUG` flags
-  
+
 - **Critical Windows Safeguards**
   - 🚨 **RED BANNER** in build logs: "CRITICAL: ENFORCING RELEASE BUILD MODE"
   - 🚨 **Explicit message**: "Debug DLLs (ucrtbased.dll, vcruntime140d.dll) are FORBIDDEN"
@@ -28,13 +28,13 @@
   - ✅ Force `/MD` and `NDEBUG` flags for all Release build types
   - ✅ Applied runtime library settings to all FetchContent dependencies (including hello_imgui)
   - ✅ Double-enforced runtime settings on main target for extra safety
-  
+
 - **Build Verification System**
   - ✅ Added automated verification scripts to detect debug DLLs
   - ✅ GitHub Actions now **fails the build** if debug runtime libraries are detected
   - ✅ Created `verify_release_build.ps1` and `verify_release_build.bat` for manual verification
   - ✅ Uses `dumpbin` to inspect executable dependencies post-build
-  
+
 - **Multi-Layer Protection Strategy**
   1. **Global environment** - Set `CMAKE_BUILD_TYPE=Release` workflow-wide
   2. **Pre-project configuration** - Sets MSVC runtime library before any targets
@@ -44,7 +44,7 @@
   6. **Explicit command-line flags** - Override any defaults with explicit Release settings
   7. **Post-build verification** - Validates final executable doesn't link debug DLLs
   8. **Visual feedback** - Red banners and warnings in build logs
-  
+
 - **What This Fixes**
   - ❌ **Before:** `ucrtbased.dll`, `vcruntime140d.dll` → Error 0xc000007b on Windows
   - ✅ **After:** `ucrtbase.dll`, `vcruntime140.dll` → Works with VC++ Redistributable

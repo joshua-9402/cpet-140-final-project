@@ -183,43 +183,121 @@ jobs:
       if: inputs.build_type == 'Release'
       shell: pwsh
       run: |
-        Write-Host "=== Verifying Release Build ===" -ForegroundColor Cyan
+        Write-Host "=== ULTRA-AGGRESSIVE RELEASE BUILD VERIFICATION ===" -ForegroundColor Red -BackgroundColor White
+        Write-Host ""
+        Write-Host "🚨 SCANNING FOR ANY DEBUG DLLS - ZERO TOLERANCE 🚨" -ForegroundColor Red
+        Write-Host ""
+        
         $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
         
         if ($exe) {
-          # Run verification script if it exists
+          Write-Host "✓ Executable found: $($exe.FullName)" -ForegroundColor Cyan
+          Write-Host ""
+          
+          # Scan main executable
+          Write-Host "=== STEP 1: Scanning Main Executable ===" -ForegroundColor Yellow
+          
           if (Test-Path "packaging/windows/verify_release_build.ps1") {
             & powershell -ExecutionPolicy Bypass -File "packaging/windows/verify_release_build.ps1" -ExecutablePath $exe.FullName
             if ($LASTEXITCODE -ne 0) {
               Write-Host ""
-              Write-Host "===================================================================" -ForegroundColor Red
-              Write-Host "CRITICAL ERROR: Build contains DEBUG runtime dependencies!" -ForegroundColor Red
+              Write-Host "██████████████████████████████████████████████████████████████████" -ForegroundColor Red
+              Write-Host "█ CRITICAL ERROR: MAIN EXECUTABLE HAS DEBUG RUNTIME DEPENDENCIES █" -ForegroundColor Red
+              Write-Host "██████████████████████████████████████████████████████████████████" -ForegroundColor Red
+              Write-Host ""
               Write-Host "This will cause error 0xc000007b on systems without debug DLLs." -ForegroundColor Red
-              Write-Host "===================================================================" -ForegroundColor Red
+              Write-Host ""
               exit 1
             }
           } else {
-            Write-Host "Verification script not found, performing basic check..."
+            Write-Host "⚠️ Verification script not found, using basic check..." -ForegroundColor Yellow
             
-            # Basic check
             $dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
             if ($dumpbin) {
               $deps = & dumpbin /dependents $exe.FullName 2>&1 | Out-String
-              Write-Host "Dependencies:" -ForegroundColor Yellow
+              Write-Host "Main Executable Dependencies:" -ForegroundColor Cyan
               Write-Host $deps
               
               if ($deps -match "ucrtbased\.dll|vcruntime140d\.dll|msvcp140d\.dll") {
                 Write-Host ""
-                Write-Host "ERROR: Debug runtime DLLs detected in Release build!" -ForegroundColor Red
+                Write-Host "█████████████████████████████████████████████████████████" -ForegroundColor Red
+                Write-Host "█ ERROR: DEBUG RUNTIME DLLS DETECTED IN MAIN EXECUTABLE █" -ForegroundColor Red
+                Write-Host "█████████████████████████████████████████████████████████" -ForegroundColor Red
                 exit 1
               } else {
                 Write-Host ""
-                Write-Host "✓ No debug runtime DLLs detected" -ForegroundColor Green
+                Write-Host "✅ Main executable: NO DEBUG DLLS" -ForegroundColor Green
               }
-            } else {
-              Write-Host "dumpbin not available, skipping verification"
             }
           }
+          
+          Write-Host ""
+          Write-Host "=== STEP 2: Scanning ALL DLLs in Build Directory ===" -ForegroundColor Yellow
+          Write-Host ""
+          
+          $allDlls = Get-ChildItem -Path "build" -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue
+          $debugDllsFound = $false
+          
+          if ($allDlls) {
+            Write-Host "Found $($allDlls.Count) DLL(s) to scan..." -ForegroundColor Cyan
+            
+            foreach ($dll in $allDlls) {
+              Write-Host "  Checking: $($dll.Name)" -ForegroundColor Gray
+              
+              # Check DLL name for debug markers
+              if ($dll.Name -match "d\.dll$" -or $dll.Name -match "debug" -or 
+                  $dll.Name -match "ucrtbased" -or $dll.Name -match "vcruntime140d" -or 
+                  $dll.Name -match "msvcp140d") {
+                Write-Host ""
+                Write-Host "❌ FORBIDDEN DEBUG DLL DETECTED: $($dll.Name)" -ForegroundColor Red
+                Write-Host "   Location: $($dll.FullName)" -ForegroundColor Red
+                $debugDllsFound = $true
+              }
+              
+              # Use dumpbin to check dependencies if available
+              $dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
+              if ($dumpbin) {
+                $dllDeps = & dumpbin /dependents $dll.FullName 2>&1 | Out-String
+                if ($dllDeps -match "ucrtbased\.dll|vcruntime140d\.dll|msvcp140d\.dll") {
+                  Write-Host ""
+                  Write-Host "❌ DLL '$($dll.Name)' DEPENDS ON DEBUG RUNTIME!" -ForegroundColor Red
+                  Write-Host "   Location: $($dll.FullName)" -ForegroundColor Red
+                  $debugDllsFound = $true
+                }
+              }
+            }
+          } else {
+            Write-Host "  No additional DLLs found in build directory" -ForegroundColor Gray
+          }
+          
+          Write-Host ""
+          
+          if ($debugDllsFound) {
+            Write-Host ""
+            Write-Host "███████████████████████████████████████████████████████████" -ForegroundColor Red
+            Write-Host "█ CRITICAL ERROR: DEBUG DLLS FOUND IN BUILD DIRECTORY!   █" -ForegroundColor Red
+            Write-Host "███████████████████████████████████████████████████████████" -ForegroundColor Red
+            Write-Host ""
+            Write-Host "FORBIDDEN DEBUG DLLS WERE DETECTED IN THE BUILD." -ForegroundColor Red
+            Write-Host "This is ABSOLUTELY NOT ALLOWED in Release builds." -ForegroundColor Red
+            Write-Host ""
+            Write-Host "The build will now FAIL to prevent shipping debug DLLs." -ForegroundColor Red
+            Write-Host ""
+            exit 1
+          }
+          
+          Write-Host ""
+          Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Green
+          Write-Host "✅✅✅ RELEASE BUILD VERIFICATION PASSED ✅✅✅" -ForegroundColor Green
+          Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Green
+          Write-Host ""
+          Write-Host "✓ Main executable: NO debug runtime DLLs" -ForegroundColor Green
+          Write-Host "✓ Build directory: NO forbidden debug DLLs" -ForegroundColor Green
+          Write-Host "✓ All dependencies: CLEAN" -ForegroundColor Green
+          Write-Host ""
+        } else {
+          Write-Host "❌ ERROR: Executable not found!" -ForegroundColor Red
+          exit 1
         }
 
     - name: Package artifacts
