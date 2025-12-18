@@ -1,24 +1,12 @@
 ## What's Changed
 
-#### Windows Error 0xc000007b Fix - AUTOMATIC INSTALLATION
-- **Windows installer now AUTOMATICALLY installs all required dependencies**
-  - ✅ **Visual C++ Redistributable 2015-2022 (x64)** - Auto-downloaded and installed
-  - ✅ **Visual C++ Redistributable 2015-2022 (x86)** - Auto-downloaded and installed  
-  - ✅ **libsodium.dll** - Auto-downloaded and installed (correct architecture)
-  - Installer shows progress window during dependency installation
-  - No manual intervention required - just run the installer!
-  
-- **Enhanced installer features:**
-  - Post-install dependency check and installation
-  - Automatic detection of already-installed components
-  - Graceful fallback with manual installation instructions
-  - Bundled troubleshooting documentation
-  
-- **Build system improvements:**
-  - Added proper MSVC runtime library configuration (MultiThreadedDLL)
-  - Ensured architecture consistency (x64/Win32) throughout build
-  - Automatic DLL copying for correct architecture
-  - Post-build checks to verify required dependencies
+#### Windows Release Build Configuration Fix (December 18, 2025)
+- **Fixed GitHub Actions building with Debug runtime libraries instead of Release**
+  - ✅ Set default build type to `Release` when not specified
+  - ✅ Properly configured MSVC runtime library settings (`/MD` for Release, `/MDd` for Debug)
+  - ✅ Eliminated dependency on debug DLLs (`ucrtbased.dll`, `vcruntime140d.dll`)
+  - ✅ Release builds now correctly link against release runtime libraries (`ucrtbase.dll`, `vcruntime140.dll`)
+  - Release builds can now be distributed with standard Visual C++ Redistributables
 
 
 ## Supported Platforms

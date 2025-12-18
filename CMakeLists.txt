@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.22) # minimum CMake version
 project(cpet_140_final_project) # project name
+
+# Set default build type to Release if not specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'Release' as none was specified.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
 set(CMAKE_CXX_STANDARD 20) # set C++ standard to C++20 (AppleClang doesn't support C++26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -110,9 +118,19 @@ if(WIN32)
         set(CMAKE_GENERATOR_PLATFORM Win32)
     endif()
 
-    # Set runtime library to MultiThreadedDLL for Release, MultiThreadedDebugDLL for Debug
-    set_property(TARGET structuracost PROPERTY
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    # Set runtime library properly based on build type
+    # For Release builds: use MultiThreadedDLL (MD)
+    # For Debug builds: use MultiThreadedDebugDLL (MDd)
+    if(MSVC)
+        set_property(TARGET structuracost PROPERTY
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+        # Force Release runtime libraries for Release builds
+        target_compile_options(structuracost PRIVATE
+            $<$<CONFIG:Release>:/MD>
+            $<$<CONFIG:Debug>:/MDd>
+        )
+    endif()
 
     # Copy required DLLs to output directory after build
     add_custom_command(TARGET structuracost POST_BUILD
