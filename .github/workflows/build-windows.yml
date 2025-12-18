@@ -118,13 +118,33 @@ jobs:
     - name: Configure CMake
       shell: pwsh
       run: |
-        Write-Host "=== Configuring CMake ==="
+        Write-Host "=== Configuring CMake ===" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "Build Type: ${{ inputs.build_type }}" -ForegroundColor Yellow
+        Write-Host "Architecture: ${{ inputs.architecture }}" -ForegroundColor Yellow
+        
+        if ("${{ inputs.build_type }}" -eq "Release") {
+          Write-Host ""
+          Write-Host "CRITICAL: ENFORCING RELEASE BUILD MODE" -ForegroundColor Red
+          Write-Host "MSVC Runtime: MultiThreadedDLL (/MD)" -ForegroundColor Yellow
+          Write-Host "Debug DLLs (ucrtbased.dll, vcruntime140d.dll) are FORBIDDEN" -ForegroundColor Yellow
+          Write-Host ""
+        }
         
         $cmakeArgs = @(
           "-B", "build",
           "-DCMAKE_BUILD_TYPE=${{ inputs.build_type }}",
           "-G", "Ninja"
         )
+        
+        # Add explicit Release mode flags for Windows
+        if ("${{ inputs.build_type }}" -eq "Release") {
+          $cmakeArgs += "-DCMAKE_C_FLAGS_RELEASE=/O2 /MD /DNDEBUG"
+          $cmakeArgs += "-DCMAKE_CXX_FLAGS_RELEASE=/O2 /MD /DNDEBUG"
+          $cmakeArgs += "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL"
+        } elseif ("${{ inputs.build_type }}" -eq "Debug") {
+          $cmakeArgs += "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDebugDLL"
+        }
         
         # Add ARM64-specific configuration
         if ("${{ inputs.architecture }}" -eq "arm64") {
@@ -142,7 +162,7 @@ jobs:
     - name: Build
       shell: pwsh
       run: |
-        Write-Host "=== Building application ==="
+        Write-Host "=== Building application (Build Type: ${{ inputs.build_type }}) ===" -ForegroundColor Cyan
         cmake --build build --config ${{ inputs.build_type }} -j $env:NUMBER_OF_PROCESSORS
 
     - name: Verify build output

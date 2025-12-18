@@ -65,6 +65,9 @@ jobs:
     - name: Configure CMake
       run: |
         echo "=== Configuring CMake ==="
+        echo "Build Type: ${{ inputs.build_type }}"
+        echo "Target: ${{ inputs.target }}"
+        
         if [ "${{ inputs.target }}" = "arm64" ]; then
           DEPLOYMENT_TARGET="14.0"
           ARCH="arm64"
@@ -72,22 +75,37 @@ jobs:
           DEPLOYMENT_TARGET="15.0"
           ARCH="x86_64"
         fi
+        
+        if [ "${{ inputs.build_type }}" = "Release" ]; then
+          echo ""
+          echo "ENFORCING RELEASE BUILD MODE"
+          echo "Optimizations: -O3 -DNDEBUG"
+          echo "This build MUST NOT contain debug symbols"
+          echo ""
+        fi
+        
         LTO_FLAGS=""
         if [ "${{ inputs.enable_lto }}" = "true" ]; then
           LTO_FLAGS="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
         else
           LTO_FLAGS="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF"
         fi
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
-          -G Ninja \
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=$DEPLOYMENT_TARGET \
-          -DCMAKE_OSX_ARCHITECTURES=$ARCH \
-          $LTO_FLAGS
+        
+        CMAKE_ARGS="-B build -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} -G Ninja"
+        CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_DEPLOYMENT_TARGET=$DEPLOYMENT_TARGET"
+        CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_OSX_ARCHITECTURES=$ARCH"
+        CMAKE_ARGS="$CMAKE_ARGS $LTO_FLAGS"
+        
+        if [ "${{ inputs.build_type }}" = "Release" ]; then
+          CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG"
+          CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG"
+        fi
+        
+        cmake $CMAKE_ARGS
 
     - name: Build
       run: |
-        echo "=== Building application ==="
+        echo "=== Building application (Build Type: ${{ inputs.build_type }}) ==="
         cmake --build build --config ${{ inputs.build_type }} -j $(sysctl -n hw.ncpu)
 
     - name: Verify build output

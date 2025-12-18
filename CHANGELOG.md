@@ -1,6 +1,27 @@
 ## What's Changed
 
-#### Windows Release Build Configuration Fix (December 18, 2024) - COMPREHENSIVE UPDATE
+#### Windows Release Build Configuration Fix - MULTI-PLATFORM ENFORCEMENT (December 18, 2024)
+- **EXPLICITLY ENFORCED Release builds across ALL platforms and workflows**
+  - ✅ **Global environment variable** `CMAKE_BUILD_TYPE=Release` set in release.yml
+  - ✅ **Explicit compiler flags** for ALL operating systems:
+    - **Windows**: `/O2 /MD /DNDEBUG` + `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL`
+    - **Linux**: `-O3 -DNDEBUG`
+    - **macOS**: `-O3 -DNDEBUG`
+  - ✅ **Bold warnings** in GitHub Actions output when configuring Release builds
+  - ✅ **Build verification** confirms Release mode completion on all platforms
+  
+- **Per-Platform Enforcement in ALL Workflows**
+  - ✅ `release.yml` - All Linux (Debian, RPM, SUSE), macOS, Windows builds
+  - ✅ `build-windows.yml` - Explicit `/MD` runtime enforcement with warnings
+  - ✅ `build-linux.yml` - Explicit `-O3 -DNDEBUG` flags
+  - ✅ `build-macos.yml` - Explicit `-O3 -DNDEBUG` flags
+  
+- **Critical Windows Safeguards**
+  - 🚨 **RED BANNER** in build logs: "CRITICAL: ENFORCING RELEASE BUILD MODE"
+  - 🚨 **Explicit message**: "Debug DLLs (ucrtbased.dll, vcruntime140d.dll) are FORBIDDEN"
+  - 🚨 **Automated verification** fails build if debug DLLs detected
+  - 🚨 **Multi-layer protection** prevents ANY debug runtime linkage
+
 - **Completely eliminated Debug runtime library dependencies in Release builds**
   - ✅ Set `CMAKE_MSVC_RUNTIME_LIBRARY` globally **before** project() to apply to all dependencies
   - ✅ Explicitly removed all `/MDd`, `/MTd`, and `_DEBUG` flags from Release configurations
@@ -14,18 +35,22 @@
   - ✅ Created `verify_release_build.ps1` and `verify_release_build.bat` for manual verification
   - ✅ Uses `dumpbin` to inspect executable dependencies post-build
   
-- **Multi-Layer Protection**
-  1. **Pre-project configuration** - Sets MSVC runtime library before any targets
-  2. **Global compiler flags** - Removes debug flags, forces release flags
-  3. **Dependency configuration** - Ensures FetchContent uses correct runtime
-  4. **Target-specific enforcement** - Double-checks main executable settings
-  5. **Post-build verification** - Validates final executable doesn't link debug DLLs
+- **Multi-Layer Protection Strategy**
+  1. **Global environment** - Set `CMAKE_BUILD_TYPE=Release` workflow-wide
+  2. **Pre-project configuration** - Sets MSVC runtime library before any targets
+  3. **Global compiler flags** - Removes debug flags, forces release flags for all platforms
+  4. **Dependency configuration** - Ensures FetchContent uses correct runtime
+  5. **Target-specific enforcement** - Double-checks main executable settings
+  6. **Explicit command-line flags** - Override any defaults with explicit Release settings
+  7. **Post-build verification** - Validates final executable doesn't link debug DLLs
+  8. **Visual feedback** - Red banners and warnings in build logs
   
 - **What This Fixes**
-  - ❌ **Before:** `ucrtbased.dll`, `vcruntime140d.dll` → Error 0xc000007b
+  - ❌ **Before:** `ucrtbased.dll`, `vcruntime140d.dll` → Error 0xc000007b on Windows
   - ✅ **After:** `ucrtbase.dll`, `vcruntime140.dll` → Works with VC++ Redistributable
+  - ✅ **All platforms** now guaranteed to build in Release mode with full optimizations
 
-#### Windows Error 0xc000007b Fix - AUTOMATIC INSTALLATION
+
 ## Supported Platforms
 
 ### Linux

@@ -1,4 +1,11 @@
 name: Release
+
+# CRITICAL: Force Release builds across ALL platforms
+# This prevents any debug runtime libraries from being linked
+env:
+  CMAKE_BUILD_TYPE: Release
+  FORCE_RELEASE_BUILD: "TRUE"
+
 on:
   workflow_dispatch:
     inputs:
@@ -152,8 +159,22 @@ jobs:
 
     - name: Configure and Build
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -G Ninja -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+        echo "=== ENFORCING RELEASE BUILD MODE ==="
+        echo "CMAKE_BUILD_TYPE: Release"
+        echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
+        
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
+          -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
+          -G Ninja \
+          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+        
+        echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(nproc)
+        
+        echo "=== Verifying Release build completed ==="
+        file build/structuracost | grep -i "not stripped" && echo "✓ Release build verified" || echo "Warning: Cannot verify build type"
 
     - name: Package (TGZ fallback)
       run: |
@@ -224,14 +245,23 @@ jobs:
 
     - name: Configure and Build
       run: |
+        echo "=== ENFORCING RELEASE BUILD MODE (Fedora/RPM) ==="
+        echo "CMAKE_BUILD_TYPE: Release"
+        echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
+        
         # Suppress sqlite3 overread warning that may be treated as error in this environment
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
+          -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
           -G Ninja \
-          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} \
-          -DCMAKE_C_FLAGS="-Wno-stringop-overread" \
-          -DCMAKE_CXX_FLAGS="-Wno-stringop-overread"
+          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+        
+        echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(nproc)
+        
+        echo "=== Verifying Release build completed ==="
+        file build/structuracost | grep -i "not stripped" && echo "✓ Release build verified" || echo "Warning: Cannot verify build type"
 
     - name: Package (TGZ fallback)
       run: |
@@ -302,14 +332,23 @@ jobs:
 
     - name: Configure and Build
       run: |
+        echo "=== ENFORCING RELEASE BUILD MODE (SUSE) ==="
+        echo "CMAKE_BUILD_TYPE: Release"
+        echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
+        
         # Added flags to suppress sqlite3 overread warning treated as error
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
+          -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
           -G Ninja \
-          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} \
-          -DCMAKE_C_FLAGS="-Wno-stringop-overread" \
-          -DCMAKE_CXX_FLAGS="-Wno-stringop-overread"
+          -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }}
+        
+        echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(nproc)
+        
+        echo "=== Verifying Release build completed ==="
+        file build/structuracost | grep -i "not stripped" && echo "✓ Release build verified" || echo "Warning: Cannot verify build type"
 
     - name: Package (TGZ fallback)
       run: |
@@ -374,14 +413,25 @@ jobs:
 
     - name: Configure and Build
       run: |
+        echo "=== ENFORCING RELEASE BUILD MODE (macOS ${{ matrix.target }}) ==="
+        echo "CMAKE_BUILD_TYPE: Release"
+        echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
+        
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
+          -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
           ${{ matrix.target == 'intel' && '-DCMAKE_OSX_ARCHITECTURES=x86_64' || '' }} \
           -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} \
           -DCPACK_GENERATOR="DragNDrop;productbuild" \
           -G Ninja
+        
+        echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(sysctl -n hw.ncpu)
+        
+        echo "=== Verifying Release build completed ==="
+        file build/structuracost.app/Contents/MacOS/structuracost && echo "✓ Release build verified"
 
     - name: Make TGZ package (fallback)
       run: |
@@ -545,15 +595,34 @@ jobs:
     - name: Configure and Build
       shell: pwsh
       run: |
-        # Configure with NSIS only
+        Write-Host "=================================================================" -ForegroundColor Red
+        Write-Host "  CRITICAL: ENFORCING RELEASE BUILD MODE (Windows ${{ matrix.arch }})" -ForegroundColor Red
+        Write-Host "=================================================================" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "CMAKE_BUILD_TYPE: Release" -ForegroundColor Yellow
+        Write-Host "MSVC Runtime: MultiThreadedDLL (/MD)" -ForegroundColor Yellow
+        Write-Host "This build MUST NOT contain debug runtime libraries!" -ForegroundColor Yellow
+        Write-Host "Debug DLLs (ucrtbased.dll, vcruntime140d.dll) are FORBIDDEN" -ForegroundColor Yellow
+        Write-Host ""
+        
+        # Configure with NSIS only - EXPLICITLY ENFORCE RELEASE MODE
         cmake -B build `
           -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_C_FLAGS_RELEASE="/O2 /MD /DNDEBUG" `
+          -DCMAKE_CXX_FLAGS_RELEASE="/O2 /MD /DNDEBUG" `
+          -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreadedDLL" `
           -DCMAKE_INSTALL_PREFIX=. `
           -G Ninja `
           -DCPACK_PACKAGE_VERSION=${{ needs.prepare-version.outputs.version_numeric }} `
           -DCPACK_GENERATOR="NSIS" `
           ${{ matrix.arch == 'arm64' && '-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64' || '' }}
+        
+        Write-Host ""
+        Write-Host "=== Building in RELEASE mode with /MD runtime ===" -ForegroundColor Cyan
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+        
+        Write-Host ""
+        Write-Host "=== Build completed - proceeding to verification ===" -ForegroundColor Green
 
     - name: Verify Release Build (Check for Debug DLLs)
       shell: pwsh

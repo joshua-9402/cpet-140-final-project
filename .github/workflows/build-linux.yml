@@ -111,20 +111,31 @@ jobs:
     - name: Configure CMake
       run: |
         echo "=== Configuring CMake ==="
-        if [ "${{ inputs.enable_lto }}" = "true" ]; then
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
-            -G Ninja
-        else
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} \
-            -G Ninja \
-            -DNO_LTO=ON
+        echo "Build Type: ${{ inputs.build_type }}"
+        
+        if [ "${{ inputs.build_type }}" = "Release" ]; then
+          echo ""
+          echo "ENFORCING RELEASE BUILD MODE"
+          echo "Optimizations: -O3 -DNDEBUG"
+          echo "This build MUST NOT contain debug symbols"
+          echo ""
         fi
+        
+        CMAKE_ARGS="-B build -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} -G Ninja"
+        
+        if [ "${{ inputs.build_type }}" = "Release" ]; then
+          CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG -DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG"
+        fi
+        
+        if [ "${{ inputs.enable_lto }}" = "false" ]; then
+          CMAKE_ARGS="$CMAKE_ARGS -DNO_LTO=ON"
+        fi
+        
+        cmake $CMAKE_ARGS
 
     - name: Build
       run: |
-        echo "=== Building application ==="
+        echo "=== Building application (Build Type: ${{ inputs.build_type }}) ==="
         cmake --build build --config ${{ inputs.build_type }} -j $(nproc)
 
     - name: Verify build output
