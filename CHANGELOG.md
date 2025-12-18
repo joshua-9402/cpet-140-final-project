@@ -1,83 +1,24 @@
 ## What's Changed
 
-#### Site Location Dropdown with Dynamic Project List
-- **Replaced text input with dropdown** for Site Location in Employee Management
-  - Fixed options: "Main Office" and "Warehouse"
-  - Dynamic options: All project IDs from database (auto-refreshes every 60 frames)
-  - Prevents typos and ensures data consistency
-  - **New Validation**: Added `SITE_LOCATION` validation type that accepts:
-    - "Main Office"
-    - "Warehouse"  
-    - "PRJ-XXXXX" format (where X is any digit)
-
-#### Automatic Project Payroll Expense Tracking
-- **New Feature**: Employees assigned to projects are automatically added to project payroll expenses
-  - Added `PAYROLL_EXPENSES` table to project expense databases (PRJ-xxxxx.db)
-  - Tracks: Employee ID, Name, Position, Hourly Rate, Total Hours, Total Cost
-  - Smart location change handling:
-    - Moving employee from project A to project B automatically updates both projects
-    - Deleting an employee removes them from any assigned project
-  - **Automatic Payroll Calculation**: Calculate project labor costs from weekly attendance
-    - Button: "Calculate All Project Payroll Costs" in Monitor UI
-    - **Date-Filtered**: Only counts hours between project START_DATE and END_DATE
-    - Supports open-ended projects (no END_DATE = counts from START_DATE to present)
-    - Calculates total cost: `Total Hours × Hourly Rate`
-    - Updates `TOTAL_HOURS` and `TOTAL_COST` in project's PAYROLL_EXPENSES table
-  - **Project Report Integration**: Payroll expenses shown SEPARATELY in project reports
-    - Dedicated "Payroll Expenses" section in HTML reports
-    - Shows employee details: ID, Name, Position, Hourly Rate, Total Hours, Total Cost
-    - Summary breakdown: "Total Materials" + "Total Payroll" = "PROJECT TOTAL COST"
-  - Files modified: `src/handler/db.h`, `src/handler/db.cpp`, `src/core/monitor.h`, `src/core/monitor.cpp`, `src/ui/ui.cpp`, `src/handler/print.cpp`
-  - New functions: 
-    - `db::insertPayrollExpense()`, `db::updatePayrollExpense()`, `db::deletePayrollExpense()`
-    - `monitor::calculateProjectPayrollCosts()`, `monitor::calculateAllProjectPayrollCosts()`
-    - `print::fetchProjectPayroll()`
-
-#### Load Data Buttons  
-- **New Feature**: "Load" buttons added to management sections
-  - **Employee Management**: "Load Employee" button
-    - Fetches and populates all employee fields by ID
-    - Syncs site location dropdown
-  - **Project Management**: "Load Project" button
-    - Fetches and populates all project fields by ID
-    - Syncs status dropdown
-  - All buttons: 260px width, 40px height, same row as other action buttons
-
-#### Project End Date Tracking
-- **New Feature**: Added END_DATE field to PROJECT_LIST table
-  - Optional field for tracking project completion
-  - Used for date-filtering payroll cost calculations
-  - UI: End Date input in Project Management (validates YYYY-MM-DD)
-  - Empty END_DATE = ongoing project (counts hours from START_DATE to present)
-  - Files: `src/handler/db.cpp`, `src/core/monitor.cpp`, `src/ui/ui.cpp`
-
-#### Load Employee Data Button
-- **New Feature**: "Load Employee" button in Employee Management action row
-  - Fetches employee data from database by Employee ID
-  - Autopopulates all input fields (Name, Position, Site Location, etc.)
-  - Syncs site location dropdown to match loaded employee's location
-  - Streamlines employee update workflow - no need to retype existing data
-  - Button placement: Same row as Add/Update/Delete buttons (4th button, 260px width)
-
-#### Logging System Improvements
-- **Converted `std::cerr` to `system::logMessage()`** in print module
-  - All error messages now use centralized logging system
-  - Maintains log files instead of ephemeral console output
-  - Better error tracking and debugging capability
-
-#### Documentation Updates
-- Added `doc/SITE_LOCATION_DROPDOWN_AND_PROJECT_PAYROLL.md` - Comprehensive guide for site location dropdown and project payroll features
-- Added `doc/LOAD_EMPLOYEE_DATA_FEATURE.md` - Usage guide for Load Employee button
-- Updated existing documentation to reflect new features
-
-### Cross-platform libsodium auto-install & installer improvements
-- Implemented automatic libsodium installation for all platforms:
-  - Linux: `packaging/linux/postinst.sh` (post-install script hooked into .deb/.rpm)
-  - Windows: `packaging/windows/install_libsodium.ps1` (PowerShell) and NSIS integration
-  - macOS: `packaging/macos/postinstall` (postinstall script for .pkg)
-- Made `assets/icons/app_icon.png` the default application icon (window/dock/taskbar) and added a macOS helper to set Dock icon at runtime.
-- Added NSIS installer commands to create a desktop shortcut on Windows.
-- Bundled logic in `CMakeLists.txt` to copy the icon asset, include platform-specific helper sources, and include the post-install scripts in generated packages.
+#### Windows Error 0xc000007b Fix - AUTOMATIC INSTALLATION
+- **Windows installer now AUTOMATICALLY installs all required dependencies**
+  - ✅ **Visual C++ Redistributable 2015-2022 (x64)** - Auto-downloaded and installed
+  - ✅ **Visual C++ Redistributable 2015-2022 (x86)** - Auto-downloaded and installed  
+  - ✅ **libsodium.dll** - Auto-downloaded and installed (correct architecture)
+  - Installer shows progress window during dependency installation
+  - No manual intervention required - just run the installer!
+  
+- **Enhanced installer features:**
+  - Post-install dependency check and installation
+  - Automatic detection of already-installed components
+  - Graceful fallback with manual installation instructions
+  - Bundled troubleshooting documentation
+  
+- **Build system improvements:**
+  - Added proper MSVC runtime library configuration (MultiThreadedDLL)
+  - Ensured architecture consistency (x64/Win32) throughout build
+  - Automatic DLL copying for correct architecture
+  - Post-build checks to verify required dependencies
 
 
 ## Supported Platforms
