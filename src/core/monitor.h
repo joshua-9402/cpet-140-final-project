@@ -43,6 +43,7 @@ namespace monitor {
         const std::string& projectName,
         const std::string& status,
         const std::string& startDate,
+        const std::string& endDate = "",
         const std::string& note = ""
     );
 
@@ -124,6 +125,21 @@ namespace monitor {
         const std::string& weekStartIso
     );
 
-    // Deprecated sample calculators removed (not used by system)
+    // Get list of all project IDs for site location dropdown
+    std::vector<std::string> listProjectIDs();
+
+    // Manage employee payroll expenses in projects
+    bool addEmployeeToProject(const std::string& projectId, const std::string& employeeId,
+                             const std::string& employeeName, const std::string& position,
+                             const std::string& hourlyRate);
+    bool removeEmployeeFromProject(const std::string& projectId, const std::string& employeeId);
+    bool updateEmployeeProjectHours(const std::string& projectId, const std::string& employeeId,
+                                   double totalHours, double totalCost);
+
+    // Calculate and update project payroll costs from weekly attendance
+    bool calculateProjectPayrollCosts(const std::string& projectId);
+    bool calculateAllProjectPayrollCosts(); // Update all projects
+
+    // Deprecated sample calculators removed (not used by the system)
 }
 #endif
