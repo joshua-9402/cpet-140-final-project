@@ -31,7 +31,7 @@
 #include "sodium.h"
 
 
-bool cryptography::checkSodium() {
+bool Cryptography::checkSodium() {
     return sodium_init() >= 0;
 }
 
@@ -39,7 +39,7 @@ bool cryptography::checkSodium() {
 // Generates a cryptographically secure random key.
 // keyBits: size of a key in *bits* (32 to 8192)
 // returns: vector of random bytes
-std::vector<unsigned char> cryptography::generateKey(const size_t keyBits) {
+std::vector<unsigned char> Cryptography::generateKey(const size_t keyBits) {
     if (keyBits < 32 || keyBits > 8192 || (keyBits % 8) != 0) return {};
 
     const auto keyBytes = keyBits / 8;
@@ -49,7 +49,7 @@ std::vector<unsigned char> cryptography::generateKey(const size_t keyBits) {
 }
 
 
-std::string cryptography::toHex(const std::vector<unsigned char>& key) {
+std::string Cryptography::toHex(const std::vector<unsigned char>& key) {
 
     std::ostringstream ss;
 
@@ -60,7 +60,7 @@ std::string cryptography::toHex(const std::vector<unsigned char>& key) {
 }
 
 
-std::string cryptography::hashKey(const std::string& key, const int hashLen) {
+std::string Cryptography::hashKey(const std::string& key, const int hashLen) {
     if (!checkSodium()) return {};
 
     if (hashLen < crypto_generichash_BYTES_MIN || hashLen > crypto_generichash_BYTES_MAX) return {};
@@ -78,7 +78,7 @@ std::string cryptography::hashKey(const std::string& key, const int hashLen) {
 }
 
 
-std::string cryptography::saltKey(const std::string& key) {
+std::string Cryptography::saltKey(const std::string& key) {
 
     constexpr size_t saltBytes = crypto_pwhash_SALTBYTES;
 
@@ -97,7 +97,7 @@ std::string cryptography::saltKey(const std::string& key) {
 }
 
 
-bool cryptography::encryptFile(const std::string &filePath, const std::vector<unsigned char> &key) {
+bool Cryptography::encryptFile(const std::string &filePath, const std::vector<unsigned char> &key) {
     if (key.empty()) return false;
 
     constexpr size_t required = crypto_aead_xchacha20poly1305_ietf_KEYBYTES;
@@ -315,7 +315,7 @@ bool DBEncryptionSession::encryptAllDbs() {
 } // namespace security
 
 
-bool cryptography::decryptFile(const std::string& filePath, const std::vector<unsigned char>& key, std::string* errorMsg) {
+bool Cryptography::decryptFile(const std::string& filePath, const std::vector<unsigned char>& key, std::string* errorMsg) {
     if (key.empty()) { if (errorMsg) *errorMsg = "Empty key provided"; return false; }
 
     constexpr size_t required = crypto_aead_xchacha20poly1305_ietf_KEYBYTES;
