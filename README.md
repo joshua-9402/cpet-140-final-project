@@ -61,7 +61,6 @@ II. Getting Started
       - [Manual Build](#manual-build)
       - [Windows Builds](#windows-builds)
       - [macOS Builds](#macos-builds)
-      - [Linux Builds](#linux-builds)
       - [Release Builds (All Platforms)](#release-builds-all-platforms)
       - [Downloading Pre-built Binaries](#downloading-pre-built-binaries)
   - [Dependencies](#dependencies)
@@ -98,18 +97,6 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       ├── .github/
       │   └── workflows/
       │       ├── BUILD.md
-      │       ├── README-linux.md
-      │       ├── README-linux-rpm.md
-      │       ├── README-linux-suse.md
-      │       ├── README-macos-arm64.md
-      │       ├── README-macos-intel.md
-      │       ├── README-windows-arm64.md
-      │       ├── README-windows-x86_64.md
-      │       ├── build-linux.yml
-      │       ├── build-linux-rpm.yml
-      │       ├── build-linux-suse.yml
-      │       ├── build-macos.yml
-      │       ├── build-windows.yml
       │       └── release.yml
       ├── assets/
       │   ├── fonts/
@@ -118,9 +105,6 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
       │       ├── business_logo.png
       │       ├── app_icon.png
       │       └── user_icon.png
-      ├── assets (raw)/
-      │   ├── user_icon.psd
-      │   └── concept.png
       ├── dependencies/
       │   └── sqlite/
       │      ├── sqlite3.c
@@ -271,7 +255,12 @@ This section documents calling conventions, minimal contracts, common error mode
 
 #### Manual Build
 
-- For platform-specific configurations and legacy support, we provide **five manual-trigger workflows**:
+- For platform-specific configurations and legacy support, we provide manual-trigger workflows for supported platforms.
+
+#### Linux Builds (archived)
+
+Linux packaging and automated Linux build workflows have been removed from the main release pipeline. If you need Linux packages or build instructions, see `doc/LINUX_PACKAGING_REMOVED.md` or the archived docs under `archive/linux_removed/`.
+
 
 #### Windows Builds
 
@@ -296,26 +285,6 @@ macOS README files:
 |-----------|-----------------------------|--------------|-----------------------|---------|---------------------------------------------------|
 | **macOS** | Apple Silicon (M1/M2/M3/M4) | ARM64        | macOS Sequoia 15.0    | C++20   | `structuracost-mac-arm64-${version}-${dev_stage}` |
 | **macOS** | Intel Macs                  | x86_64       | macOS Sequoia 15.0    | C++20   | `structuracost-mac-intel-${version}-${dev_stage}` |
-
-#### Linux Builds
-
-Linux README files:
-   - [README-linux.md](.github/workflows/README-linux.md)
-   - [README-linux-rpm.md](.github/workflows/README-linux-rpm.md)
-   - [README-linux-suse.md](.github/workflows/README-linux-suse.md)
-
-| Workflow                    | Target Hardware     | Architecture | Target Linux Versions | C++ Std | Asset Name                                                 |
-|-----------------------------|---------------------|--------------|-----------------------|---------|------------------------------------------------------------|
-| **Linux (Debian/Ubuntu)**   | x86_64 Computers    | x86_64       | Ubuntu 20.04          | C++20   | `structuracost-linux-debian-intel-${version}-${dev_stage}` |
-| **Linux (Debian/Ubuntu)**   | ARM64 Computers     | ARM64        | Ubuntu 20.04 (ARM64)  | C++20   | `structuracost-linux-debian-arm64-${version}-${dev_stage}` |
-| **Linux (Fedora/Red Hat)**  | x86_64 Computers    | x86_64       | Fedora Latest         | C++20   | `structuracost-linux-rpm-intel-${version}-${dev_stage}`    |
-| **Linux (Fedora/Red Hat)**  | ARM64 Computers     | ARM64        | Fedora Latest (ARM64) | C++20   | `structuracost-linux-rpm-arm64-${version}-${dev_stage}`    |
-| **Linux (SUSE Family)**     | x86_64 Computers    | x86_64       | openSUSE Tumbleweed   | C++20   | `structuracost-linux-suse-intel-${version}-${dev_stage}`   |
-| **Linux (SUSE Family)**     | ARM64 Computers     | ARM64        | openSUSE Tumbleweed   | C++20   | `structuracost-linux-suse-arm64-${version}-${dev_stage}`   |
-
-
-**To trigger manual workflows:** Go to Actions → Select workflow → Run workflow
-
 
 #### Release Builds (All Platforms)
 
@@ -350,16 +319,12 @@ For platform-specific or legacy builds:
 2. Select the appropriate workflow from the left sidebar:
     - `macOS`
     - `Windows`
-    - `Linux (Debian/Ubuntu)`
-    - `Linux (Fedora/Red Hat)`
-    - `Linux (SUSE Family)`
 3. Click the **Run workflow** button (top right)
 4. Configure build options if prompted
 5. Wait for the build to complete (status changes to green checkmark)
 6. Download the artifact from the workflow run page:
     - `structuracost-macos-arm64.tar.gz` (Apple Silicon)
     - `structuracost-macos-x64.tar.gz` (Intel macOS)
-    - `structuracost-linux-x64.tar.gz` (Linux x64)
     - `structuracost-windows-x64.zip` (Windows x64)
 7. Extract and run the executable
 
