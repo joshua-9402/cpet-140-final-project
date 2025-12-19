@@ -57,6 +57,45 @@ Location:
 
 ---
 
+## 4.1) Deductions breakdown (displayed on exported payslip)
+Definition: The exported payslip now shows a detailed breakdown of all deductions so the employee can see exactly what has been withheld.
+
+Items shown and how they are computed or taken from data:
+
+- Advance
+  - Source: `EMPLOYEES.ADVANCE` in payroll DB / `employee.advance` in code.
+  - Shown as a direct deduction amount (no further computation).
+
+- Others
+  - Source: `employee.others` (optional additional deductions recorded in DB).
+  - Shown directly as a deduction amount.
+
+- SSS, PhilHealth (HMO), Pag-IBIG
+  - Computed from gross pay using the formulas in sections 2, 3, and 4 above.
+  - SSS = Gross * 0.045
+  - PhilHealth = Gross * 0.025
+  - Pag-IBIG = min(Gross * 0.02, 100.0)
+
+- Tax
+  - Computed using the TRAIN law logic (annualize taxable weekly amount, apply bracketed tax, then divide by 52). See section 5 for the full bracket logic.
+
+Total deductions used on the payslip:
+
+    TotalDeductions = Advance + Others + SSS + PhilHealth + PagIbig + Tax
+
+Net pay displayed on the payslip:
+
+    NetPay = Gross - TotalDeductions
+
+Location (where the payslip is produced/updated):
+- src/handler/print.cpp — `makePayslipHtml` now computes and includes a detailed deductions table and updates the printed Net Pay to subtract all deductions.
+- Computation of SSS/PhilHealth/Pag-IBIG/Tax uses functions in `src/core/payroll.cpp`.
+
+Notes:
+- The pay export code uses attendance-derived weekly hours (from `WEEKLY_ATTENDANCE`) to compute `hoursWorked` and therefore gross pay; the `Advance` and `Others` fields come from the payroll DB.
+
+---
+
 ## 5) Tax (TRAIN law) — weekly withholding
 Definition: Computes weekly tax withholding by annualizing the taxable weekly income, applying the TRAIN tax brackets, then converting the annual tax back to weekly.
 
@@ -116,20 +155,20 @@ Location:
 
 ---
 
-## 8) Simple payslip math (used by printing/export)
-Definition: A simplified payslip total used by `print.cpp` when preparing HTML payslips. This mirrors legacy behavior where government contributions and tax were not applied in the exported payslip.
+## 8) Simple payslip math (legacy — printing/export behaviour updated)
+Definition: Historically, `print.cpp` used a simplified payslip total where government contributions and tax were not applied when generating the exported HTML payslip. The exported payslip has been updated to show detailed deductions (see section 4.1).
 
-Formula:
+Legacy formula (still referenced in comments / simple helper):
 
     Gross = ratePerHour * hoursWorked
     Total = Gross - (Advance + Others)
 
 Location:
-- src/handler/print.cpp — `const double gross = data.salary * data.hoursWorked;` and `const double total = gross - data.advance - data.others;`
+- src/handler/print.cpp — legacy usage previously computed `const double total = gross - data.advance - data.others;` but `makePayslipHtml` is now updated to include detailed deductions.
 - src/core/payroll.h — comment for `computeSimpleFromHourly`
 
 Notes:
-- `print.cpp` explicitly documents that attendance-derived hours are used to compute `hoursWorked`.
+- The export function still uses attendance-derived `hoursWorked` as input; the legacy simple total is preserved only for backward compatibility in a helper and comments.
 
 ---
 
@@ -148,14 +187,30 @@ Location:
 ## References / Source files
 - src/core/payroll.cpp
 - src/core/payroll.h
-- src/handler/print.cpp
+- src/handler/print.cpp (updated to include deductions in exported payslip)
 - src/ui/ui.cpp (labeling and display, not computation)
 
 ---
 
-If you'd like, I can:
-- Add a short worked example (numeric) for each formula.
-- Export this `doc/FORMULAS.md` into the repo (I can create the file if you want — it's currently prepared but not yet written to disk).
-- Include equations in LaTeX form or add cross-links to exact line numbers.
+## 10) Overtime computation (implemented)
+Definition: Overtime pay applies to hours worked beyond an employee's `regularHours` per week (default 40.0 hours). Overtime hours are paid at an overtime multiplier (1.5x by default).
 
-Tell me which extras you want and I'll apply them.
+Formulas:
+
+    overtimeHours = max(0, hoursWorked - regularHours)
+    overtimeRate = hourlyRate * overtimeMultiplier   // overtimeMultiplier = 1.5 by default
+    overtimePay = overtimeHours * overtimeRate
+
+Gross pay (with overtime):
+
+    basePay = min(hoursWorked, regularHours) * hourlyRate
+    gross = basePay + overtimePay
+
+Location:
+- Implementation: `src/core/payroll.cpp` — `payroll::computeGross` now includes overtime using `Employee::regularHours` and a 1.5x multiplier.
+- Display: `src/handler/print.cpp` — `makePayslipHtml` computes `overtimeHours` and `overtimePay` and displays them on the payslip when overtime applies.
+
+Notes:
+- `Employee::regularHours` default is 40.0 hours per week; you can change this value per-employee in code if needed before calling payroll computations.
+- The overtime multiplier is currently fixed at 1.5 in code; if you need different multipliers (night differential, holiday, double-time), we can add more rules and parameters.
+- The payslip will only show the overtime rows when `overtimeHours > 0`.
