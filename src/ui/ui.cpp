@@ -1130,6 +1130,8 @@ static void monitorUI() {
     ImGui::TextDisabled(shownEmployee == 0 ? "No employees to display." : "Showing %d employee(s).", shownEmployee);
     ImGui::EndChild();
 
+    ImGui::EndChild();
+
     ImGui::Spacing();
     ImGui::Spacing();
 
@@ -1463,7 +1465,7 @@ static void monitorUI() {
     ImGui::Text("Week:");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(150.0f);
-    if (ImGui::BeginCombo("##viewerWeekSelector", weekOptions[viewerWeekIndex].c_str())) {
+    if (!weekOptions.empty() && ImGui::BeginCombo("##viewerWeekSelector", weekOptions[viewerWeekIndex].c_str())) {
         for (int i = 0; i < weekOptions.size(); i++) {
             bool isSelected = (viewerWeekIndex == i);
             if (ImGui::Selectable(weekOptions[i].c_str(), isSelected)) {
@@ -2178,6 +2180,8 @@ static void monitorUI() {
     } else {
         ImGui::TextDisabled("Showing %d material(s)", shownMaterials);
     }
+
+    ImGui::EndChild();
 
     ImGui::EndChild();
 }
