@@ -2180,8 +2180,6 @@ static void monitorUI() {
     }
 
     ImGui::EndChild();
-
-    ImGui::EndChild();
 }
 
 
