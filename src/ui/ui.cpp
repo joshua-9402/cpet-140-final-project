@@ -742,7 +742,7 @@ static void payrollUI() {
     ImGui::Text("Position"); ImGui::NextColumn();
     ImGui::Text("Site Location"); ImGui::NextColumn();
     ImGui::Text("Hourly Rate"); ImGui::NextColumn();
-    ImGui::Text("Regular Hours"); ImGui::NextColumn();
+    ImGui::Text("Regular Hours (per week)"); ImGui::NextColumn();
     ImGui::Text("Advance"); ImGui::NextColumn();
     ImGui::Separator();
 
@@ -894,7 +894,7 @@ static void monitorUI() {
     if (!salaryValid) ImGui::PopStyleColor();
 
     ImGui::SameLine(660.0f);
-    ImGui::Text("Regular Hours:");
+    ImGui::Text("Regular Hours (per week):");
     ImGui::SameLine(780.0f);
     ImGui::SetNextItemWidth(120.0f);
     if (!hoursValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
@@ -1094,7 +1094,7 @@ static void monitorUI() {
     struct Column { const char* name; };
     const std::vector<Column> columns = {
         {"EMPLOYEE_ID"}, {"NAME"}, {"POSITION"}, {"SITE_LOCATION"},
-        {"SALARY"}, {"HOURS_WORK"}, {"ADVANCE"}
+        {"SALARY"}, {"REGULAR_HOUR"}, {"ADVANCE"}
     };
 
     ImGui::BeginChild("EmployeeDBViewer", ImVec2(0, 0), true);
@@ -1130,9 +1130,8 @@ static void monitorUI() {
     ImGui::TextDisabled(shownEmployee == 0 ? "No employees to display." : "Showing %d employee(s).", shownEmployee);
     ImGui::EndChild();
 
-    ImGui::EndChild();
-
     ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Spacing();
 
     // ==============================================
@@ -1831,8 +1830,6 @@ static void monitorUI() {
     }
 
     ImGui::TextDisabled(shownProjects == 0 ? "No projects to display." : "Showing %d project(s).", shownProjects);
-    ImGui::EndChild();
-
     ImGui::EndChild();
 
     ImGui::Spacing();
