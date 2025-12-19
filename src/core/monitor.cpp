@@ -36,9 +36,9 @@
 #include "../handler/system.h"
 
 
-namespace monitor {
 
-bool addProject(const std::string& projectId,
+
+bool Monitor::addProject(const std::string& projectId,
                 const std::string& projectName,
                 const std::string& status,
                 const std::string& startDate,
@@ -56,7 +56,7 @@ bool addProject(const std::string& projectId,
 }
 
 
-PayrollSummary computePayrollSummary() {
+PayrollSummary Monitor::computePayrollSummary() {
     PayrollSummary ps{0, 0.0, 0.0};
     const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
 
@@ -81,7 +81,7 @@ PayrollSummary computePayrollSummary() {
     return ps;
 }
 
-ProjectSummary computeProjectSummary() {
+ProjectSummary Monitor::computeProjectSummary() {
     ProjectSummary s{0, 0};
     const std::string projectDB = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
     for (int row = 1; row <= 1000; ++row) {
@@ -94,7 +94,7 @@ ProjectSummary computeProjectSummary() {
     return s;
 }
 
-bool addEmployee(const std::string& name,
+bool Monitor::addEmployee(const std::string& name,
                  const std::string& position,
                  const std::string& siteLocation,
                  const std::string& hourlyRate,
@@ -138,7 +138,7 @@ bool addEmployee(const std::string& name,
     return true;
 }
 
-std::vector<EmployeeRow> listEmployees(int maxRows) {
+std::vector<Monitor::EmployeeRow> Monitor::listEmployees(int maxRows) {
     std::vector<EmployeeRow> rows;
     if (maxRows < 1) return rows;
     const std::string employeeDB = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
@@ -158,7 +158,7 @@ std::vector<EmployeeRow> listEmployees(int maxRows) {
     return rows;
 }
 
-bool updateEmployee(const std::string& newEmployeeId,
+bool Monitor::updateEmployee(const std::string& newEmployeeId,
                     const std::string& name,
                     const std::string& position,
                     const std::string& siteLocation,
@@ -281,7 +281,7 @@ bool updateEmployee(const std::string& newEmployeeId,
     return db::updateDatabase(payrollDbPath, updateKey, setClause);
 }
 
-bool deleteEmployee(const std::string& employeeId) {
+bool Monitor::deleteEmployee(const std::string& employeeId) {
     if (employeeId.empty()) return false;
 
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
@@ -418,7 +418,7 @@ static std::string buildAttendanceDbPathFromWeekLabel(const std::string& weekLab
 
 // loadWeeklyAttendance removed as unused
 
-std::vector<AttendanceRow> listWeeklyAttendance(const std::string& weekLabelUi, int maxRows) {
+std::vector<Monitor::AttendanceRow> Monitor::listWeeklyAttendance(const std::string& weekLabelUi, int maxRows) {
     std::vector<AttendanceRow> rows;
     if (weekLabelUi.empty() || maxRows < 1) return rows;
     const std::string attendanceDbPath = buildAttendanceDbPathFromWeekLabel(weekLabelUi);
@@ -440,7 +440,7 @@ std::vector<AttendanceRow> listWeeklyAttendance(const std::string& weekLabelUi, 
     return rows;
 }
 
-bool addWeeklyAttendance(
+bool Monitor::addWeeklyAttendance(
     const std::string& employeeIdRaw,
     const std::string& weekLabelUi,
     const std::string& weekStartIso,
@@ -481,7 +481,7 @@ bool addWeeklyAttendance(
     return okWeek && okBase;
 }
 
-bool updateWeeklyAttendance(
+bool Monitor::updateWeeklyAttendance(
     const std::string& employeeIdRaw,
     const std::string& weekLabelUi,
     const std::string& weekStartIso,
@@ -516,7 +516,7 @@ bool updateWeeklyAttendance(
     return okWeek && okBase;
 }
 
-bool deleteWeeklyAttendance(
+bool Monitor::deleteWeeklyAttendance(
     const std::string& employeeIdRaw,
     const std::string& weekLabelUi,
     const std::string& weekStartIso
@@ -534,7 +534,7 @@ bool deleteWeeklyAttendance(
     return okWeek && okBase;
 }
 
-std::vector<std::string> listProjectIDs() {
+std::vector<std::string> Monitor::listProjectIDs() {
     std::vector<std::string> projectIDs;
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
 
@@ -548,7 +548,7 @@ std::vector<std::string> listProjectIDs() {
     return projectIDs;
 }
 
-bool addEmployeeToProject(const std::string& projectId, const std::string& employeeId,
+bool Monitor::addEmployeeToProject(const std::string& projectId, const std::string& employeeId,
                          const std::string& employeeName, const std::string& position,
                          const std::string& hourlyRate) {
     if (projectId.empty() || employeeId.empty()) return false;
@@ -566,7 +566,7 @@ bool addEmployeeToProject(const std::string& projectId, const std::string& emplo
     return db::insertPayrollExpense(projectExpenseDbPath, values);
 }
 
-bool removeEmployeeFromProject(const std::string& projectId, const std::string& employeeId) {
+bool Monitor::removeEmployeeFromProject(const std::string& projectId, const std::string& employeeId) {
     if (projectId.empty() || employeeId.empty()) return false;
 
     const std::string projectExpenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory +
@@ -577,7 +577,7 @@ bool removeEmployeeFromProject(const std::string& projectId, const std::string& 
     return db::deletePayrollExpense(projectExpenseDbPath, employeeId);
 }
 
-bool updateEmployeeProjectHours(const std::string& projectId, const std::string& employeeId,
+bool Monitor::updateEmployeeProjectHours(const std::string& projectId, const std::string& employeeId,
                                double totalHours, double totalCost) {
     if (projectId.empty() || employeeId.empty()) return false;
 
@@ -593,7 +593,7 @@ bool updateEmployeeProjectHours(const std::string& projectId, const std::string&
     return db::updatePayrollExpense(projectExpenseDbPath, employeeId, setClause.str());
 }
 
-bool calculateProjectPayrollCosts(const std::string& projectId) {
+bool Monitor::calculateProjectPayrollCosts(const std::string& projectId) {
     if (projectId.empty()) return false;
 
     const std::string payrollDbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
@@ -707,7 +707,7 @@ bool calculateProjectPayrollCosts(const std::string& projectId) {
     return true;
 }
 
-bool calculateAllProjectPayrollCosts() {
+bool Monitor::calculateAllProjectPayrollCosts() {
     // Get all projects
     std::vector<std::string> projectIDs = listProjectIDs();
 
@@ -726,5 +726,5 @@ bool calculateAllProjectPayrollCosts() {
 
 // Removed deprecated sample calculators (not used by the system)
 
-} // namespace monitor
+
 
