@@ -29,6 +29,7 @@ struct Employee {
     std::string name;
     double hourlyRate;
     double hoursWorked; // total hours in a week
+    double regularHours{40.0}; // regular hours per week (used to compute overtime)
 };
 
 struct PayrollResult {

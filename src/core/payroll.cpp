@@ -43,9 +43,12 @@
 #include "payroll.h"
 
 
-// Gross Pay
+// Gross Pay (includes overtime)
 double payroll::computeGross(const Employee& emp) {
-    return emp.hourlyRate * emp.hoursWorked;
+    const double regular = std::min(emp.hoursWorked, emp.regularHours);
+    const double overtimeHours = std::max(0.0, emp.hoursWorked - emp.regularHours);
+    const double overtimeRate = emp.hourlyRate * 1.5; // standard 1.5x overtime multiplier
+    return (regular * emp.hourlyRate) + (overtimeHours * overtimeRate);
 }
 
 
@@ -84,7 +87,10 @@ double payroll::computeTax(const double weeklyGrossAfterDeductions) {
         tax = 2410000 + (annual - 8000000) * 0.35;
 
     return tax / 52.0; // weekly tax
-}// Compute everything
+}
+
+
+// Compute everything
 PayrollResult payroll::computePayroll(const Employee& emp) {
     PayrollResult result{};
 
@@ -102,8 +108,4 @@ PayrollResult payroll::computePayroll(const Employee& emp) {
 
     return result;
 }
-
-
-
-
 
