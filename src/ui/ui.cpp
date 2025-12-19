@@ -1134,6 +1134,7 @@ static void monitorUI() {
     ImGui::Separator();
     ImGui::Spacing();
 
+    ImGui::EndChild();
     // ==============================================
     // ATTENDANCE MANAGEMENT SECTION
     // ==============================================
@@ -1813,6 +1814,8 @@ static void monitorUI() {
         ImGui::Separator();
         ImGui::Columns(1);
     }
+
+    ImGui::EndChild();
 
     int shownProjects = 0;
     for (int row = 1; row <= s_maxRowsProjects; ++row) {
