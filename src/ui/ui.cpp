@@ -742,7 +742,7 @@ static void payrollUI() {
     ImGui::Text("Position"); ImGui::NextColumn();
     ImGui::Text("Site Location"); ImGui::NextColumn();
     ImGui::Text("Hourly Rate"); ImGui::NextColumn();
-    ImGui::Text("Hours Worked"); ImGui::NextColumn();
+    ImGui::Text("Regular Hours"); ImGui::NextColumn();
     ImGui::Text("Advance"); ImGui::NextColumn();
     ImGui::Separator();
 
@@ -894,7 +894,7 @@ static void monitorUI() {
     if (!salaryValid) ImGui::PopStyleColor();
 
     ImGui::SameLine(660.0f);
-    ImGui::Text("Hours Worked:");
+    ImGui::Text("Regular Hours:");
     ImGui::SameLine(780.0f);
     ImGui::SetNextItemWidth(120.0f);
     if (!hoursValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
