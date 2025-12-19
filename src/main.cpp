@@ -21,6 +21,7 @@
 
 #include <string>
 #include <thread>
+#include <atomic>
 
 #include "ui/ui.h"
 #include "config/config.h"
@@ -70,7 +71,7 @@ void systemCheck() {
     }
 }
 
-static std::atomic s_runBackground{true};
+static std::atomic<bool> s_runBackground{true};
 
 void runUIFlow() {
     // Show login if not authenticated
