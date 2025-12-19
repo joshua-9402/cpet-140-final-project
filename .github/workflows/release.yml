@@ -1,7 +1,5 @@
 name: Release
 
-# CRITICAL: Force Release builds across ALL platforms
-# This prevents any debug runtime libraries from being linked
 env:
   CMAKE_BUILD_TYPE: Release
   FORCE_RELEASE_BUILD: "TRUE"
@@ -48,16 +46,6 @@ on:
         required: false
         default: 0
         type: number
-      linux:
-        description: 'Linux'
-        required: true
-        default: 'both'
-        type: choice
-        options:
-          - 'both'
-          - 'x64'
-          - 'arm64'
-          - 'skip'
       macos:
         description: 'macOS'
         required: true
@@ -82,7 +70,7 @@ on:
 jobs:
   prepare-version:
     name: Prepare Version
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     outputs:
       version_numeric: ${{ steps.version.outputs.version_numeric }}
       stage_suffix: ${{ steps.version.outputs.stage_suffix }}
@@ -126,282 +114,6 @@ jobs:
         echo "stage_suffix=${STAGE_SUFFIX}"         >> "$GITHUB_OUTPUT"
         echo "combined_version=${COMBINED_VERSION}" >> "$GITHUB_OUTPUT"
         echo "Computed: ${COMBINED_VERSION}"
-
-  build-linux-debian:
-    name: Linux Debian/Ubuntu (${{ matrix.arch }})
-    needs: prepare-version
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.linux != 'skip'
-    strategy:
-      matrix:
-        arch: ${{ fromJSON(inputs.linux == 'both' && '["x64", "arm64"]' || inputs.linux == 'x64' && '["x64"]' || '["arm64"]') }}
-    container:
-      image: ubuntu:22.04
-
-    steps:
-    - name: Install dependencies
-      run: |
-        apt-get update
-        apt-get install -y build-essential git cmake ninja-build file libglfw3-dev \
-          libwayland-dev wayland-protocols \
-          libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev \
-          libglu1-mesa-dev libfreetype6-dev libfontconfig1-dev libsodium-dev pkg-config fakeroot
-
-    - name: Verify libsodium
-      run: |
-        test -f /usr/include/sodium.h || (echo "libsodium header missing"; exit 1)
-        pkg-config --exists libsodium || echo "pkg-config entry missing"
-
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Configure and Build
-      run: |
-        echo "=== ENFORCING RELEASE BUILD MODE ==="
-        echo "CMAKE_BUILD_TYPE: Release"
-        echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
-        
-        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
-        VERSION="${VERSION#v}"  # Remove leading 'v'
-        
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
-          -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
-          -G Ninja \
-          -DCPACK_PACKAGE_VERSION="${VERSION}"
-        
-        echo "=== Building in RELEASE mode with optimizations ==="
-        cmake --build build --config Release -j $(nproc)
-        
-        echo "=== Verifying Release build completed ==="
-        file build/structuracost | grep -i "not stripped" && echo "✓ Release build verified" || echo "Warning: Cannot verify build type"
-
-    - name: Package (TGZ fallback)
-      run: |
-        mkdir -p artifact
-        cp build/structuracost artifact/
-        [ -d "assets" ] && cp -r assets artifact/
-        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        cd artifact && tar -czf ../structuracost-linux-debian-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz * && cd ..
-
-    - name: Build DEB installer via CPack
-      run: |
-        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
-        VERSION="${VERSION#v}"  # Remove leading 'v'
-        cmake -B build -DCPACK_GENERATOR=DEB -DCPACK_PACKAGE_VERSION="${VERSION}"
-        cmake --build build --target package
-        ls -1 build | grep -E '\.deb$' || true
-
-    - name: Collect Debian installer
-      run: |
-        mkdir -p installers
-        find build -maxdepth 1 -type f -name "*.deb" -exec cp {} installers/ \; || true
-        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        if ls installers/*.deb 1> /dev/null 2>&1; then
-          for f in installers/*.deb; do mv "$f" installers/structuracost-linux-debian-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.deb; done
-        fi
-
-    - name: Upload Debian artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-debian-${{ matrix.arch }}
-        path: |
-          installers/structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.deb
-        retention-days: 7
-
-    - name: Upload Debian archive (separate)
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-debian-${{ matrix.arch }}-archive
-        path: structuracost-linux-debian-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz
-        retention-days: 7
-
-  build-linux-rpm:
-    name: Linux RPM (${{ matrix.arch }})
-    needs: prepare-version
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.linux != 'skip'
-    strategy:
-      matrix:
-        arch: ${{ fromJSON(inputs.linux == 'both' && '["x64", "arm64"]' || inputs.linux == 'x64' && '["x64"]' || '["arm64"]') }}
-    container:
-      image: fedora:latest
-
-    steps:
-    - name: Install dependencies
-      run: |
-        dnf install -y gcc gcc-c++ git cmake ninja-build file glfw-devel \
-          wayland-devel wayland-protocols-devel \
-          libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
-          mesa-libGL-devel mesa-libGLU-devel freetype-devel fontconfig-devel libsodium-devel pkg-config rpm-build
-
-    - name: Verify libsodium
-      run: |
-        test -f /usr/include/sodium.h || (echo "libsodium header missing"; exit 1)
-        pkg-config --exists libsodium || echo "pkg-config entry missing"
-
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Configure and Build
-      run: |
-        echo "=== ENFORCING RELEASE BUILD MODE (Fedora/RPM) ==="
-        echo "CMAKE_BUILD_TYPE: Release"
-        echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
-        
-        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
-        VERSION="${VERSION#v}"  # Remove leading 'v'
-        
-        # Suppress sqlite3 overread warning that may be treated as error in this environment
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
-          -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
-          -G Ninja \
-          -DCPACK_PACKAGE_VERSION="${VERSION}"
-        
-        echo "=== Building in RELEASE mode with optimizations ==="
-        cmake --build build --config Release -j $(nproc)
-        
-        echo "=== Verifying Release build completed ==="
-        file build/structuracost | grep -i "not stripped" && echo "✓ Release build verified" || echo "Warning: Cannot verify build type"
-
-    - name: Package (TGZ fallback)
-      run: |
-        mkdir -p artifact
-        cp build/structuracost artifact/
-        [ -d "assets" ] && cp -r assets artifact/
-        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        cd artifact && tar -czf ../structuracost-linux-rpm-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz * && cd ..
-
-    - name: Build RPM installer via CPack
-      run: |
-        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
-        VERSION="${VERSION#v}"  # Remove leading 'v'
-        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION="${VERSION}"
-        cmake --build build --target package
-        ls -1 build | grep -E '\.rpm$' || true
-
-    - name: Collect RPM installer
-      run: |
-        mkdir -p installers
-        find build -maxdepth 1 -type f -name "*.rpm" -exec cp {} installers/ \; || true
-        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        if ls installers/*.rpm 1> /dev/null 2>&1; then
-          for f in installers/*.rpm; do mv "$f" installers/structuracost-linux-rpm-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.rpm; done
-        fi
-
-    - name: Upload RPM artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-rpm-${{ matrix.arch }}
-        path: |
-          installers/structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.rpm
-        retention-days: 7
-
-    - name: Upload RPM archive (separate)
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-rpm-${{ matrix.arch }}-archive
-        path: structuracost-linux-rpm-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz
-        retention-days: 7
-
-  build-linux-suse:
-    name: Linux SUSE (${{ matrix.arch }})
-    needs: prepare-version
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-22.04-arm64' || 'ubuntu-latest' }}
-    if: inputs.linux != 'skip'
-    strategy:
-      matrix:
-        arch: ${{ fromJSON(inputs.linux == 'both' && '["x64", "arm64"]' || inputs.linux == 'x64' && '["x64"]' || '["arm64"]') }}
-    container:
-      image: opensuse/tumbleweed:latest
-
-    steps:
-    - name: Install dependencies
-      run: |
-        zypper refresh
-        zypper install -y gcc gcc-c++ git cmake ninja file \
-          libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel \
-          Mesa-libGL-devel libGLU1 freetype2-devel fontconfig-devel libsodium-devel rpm-build
-
-    - name: Verify libsodium
-      run: |
-        test -f /usr/include/sodium.h || (echo "libsodium header missing"; exit 1)
-        pkg-config --exists libsodium || echo "pkg-config entry missing"
-
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Configure and Build
-      run: |
-        echo "=== ENFORCING RELEASE BUILD MODE (SUSE) ==="
-        echo "CMAKE_BUILD_TYPE: Release"
-        echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
-        
-        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
-        VERSION="${VERSION#v}"  # Remove leading 'v'
-        
-        # Added flags to suppress sqlite3 overread warning treated as error
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
-          -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -Wno-stringop-overread" \
-          -G Ninja \
-          -DCPACK_PACKAGE_VERSION="${VERSION}"
-        
-        echo "=== Building in RELEASE mode with optimizations ==="
-        cmake --build build --config Release -j $(nproc)
-        
-        echo "=== Verifying Release build completed ==="
-        file build/structuracost | grep -i "not stripped" && echo "✓ Release build verified" || echo "Warning: Cannot verify build type"
-
-    - name: Package (TGZ fallback)
-      run: |
-        mkdir -p artifact
-        cp build/structuracost artifact/
-        [ -d "assets" ] && cp -r assets artifact/
-        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        cd artifact && tar -czf ../structuracost-linux-suse-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz * && cd ..
-
-    - name: Build RPM installer via CPack (SUSE)
-      run: |
-        VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
-        VERSION="${VERSION#v}"  # Remove leading 'v'
-        cmake -B build -DCPACK_GENERATOR=RPM -DCPACK_PACKAGE_VERSION="${VERSION}"
-        cmake --build build --target package
-        ls -1 build | grep -E '\.rpm$' || true
-
-    - name: Collect SUSE RPM installer
-      run: |
-        mkdir -p installers
-        find build -maxdepth 1 -type f -name "*.rpm" -exec cp {} installers/ \; || true
-        ARCH_NAME="${{ matrix.arch }}"; [ "$ARCH_NAME" = "x64" ] && ARCH_NAME="x86_64"
-        if ls installers/*.rpm 1> /dev/null 2>&1; then
-          for f in installers/*.rpm; do mv "$f" installers/structuracost-linux-suse-${ARCH_NAME}-${{ needs.prepare-version.outputs.combined_version }}.rpm; done
-        fi
-
-    - name: Upload SUSE artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-suse-${{ matrix.arch }}
-        path: |
-          installers/structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.rpm
-        retention-days: 7
-
-    - name: Upload SUSE archive (separate)
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-suse-${{ matrix.arch }}-archive
-        path: structuracost-linux-suse-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz
-        retention-days: 7
 
   build-macos:
     name: macOS (${{ matrix.target }})
@@ -590,19 +302,6 @@ jobs:
         }
         Write-Host "Verification complete"
 
-    # Removed duplicate Windows-specific install and redundant env var step
-    # ...existing code (next steps: cross-platform install for non-Windows, tools, configure, build, etc.)...
-    - name: Install libsodium (cross-platform, before configure)
-      if: runner.os != 'Windows'
-      shell: bash
-      run: |
-        if [[ "${{ runner.os }}" == "Linux" ]]; then
-          sudo apt-get update
-          sudo apt-get install -y libsodium-dev
-        elif [[ "${{ runner.os }}" == "macOS" ]]; then
-          brew install libsodium
-        fi
-
     - name: Install tools
       shell: pwsh
       run: |
@@ -750,16 +449,13 @@ jobs:
 
   create-release:
     name: Create Release
-    needs: [prepare-version, build-linux-debian, build-linux-rpm, build-linux-suse, build-macos, build-windows]
+    needs: [prepare-version, build-macos, build-windows]
     if: |
       inputs.mode == 'release' &&
       always() &&
-      needs.build-linux-debian.result != 'failure' && needs.build-linux-debian.result != 'cancelled' &&
-      needs.build-linux-rpm.result != 'failure' && needs.build-linux-rpm.result != 'cancelled' &&
-      needs.build-linux-suse.result != 'failure' && needs.build-linux-suse.result != 'cancelled' &&
       needs.build-macos.result != 'failure' && needs.build-macos.result != 'cancelled' &&
       needs.build-windows.result != 'failure' && needs.build-windows.result != 'cancelled'
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     permissions:
       contents: write
 
@@ -777,7 +473,7 @@ jobs:
         mkdir release-assets
         
         # Collect all installers
-        find artifacts -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.exe" \) -exec cp {} release-assets/ \;
+        find artifacts -type f \( -name "*.dmg" -o -name "*.pkg" -o -name "*.exe" \) -exec cp {} release-assets/ \;
         
         # Collect all archives (from -archive artifacts)
         find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \;
@@ -789,7 +485,7 @@ jobs:
         ls -lh release-assets/*.tar.gz release-assets/*.zip 2>/dev/null || echo "Note: Some archive types may not be present"
         echo ""
         echo "=== Installer Files ==="
-        ls -lh release-assets/*.{deb,rpm,dmg,pkg,exe} 2>/dev/null || echo "Note: Some installer types may not be present"
+        ls -lh release-assets/*.{dmg,pkg,exe} 2>/dev/null || echo "Note: Some installer types may not be present"
 
     - name: Checkout repository for CHANGELOG
       uses: actions/checkout@v4
@@ -859,11 +555,11 @@ jobs:
 
   test-summary:
     name: Test Build Summary
-    needs: [prepare-version, build-linux-debian, build-linux-rpm, build-linux-suse, build-macos, build-windows]
+    needs: [prepare-version, build-macos, build-windows]
     if: |
       inputs.mode == 'test' &&
       always()
-    runs-on: ubuntu-latest
+    runs-on: macos-15
 
     steps:
     - name: Download all artifacts
@@ -876,8 +572,8 @@ jobs:
         echo "Creating aggregated artifact directory (test mode)"
         mkdir -p release-assets
         # Copy all installer and archive files into release-assets for easy browsing
-        find artifacts -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.exe" -o -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \; || true
-        echo "Listing aggregated artifacts:";
+        find artifacts -type f \( -name "*.dmg" -o -name "*.pkg" -o -name "*.exe" -o -name "*.zip" \) -exec cp {} release-assets/ \; || true
+        echo "Listing aggregated artifacts";
         ls -lh release-assets || echo "No artifacts copied"
 
     - name: Display test build summary
@@ -889,9 +585,6 @@ jobs:
         echo "Mode: TEST (no GitHub release will be created)"
         echo ""
         echo "Build Results:"
-        echo "  Linux Debian: ${{ needs.build-linux-debian.result }}"
-        echo "  Linux RPM:    ${{ needs.build-linux-rpm.result }}"
-        echo "  Linux SUSE:   ${{ needs.build-linux-suse.result }}"
         echo "  macOS:        ${{ needs.build-macos.result }}"
         echo "  Windows:      ${{ needs.build-windows.result }}"
         echo ""
@@ -906,7 +599,7 @@ jobs:
         ls -lh release-assets || true
         echo ""
         echo "Installer files (if present):"
-        ls -lh release-assets/*.{deb,rpm,dmg,pkg,exe} 2>/dev/null || echo "(none)"
+        ls -lh release-assets/*.{dmg,pkg,exe} 2>/dev/null || echo "(none)"
         echo ""
         echo "Archive files (if present):"
         ls -lh release-assets/*.{tar.gz,zip} 2>/dev/null || echo "(none)"
