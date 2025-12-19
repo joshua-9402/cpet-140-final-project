@@ -76,7 +76,7 @@ bool db::createDatabase(const std::string& p_dbName) {
             "POSITION TEXT NOT NULL,"
             "SITE_LOCATION TEXT NOT NULL,"
             "SALARY REAL NOT NULL,"
-            "REGULAR_HOURS REAL NOT NULL,"
+            "REGULAR_HOUR REAL NOT NULL DEFAULT 52.0,"
             "ADVANCE REAL NOT NULL"
             ");"
         );
@@ -249,7 +249,8 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
 
     std::string sqlite;
     if (p_dbName == appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll) {
-        sqlite = "INSERT INTO EMPLOYEES (NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE) VALUES (" + p_data + ");";
+        // p_data should match the column order: NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE
+        sqlite = "INSERT INTO EMPLOYEES (NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE) VALUES (" + p_data + ");";
     } else if (p_dbName == appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject) {
         // ...existing code...
         sqlite = "INSERT INTO PROJECT_LIST (PROJECT_ID, PROJECT_NAME, STATUS, START_DATE, END_DATE, NOTE) VALUES (" + p_data + ");";
@@ -477,7 +478,7 @@ bool db::rearrangeEmployeeIDs() {
     const char* createTemp =
         "CREATE TEMPORARY TABLE TEMP_EMPLOYEES AS "
         "SELECT ROW_NUMBER() OVER (ORDER BY EMPLOYEE_ID) AS NEW_ID, "
-        "NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE "
+        "NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE "
         "FROM EMPLOYEES;";
 
     if (sqlite3_exec(dbPtr, createTemp, nullptr, nullptr, &err) != SQLITE_OK) {
@@ -499,8 +500,8 @@ bool db::rearrangeEmployeeIDs() {
 
     // Copy data back with new sequential IDs
     const char* copyBack =
-        "INSERT INTO EMPLOYEES (EMPLOYEE_ID, NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE) "
-        "SELECT NEW_ID, NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE FROM TEMP_EMPLOYEES;";
+        "INSERT INTO EMPLOYEES (EMPLOYEE_ID, NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE) "
+        "SELECT NEW_ID, NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE FROM TEMP_EMPLOYEES;";
 
     if (sqlite3_exec(dbPtr, copyBack, nullptr, nullptr, &err) != SQLITE_OK) {
         if (err) sqlite3_free(err);
