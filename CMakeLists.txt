@@ -574,6 +574,13 @@ if(APPLE)
 elseif(WIN32)
     set(CPACK_GENERATOR "NSIS")
     target_link_libraries(structuracost PRIVATE Advapi32)
+
+    # Fail packaging if the built executable links against debug CRT DLLs
+    # (ucrtbased.dll, vcruntime140d.dll, msvcp140d.dll). These are not redistributable.
+    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/cmake_verify_release_runtime.cmake")
+        set(CPACK_PRE_BUILD_SCRIPTS "${CMAKE_SOURCE_DIR}/packaging/windows/cmake_verify_release_runtime.cmake")
+    endif()
+
     set(CPACK_NSIS_DISPLAY_NAME "StructuraCost")
     set(CPACK_NSIS_PACKAGE_NAME "StructuraCost")
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)

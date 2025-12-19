@@ -24,6 +24,23 @@ The installer creates:
 
 All required dependencies are now installed automatically.
 
+## If you are running a ZIP build / copied EXE (important)
+
+If you copy `structuracost.exe` to another computer, it **must** be a **Release** build.
+
+- If Windows says **`ucrtbased.dll`** or **`vcruntime140d.dll`** is missing, that EXE was built against the **Debug** MSVC runtime and is not distributable.
+- Installing the VC++ Redistributable will **not** fix `...d.dll` missing errors.
+
+### Quick verification (recommended before distributing)
+
+If you have Visual Studio Build Tools installed (so `dumpbin` exists), run:
+
+- `verify_release_build.ps1` (included in this repo):
+
+  powershell -ExecutionPolicy Bypass -File "packaging\\windows\\verify_release_build.ps1" -ExecutablePath "path\\to\\structuracost.exe"
+
+The script will fail if it detects forbidden debug DLL dependencies.
+
 ## What If Installation Fails?
 
 If the automatic dependency installation fails, you'll see a message with manual installation instructions.
@@ -99,4 +116,3 @@ C:\Users\<YourUsername>\AppData\Local\StructuraCost\data\
 
 **Version:** 1.0.0
 **Last Updated:** December 18, 2024
-
