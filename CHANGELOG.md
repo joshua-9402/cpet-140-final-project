@@ -1,5 +1,6 @@
 ## What's Changed
 
+- Complete overhaul of the project structure and build system.
 - Remove support for Linux entirely for simplicity.
 
 
