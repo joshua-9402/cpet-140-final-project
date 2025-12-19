@@ -72,7 +72,7 @@ std::string ui::g_position;
 
 // Lowercase helper used by both constructUI and switchToUI
 static std::string toLower(std::string s) {
-    std::ranges::transform(s, s.begin(), [](const unsigned char c){ return std::tolower(c); });
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
     return s;
 }
 
@@ -627,7 +627,7 @@ static void summaryUI() {
     ImGui::SameLine();
 
     if (ImGui::Button("Print Payslips for Week", ImVec2(250.0f, 40.0f))) {
-        const std::string weekDateStr = payslipWeekDates[selectedPayslipWeekIndex];
+        const std::string& weekDateStr = payslipWeekDates[selectedPayslipWeekIndex];
         const std::string outFile = appConfig::g_dataDirectory + "payslips_week_" + weekDateStr + ".html";
 
         if (const std::string logoPath = HelloImGui::AssetFileFullPath("icons/business_logo.png"); exportPayslipsHtmlForWeek(outFile, logoPath, weekDateStr)) {
@@ -1130,8 +1130,6 @@ static void monitorUI() {
     ImGui::TextDisabled(shownEmployee == 0 ? "No employees to display." : "Showing %d employee(s).", shownEmployee);
     ImGui::EndChild();
 
-    ImGui::EndChild();
-
     ImGui::Spacing();
     ImGui::Spacing();
 
@@ -1572,10 +1570,9 @@ static void monitorUI() {
             if (!digits.empty()) {
                 long long idVal = 0;
                 try { idVal = std::stoll(digits); } catch (...) { idVal = 0; }
-                std::ostringstream oss; oss << std::setw(5) << std::setfill('0') << idVal;
-                projectIDStr = std::string("PRJ-") + oss.str();
-                std::strncpy(projectID, projectIDStr.c_str(), IM_ARRAYSIZE(projectID));
-                projectID[IM_ARRAYSIZE(projectID)-1] = '\0';
+                std::ostringstream oss;
+                oss << "PRJ-" << std::setw(5) << std::setfill('0') << idVal;
+                projectIDStr = oss.str();
             } else {
                 projectIDStr.clear();
             }
@@ -2020,7 +2017,7 @@ static void monitorUI() {
         const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
 
         if (validatedProjectID.empty()) {
-            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required.\n");
+            system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required for deletion.\n");
         } else if (validatedMaterialID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Material ID cannot be empty.\n");
         } else {
