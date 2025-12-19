@@ -76,7 +76,7 @@ bool db::createDatabase(const std::string& p_dbName) {
             "POSITION TEXT NOT NULL,"
             "SITE_LOCATION TEXT NOT NULL,"
             "SALARY REAL NOT NULL,"
-            "HOURS_WORK REAL NOT NULL,"
+            "REGULAR_HOURS REAL NOT NULL,"
             "ADVANCE REAL NOT NULL"
             ");"
         );
