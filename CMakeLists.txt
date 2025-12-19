@@ -1,14 +1,17 @@
 cmake_minimum_required(VERSION 3.22) # minimum CMake version
+project(cpet_140_final_project LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 20)           # set C++20 standard
+set(CMAKE_CXX_STANDARD_REQUIRED ON)  # enforce C++20 standard
+set(CMAKE_CXX_EXTENSIONS OFF)        # disable compiler-specific extensions
+
+
 include(FetchContent) # Fetch Hello ImGui (automatic download)
 FetchContent_Declare(
         hello_imgui
         GIT_REPOSITORY https://github.com/pthom/hello_imgui.git
 )
-set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED ON CACHE BOOL "Download FreeType if needed" FORCE)
-set(HELLOIMGUI_DOWNLOAD_GLFW_IF_NEEDED ON CACHE BOOL "Download GLFW if needed" FORCE)
-set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "Disable automatic asset install" FORCE)
-
 FetchContent_MakeAvailable(hello_imgui)
+
 
 # Add your app
 hello_imgui_add_app(
@@ -64,6 +67,15 @@ hello_imgui_add_app(
         ASSETS_LOCATION "assets/"
 )
 
+# Ensure the generated target `structuracost` uses C++20 explicitly (some helper macros may not propagate global setting)
+if(TARGET structuracost)
+    set_target_properties(structuracost PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+    )
+endif()
+
 # Add include directory for SQLite3 headers
 target_include_directories(structuracost PRIVATE ${CMAKE_SOURCE_DIR}/dependencies/sqlite)
 
@@ -96,7 +108,7 @@ if(SODIUM_LIBRARY AND SODIUM_INCLUDE_DIR)
     target_include_directories(structuracost PRIVATE ${SODIUM_INCLUDE_DIR})
     target_link_libraries(structuracost PRIVATE ${SODIUM_LIBRARY})
 else()
-    message(WARNING "libsodium not found - some security features may not be available. The build will continue but may fail at link time if libsodium symbols are required.")
+    message(FATAL_ERROR "libsodium not found - libsodium is required. Configure aborted.")
 endif()
 
 
@@ -111,6 +123,7 @@ if(UNIX AND NOT APPLE)
 elseif(APPLE)
     set(CPACK_PACKAGING_INSTALL_PREFIX "/tmp/_cpack_staging")
 endif()
+
 
 # -------------------------------
 # PACKAGING: macOS (app bundle) - install rules and resource copying
@@ -151,6 +164,7 @@ elseif(WIN32)
 # NOTE: Linux packaging removed by project policy — no installer will be produced for Linux/Unix.
 # If a package for Linux is needed in the future, add a dedicated CI pipeline and packaging job.
 endif()
+
 
 # -------------------------------
 # SECTION: CPACK CONFIGURATION (unified)
