@@ -28,7 +28,6 @@
 #include <iomanip>
 #include <algorithm>
 #include <vector>
-#include <cctype>
 #include <sqlite3.h>
 #include "monitor.h"
 #include "../handler/db.h"
@@ -277,7 +276,7 @@ bool Monitor::updateEmployee(const std::string& newEmployeeId,
 
     const std::string updateKey = foundEmployee ? oldEmployeeID : newEmployeeId;
     const std::string setClause = "EMPLOYEE_ID='" + newEmployeeId + "', NAME='" + name + "', POSITION='" + position +
-                                  "', SITE_LOCATION='" + siteLocation + "', SALARY=" + hourlyRate + ", HOURS_WORK=" + hoursWorked + ", ADVANCE=" + advance;
+                                  "', SITE_LOCATION='" + siteLocation + "', SALARY=" + hourlyRate + ", REGULAR_HOUR=" + hoursWorked + ", ADVANCE=" + advance;
     return db::updateDatabase(payrollDbPath, updateKey, setClause);
 }
 
@@ -725,6 +724,5 @@ bool Monitor::calculateAllProjectPayrollCosts() {
 }
 
 // Removed deprecated sample calculators (not used by the system)
-
 
 
