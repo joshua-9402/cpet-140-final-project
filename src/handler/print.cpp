@@ -28,6 +28,8 @@
 #include <filesystem>
 
 #include "print.h"
+// Payroll computations (SSS, PhilHealth, Pag-IBIG, tax)
+#include "../core/payroll.h"
 
 namespace {
     // Helper function to open HTML file in default browser
@@ -60,6 +62,7 @@ struct employee {
     std::string location;
     double salary{0.0};
     double hoursWorked{0.0};
+    double regularHours{40.0};
     double advance{0.0};
     double others{0.0};
     std::string date;
@@ -169,7 +172,9 @@ std::vector<employee> fetchAllEmployees(const std::string &dbPath) {
         return list;
     }
 
-    if (const auto sql = "SELECT EMPLOYEE_ID, NAME, POSITION, SITE_LOCATION, SALARY, HOURS_WORK, ADVANCE FROM EMPLOYEES ORDER BY EMPLOYEE_ID;"; sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+    // Select REGULAR_HOUR if present in schema (createDatabase creates it). Column order:
+    // EMPLOYEE_ID, NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE
+    if (const auto sql = "SELECT EMPLOYEE_ID, NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE FROM EMPLOYEES ORDER BY EMPLOYEE_ID;"; sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
         system::logMessage(system::messageClassification::ERROR, std::string("fetchAllEmployees: prepare failed: ") + (sqlite3_errmsg(db) ? sqlite3_errmsg(db) : "unknown") + "\n");
         sqlite3_close(db);
         return list;
@@ -182,7 +187,10 @@ std::vector<employee> fetchAllEmployees(const std::string &dbPath) {
         e.position = colTextSafe(stmt, 2);
         e.location = colTextSafe(stmt, 3);
         e.salary = sqlite3_column_double(stmt, 4);
-        e.hoursWorked = sqlite3_column_double(stmt, 5);
+        // when REGULAR_HOUR is present we read it at col index 5
+        e.regularHours = sqlite3_column_double(stmt, 5);
+        // Defensive fallback: if DB has 0 or negative, use company default (52 hours/week)
+        if (e.regularHours <= 0.0) e.regularHours = 52.0;
         e.advance = sqlite3_column_double(stmt, 6);
         // others and date are optional in this schema; leave defaults
         list.push_back(e);
@@ -195,8 +203,32 @@ std::vector<employee> fetchAllEmployees(const std::string &dbPath) {
 
 
 std::string makePayslipHtml(const employee& data, const std::string& logo) {
-    const double gross = data.salary * data.hoursWorked;
-    const double total = gross - data.advance - data.others;
+    // Prepare a payroll::Employee to compute gross, contributions, and tax.
+    Employee pEmp{};
+    pEmp.hourlyRate = data.salary;
+    pEmp.hoursWorked = data.hoursWorked;
+    // Use per-employee regularHours when available
+    pEmp.regularHours = data.regularHours;
+    // pEmp.regularHours uses default (40.0) unless changed elsewhere
+    const PayrollResult pr = payroll::computePayroll(pEmp);
+
+    // Compute overtime details for display
+    const double regularHours = pEmp.regularHours;
+    const double overtimeHours = std::max(0.0, data.hoursWorked - regularHours);
+    const double overtimeRate = data.salary * 1.5; // 1.5x standard overtime multiplier
+    const double overtimePay = overtimeHours * overtimeRate;
+    const double gross = pr.grossPay; // use computed gross (includes overtime)
+
+    // Deductions breakdown
+    const double deductionAdvance = data.advance;
+    const double deductionOthers = data.others;
+    const double deductionSSS = pr.sss;
+    const double deductionPhilHealth = pr.philHealth; // HMO equivalent
+    const double deductionPagIbig = pr.pagIbig;
+    const double deductionTax = pr.tax;
+
+    const double totalDeductions = deductionAdvance + deductionOthers + deductionSSS + deductionPhilHealth + deductionPagIbig + deductionTax;
+    const double netAfterAll = gross - totalDeductions;
 
     std::ostringstream o;
     o << "<div class=\"payslip\">\n";
@@ -243,21 +275,46 @@ std::string makePayslipHtml(const employee& data, const std::string& logo) {
     o << "  <tr><th colspan=\"2\">Earnings</th><th colspan=\"2\">Deductions</th></tr>\n";
     o << "  <tr>\n";
     o << "   <td>Rate per Hour:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << data.salary << "</td>\n";
-    o << "   <td>Advance:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << data.advance << "</td>\n";
+    o << "   <td>Advance:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionAdvance << "</td>\n";
+    o << "  </tr>\n";
+    o << "  <tr>\n";
+    o << "   <td>Regular Hours (per week):</td><td class=\"amount\">" << regularHours << " hrs</td>\n";
+    o << "   <td>Others:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionOthers << "</td>\n";
     o << "  </tr>\n";
     o << "  <tr>\n";
     o << "   <td>Hours Worked:</td><td class=\"amount\">" << data.hoursWorked << " hrs</td>\n";
-    o << "   <td>Others:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << data.others << "</td>\n";
+    o << "   <td></td><td></td>\n";
     o << "  </tr>\n";
+    // Show overtime only when applicable
+    if (overtimeHours > 0.0) {
+        o << "  <tr>\n";
+        o << "   <td>Overtime (hrs):</td><td class=\"amount\">" << overtimeHours << " hrs</td>\n";
+        o << "   <td>Overtime Pay:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << overtimePay << "</td>\n";
+        o << "  </tr>\n";
+    }
     o << "  <tr class=\"total-row\">\n";
     o << "   <td><strong>Gross Pay:</strong></td><td class=\"amount\"><strong>₱" << std::fixed << std::setprecision(2) << gross << "</strong></td>\n";
-    o << "   <td><strong>Total Deductions:</strong></td><td class=\"amount\"><strong>₱" << std::fixed << std::setprecision(2) << (data.advance + data.others) << "</strong></td>\n";
+    o << "   <td><strong>Total Deductions:</strong></td><td class=\"amount\"><strong>₱" << std::fixed << std::setprecision(2) << totalDeductions << "</strong></td>\n";
     o << "  </tr>\n";
+
+    // Detailed deductions rows (separate section for clarity)
+    o << "  <tr><td colspan=\"4\"><div class=\"deductions-detail\">\n";
+    o << "   <table class=\"deductions-detail-table\">\n";
+    o << "    <tr><td>Advance</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionAdvance << "</td></tr>\n";
+    o << "    <tr><td>Others</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionOthers << "</td></tr>\n";
+    o << "    <tr><td>SSS</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionSSS << "</td></tr>\n";
+    o << "    <tr><td>PhilHealth (HMO)</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionPhilHealth << "</td></tr>\n";
+    o << "    <tr><td>Pag-IBIG</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionPagIbig << "</td></tr>\n";
+    o << "    <tr><td>Tax</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionTax << "</td></tr>\n";
+    o << "    <tr class=\"total-row\"><td><strong>Total Deductions</strong></td><td class=\"amount\"><strong>₱" << std::fixed << std::setprecision(2) << totalDeductions << "</strong></td></tr>\n";
+    o << "   </table>\n";
+    o << "  </div></td></tr>\n";
+
     o << " </table>\n";
 
     o << " <div class=\"net-pay\">\n";
     o << "  <div class=\"net-pay-label\">NET PAY:</div>\n";
-    o << "  <div class=\"net-pay-amount\">₱" << std::fixed << std::setprecision(2) << total << "</div>\n";
+    o << "  <div class=\"net-pay-amount\">₱" << std::fixed << std::setprecision(2) << netAfterAll << "</div>\n";
     o << " </div>\n";
 
     o << " <div class=\"signature-section\">\n";
