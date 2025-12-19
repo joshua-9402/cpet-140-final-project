@@ -9,7 +9,7 @@ The Print Handler module is responsible for generating HTML-based reports that c
 - Generates print-ready HTML with embedded styling
 - Embeds company logo as base64 data URI for offline viewing
 - Automatically opens generated reports in the default browser
-- Cross-platform support (Windows, macOS, Linux)
+- Cross-platform support (Windows, macOS)
 - Professional design matching the company's visual identity (accent color: #d88c28)
 
 ## API Reference
@@ -201,11 +201,10 @@ All errors are logged to stderr with descriptive messages.
 
 ## Platform Support
 
-The module automatically detects the platform and uses the appropriate command to open the generated HTML:
+The module detects the platform and uses the appropriate command to open the generated HTML:
 
 - **Windows:** `start`
 - **macOS:** `open`
-- **Linux:** `xdg-open`
 
 ---
 
