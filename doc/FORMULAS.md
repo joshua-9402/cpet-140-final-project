@@ -213,4 +213,4 @@ Location:
 Notes:
 - `Employee::regularHours` default is 40.0 hours per week; you can change this value per-employee in code if needed before calling payroll computations.
 - The overtime multiplier is currently fixed at 1.5 in code; if you need different multipliers (night differential, holiday, double-time), we can add more rules and parameters.
-- The payslip will only show the overtime rows when `overtimeHours > 0`.
+- The payslip will only show the overtime rows when `overtimeHours > 0`
