@@ -88,7 +88,7 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 - Database: SQLite (single-file, local, embedded)
 - Cryptography: libsodium (for password hashing, encryption, decryption, salting, etc.)
 - Architecture: modular with clear separation of concerns (UI, DB, core logic, system)
-- Target platforms: Desktop (Windows/macOS/Linux)
+- Target platforms: Desktop (Windows/macOS)
 
 - Recent repository updates: several small, backwards-compatible fixes and CI improvements were applied to keep builds stable across platforms (notably: `system::createDirectory` now returns `bool`, `system::appShutdown` uses a portable partial_sort variant, and cryptography helper types were clarified to use byte vectors for keys/salts and in-place decryption semantics). For full details and troubleshooting steps (libsodium, freetype, Windows linking, macOS toolchain), see the "Troubleshooting & Debugging Tips" section below.
 
@@ -257,11 +257,6 @@ This section documents calling conventions, minimal contracts, common error mode
 
 - For platform-specific configurations and legacy support, we provide manual-trigger workflows for supported platforms.
 
-#### Linux Builds (archived)
-
-Linux packaging and automated Linux build workflows have been removed from the main release pipeline. If you need Linux packages or build instructions, see `doc/LINUX_PACKAGING_REMOVED.md` or the archived docs under `archive/linux_removed/`.
-
-
 #### Windows Builds
 
 Windows README files:
@@ -294,7 +289,7 @@ macOS README files:
 
 - When manually triggered, the **Release** workflow:
   - Computes the version from inputs (stage, iteration, W.X.Y.Z)
-  - Builds binaries for the selected platforms/architectures (Linux x64/ARM64, Windows x64/ARM64, macOS ARM64/Intel)
+  - Builds binaries for the selected platforms/architectures (Windows x64/ARM64, macOS ARM64/Intel)
   - Creates a GitHub Release and attaches the built artifacts as downloadable assets
 
 #### Downloading Pre-built Binaries
@@ -336,11 +331,9 @@ For release build (version tagging and automatic release):
 2. Select the `Release` workflow from the left sidebar 
 3. Configure the desired version and targets, then run the workflow
 4. Download the binary for your platform from the **Assets** section:
-    - `structuracost-linux-x64.tar.gz`
     - `structuracost-windows-x64.zip`
     - `structuracost-macos-arm64.tar.gz`
     - `structuracost-macos-x64.tar.gz`
-    5. Extract and run the executable
 
 **Note:** Release binaries are permanent and recommended for production use.
 

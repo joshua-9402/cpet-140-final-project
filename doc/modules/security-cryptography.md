@@ -61,7 +61,6 @@ This module wraps libsodium primitives and provides application-level file forma
     2. Locates platform-specific vault path:
        - Windows: `%APPDATA%/StructuraCost/.vault`
        - macOS: `~/Library/Application Support/StructuraCost/.vault`
-       - Linux: `~/.config/StructuraCost/.vault`
     3. Computes a `systemSalt` using a helper that attempts (in order): `COMBINED_VERSION` env var, a build-folder copy of `.github/workflows/release.yml` under `cmake-build-debug/`, then `.github/workflows/release.yml` at repo root; if none found it returns `"version_tag_unreachable"`.
     4. Hashes `systemSalt` to create a salt buffer and derives a `crypto_secretbox_KEYBYTES` master key via `crypto_pwhash(..., OPSLIMIT_INTERACTIVE, MEMLIMIT_INTERACTIVE, ...)`.
     5. Encrypts `data` with `crypto_secretbox_easy` using a random nonce of `crypto_secretbox_NONCEBYTES` and appends an entry to the vault file: `[uint32_t idLen][identifier bytes][nonce][uint32_t ctLen][ciphertext bytes]`.
