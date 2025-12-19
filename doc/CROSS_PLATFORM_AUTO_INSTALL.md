@@ -20,29 +20,7 @@ Users can install the application and run it immediately without any manual depe
 
 ### 🐧 Linux
 
-**Script**: `packaging/linux/postinst.sh`  
-**Trigger**: Runs automatically after .deb/.rpm package installation  
-**Size**: 163 lines of bash
-
-**Workflow:**
-```
-1. Check if libsodium exists (system or bundled)
-2. Try package manager (apt/dnf/yum/zypper/pacman)
-3. Build from source if package manager fails
-4. Configure library paths with ldconfig
-```
-
-**Supported Distributions:**
-- Debian/Ubuntu (apt-get)
-- Fedora (dnf)
-- RHEL/CentOS (yum)
-- openSUSE (zypper)
-- Arch Linux (pacman)
-- Any Linux with gcc/make
-
-**Installation Time:**
-- Package manager: 5-10 seconds
-- Source build: 2-5 minutes
+**Note:** Linux installer packaging and the `packaging/linux/postinst.sh` script are no longer included in the release pipeline. For details, see `doc/LINUX_PACKAGING_REMOVED.md`.
 
 ---
 

@@ -301,3 +301,4 @@ Users can:
 
 The implementation is complete, tested, documented, and ready for production use.
 
+**Note:** Linux packaging and the `packaging/linux/postinst.sh` script are no longer included in release artifacts. For details, see `doc/LINUX_PACKAGING_REMOVED.md`.

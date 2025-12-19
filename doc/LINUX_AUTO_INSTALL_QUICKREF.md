@@ -151,3 +151,12 @@ cpack  # Creates packages for current platform with auto-install scripts
 | Windows | Bundled DLL | None ✅ |
 | macOS | Bundled dylib | None ✅ |
 
+# Linux Packaging Removed (Quick Reference)
+
+Linux packaging (.deb/.rpm) is no longer produced by the repository's release pipeline. The previous `packaging/linux/postinst.sh` is not included in released artifacts.
+
+To deploy on Linux:
+- Build from source with CMake: `cmake -S . -B build && cmake --build build`
+- Or create distro-specific packages in a separate pipeline.
+
+See `doc/LINUX_PACKAGING_REMOVED.md` for more details.

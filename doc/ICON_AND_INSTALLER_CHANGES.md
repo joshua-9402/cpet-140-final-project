@@ -66,7 +66,7 @@ set(CPACK_NSIS_DELETE_ICONS_EXTRA
 #### Linux
 - Searches `dependencies/libsodium/**/*.so` for shared objects
 - Bundles .so files into package `lib/` directory
-- Works with both .deb and .rpm packages
+- Works with macOS (.dmg/.pkg) and Windows (MSI/NSIS) installers; Linux packaging (.deb/.rpm) is no longer produced
 
 **Developer Workflow:**
 1. Download/build libsodium for your target platform
@@ -139,4 +139,3 @@ set(CPACK_NSIS_DELETE_ICONS_EXTRA
 - macOS: Added .mm file compilation support
 - All platforms: Added icon asset copying during configure
 - NSIS: Added desktop shortcut creation scripts
-

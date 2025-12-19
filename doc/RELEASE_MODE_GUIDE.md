@@ -1,4 +1,8 @@
-# Release Mode Guide
+# Release Mode Guide (updated)
+
+Linux packaging jobs (build-linux-*) have been removed from the release pipeline. The release workflow now builds only macOS and Windows installers.
+
+See the `release.yml` workflow for macOS and Windows job details.
 
 This guide explains how to use the `mode` option in the release workflow to either create a release or test the build process.
 
@@ -21,7 +25,7 @@ Before creating an actual release, it's recommended to test the build process fi
 5. Click **Run workflow**
 
 **What happens in test mode:**
-- All selected platforms will be built (Linux Debian, RPM, SUSE, macOS, Windows)
+- All selected platforms will be built (macOS, Windows)
 - Build artifacts are uploaded and available for 7 days
 - A summary is displayed showing:
   - Version number
@@ -108,27 +112,27 @@ Result: Builds and releases `v1.4.0.0`
 
 Each build job produces specific artifacts:
 
-### Linux Debian/Ubuntu Build
-**Job**: `build-linux-debian`
-- **Platform**: Ubuntu 22.04 (x64 or arm64)
+### macOS Build
+**Job**: `build-macos`
+- **Platform**: macOS 13 (x64 or arm64)
 - **Artifacts**:
-  - `.deb` installer package
-  - `-archive.tar.gz` portable archive
-- **Naming**: `structuracost-{version}-linux-{arch}.deb`
+  - `.pkg` installer package
+  - `-archive.zip` portable archive
+- **Naming**: `structuracost-{version}-macos-{arch}.pkg`
 
-### Linux RPM Build (Fedora/RHEL/CentOS)
-**Job**: `build-linux-rpm`
-- **Platform**: Fedora 40 (x64 or arm64)
+### Windows Build
+**Job**: `build-windows`
+- **Platform**: Windows 11 (x64)
 - **Artifacts**:
-  - `.rpm` installer package
-  - `-archive.tar.gz` portable archive
-- **Naming**: `structuracost-{version}-linux-{arch}.rpm`
+  - `.exe` installer package
+  - `-archive.zip` portable archive
+- **Naming**: `structuracost-{version}-windows-{arch}.exe`
 ## Workflow Structure
 
 ```
 prepare-version
     ↓
-[build-linux-debian, build-linux-rpm, build-linux-suse, build-macos, build-windows]
+[build-macos, build-windows]
     ↓
 create-release (if mode == 'release')
     OR

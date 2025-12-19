@@ -63,25 +63,9 @@ dependencies/
 
 ### Linux
 
-**Automatic Installation:**
-Linux packages (.deb/.rpm) now automatically download and install libsodium during package installation via the postinst script. The script will:
+#### Note about Linux packaging
 
-1. Check if libsodium is already installed on the system
-2. Try to install from package manager (apt/dnf/yum/zypper/pacman)
-3. If package manager fails, build from source automatically
-4. Install to `/opt/structuracost/lib` if building from source
-
-**Manual Prebuilt (Optional):**
-If you want to bundle prebuilt libsodium in the installer package (to avoid download during installation):
-
-1. Build libsodium from source or use package manager
-2. Copy to `dependencies/libsodium/`:
-   - `include/` directory with headers
-   - `lib/libsodium.so` (or `lib/libsodium.so.26`)
-3. The CMake script will:
-   - Link the library
-   - Bundle .so into the package lib folder
-   - The bundled library will be preferred over system installation
+Linux packaging (.deb/.rpm) is no longer produced by this repository's release pipeline. For Linux packaging guidance, see `doc/LINUX_PACKAGING_REMOVED.md`.
 
 ## Build Verification
 
@@ -96,7 +80,7 @@ Check the configuration output for libsodium detection messages.
 
 ## Packaging
 
-When creating installers/packages:
+When creating installers/packages on supported platforms (Windows/macOS):
 
 ```bash
 cd build
@@ -105,9 +89,9 @@ cpack
 
 The generated installers will automatically include:
 - The application executable
-- All required libsodium runtime libraries
+- Any required bundled runtime libraries
 - Application icon
-- Desktop shortcuts (Windows/Linux)
+- Desktop shortcuts (where applicable)
 
 ## Notes
 
@@ -117,16 +101,3 @@ The generated installers will automatically include:
 - Windows installers will create desktop shortcuts with the app icon
 - macOS bundles will use app_icon.png as the dock icon
 - All platforms will display app_icon.png as the window icon
-
-## Linux Post-Installation Process
-
-The Linux installer includes an automatic libsodium installation script (`postinst.sh`) that:
-
-1. **Checks** if libsodium is already available (system or bundled)
-2. **Installs** via package manager (apt/dnf/yum/zypper/pacman) if available
-3. **Builds** from source if package manager installation fails
-4. **Configures** library paths in `/etc/ld.so.conf.d/structuracost.conf`
-5. **Updates** library cache with `ldconfig`
-
-This ensures the application works immediately after installation without manual intervention.
-
