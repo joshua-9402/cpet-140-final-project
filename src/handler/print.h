@@ -23,24 +23,40 @@
 
 #include <string>
 
-// Export payslips to HTML file (current week).
-// outFile: path to output HTML file
-// logoPath: path to logo image (will be embedded in HTML)
-// Returns true on success, false on failure
-bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath);
+class Print {
+public:
+    // Export payslips to HTML file (current week).
+    // outFile: path to output HTML file
+    // logoPath: path to logo image (will be embedded in HTML)
+    // Returns true on success, false on failure
+    static bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath);
 
-// Export payslips to HTML file for a specific week.
-// outFile: path to output HTML file
-// logoPath: path to logo image (will be embedded in HTML)
-// weekStartDate: ISO date string (YYYY-MM-DD) for the week start (Sunday)
-// Returns true on success, false on failure
-bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& logoPath, const std::string& weekStartDate);
+    // Export payslips to HTML file for a specific week.
+    // outFile: path to output HTML file
+    // logoPath: path to logo image (will be embedded in HTML)
+    // weekStartDate: ISO date string (YYYY-MM-DD) for the week start (Sunday)
+    // Returns true on success, false on failure
+    static bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& logoPath, const std::string& weekStartDate);
 
-// Export project report to HTML file.
-// projectId: the project ID (e.g., "PRJ-00001")
-// outFile: path to output HTML file
-// logoPath: path to logo image (will be embedded in HTML)
-// Returns true on success, false on failure
-bool exportProjectReportHtml(const std::string& projectId, const std::string& outFile, const std::string& logoPath);
+    // Export project report to HTML file.
+    // projectId: the project ID (e.g., "PRJ-00001")
+    // outFile: path to output HTML file
+    // logoPath: path to logo image (will be embedded in HTML)
+    // Returns true on success, false on failure
+    static bool exportProjectReportHtml(const std::string& projectId, const std::string& outFile, const std::string& logoPath);
+};
+
+// Backward compatibility - free function wrappers
+inline bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath) {
+    return Print::exportPayslipsHtml(outFile, logoPath);
+}
+
+inline bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& logoPath, const std::string& weekStartDate) {
+    return Print::exportPayslipsHtmlForWeek(outFile, logoPath, weekStartDate);
+}
+
+inline bool exportProjectReportHtml(const std::string& projectId, const std::string& outFile, const std::string& logoPath) {
+    return Print::exportProjectReportHtml(projectId, outFile, logoPath);
+}
 
 #endif //CPET_140_FINAL_PROJECT_PRINT_H

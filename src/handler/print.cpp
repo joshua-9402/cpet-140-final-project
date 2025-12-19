@@ -25,9 +25,27 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
+
+#include "print.h"
+
+namespace {
+    // Helper function to open HTML file in default browser
+    void openInBrowser(const std::string& filePath) {
+        const std::string absPath = std::filesystem::absolute(filePath).string();
+
+#ifdef _WIN32
+        std::string command = "start \"\" \"" + absPath + "\"";
+#elif defined(__APPLE__)
+        std::string command = "open \"" + absPath + "\"";
+#else
+        #error "Unsupported platform - only Windows and macOS are supported"
+#endif
+        std::system(command.c_str());
+    }
+}
 #include <iomanip>
 #include <vector>
-#include <filesystem>
 
 #include <sqlite3.h>
 
@@ -117,9 +135,13 @@ static std::string imageToDataUri(const std::string& imagePath) {
 
     // Determine MIME type
     std::string mime = "image/png";
-    if (imagePath.ends_with(".jpg") || imagePath.ends_with(".jpeg")) {
+    auto endsWith = [](const std::string &s, const std::string &suffix) {
+        if (s.size() < suffix.size()) return false;
+        return s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
+    };
+    if (endsWith(imagePath, ".jpg") || endsWith(imagePath, ".jpeg")) {
         mime = "image/jpeg";
-    } else if (imagePath.ends_with(".gif")) {
+    } else if (endsWith(imagePath, ".gif")) {
         mime = "image/gif";
     }
 
@@ -250,7 +272,7 @@ std::string makePayslipHtml(const employee& data, const std::string& logo) {
 
 // Export payslips to HTML. outFile can be absolute or relative. logoPath is a path that will be embedded in the HTML (relative file:// works).
 // Returns true on success, false on failure (no file written).
-bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath) {
+bool Print::exportPayslipsHtml(const std::string& outFile, const std::string& logoPath) {
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
 
     if (std::error_code errorCode; !std::filesystem::exists(dbPath, errorCode)) {
@@ -436,26 +458,14 @@ bool exportPayslipsHtml(const std::string& outFile, const std::string& logoPath)
     f.close();
 
     std::cout << "Exported payslips to " << outFile << "\n";
-
-    const std::string absPath = std::filesystem::absolute(outFile).string();
-
-#ifdef _WIN32
-    std::string command = "start \"\" \"" + absPath + "\"";
-    std::system(command.c_str());
-#elif __APPLE__
-    std::string command = "open \"" + absPath + "\"";
-    std::system(command.c_str());
-#else
-    std::string command = "xdg-open \"" + absPath + "\"";
-    std::system(command.c_str());
-#endif
+    openInBrowser(outFile);
 
     return true;
 }
 
 
 // Export payslips to HTML for a specific week with daily hours breakdown
-bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& logoPath, const std::string& weekStartDate) {
+bool Print::exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& logoPath, const std::string& weekStartDate) {
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
 
     if (std::error_code errorCode; !std::filesystem::exists(dbPath, errorCode)) {
@@ -640,19 +650,7 @@ bool exportPayslipsHtmlForWeek(const std::string& outFile, const std::string& lo
     f.close();
 
     std::cout << "Exported payslips for week of " << weekStartDate << " to " << outFile << "\n";
-
-    const std::string absPath = std::filesystem::absolute(outFile).string();
-
-#ifdef _WIN32
-    std::string command = "start \"\" \"" + absPath + "\"";
-    std::system(command.c_str());
-#elif __APPLE__
-    std::string command = "open \"" + absPath + "\"";
-    std::system(command.c_str());
-#else
-    std::string command = "xdg-open \"" + absPath + "\"";
-    std::system(command.c_str());
-#endif
+    openInBrowser(outFile);
 
     return true;
 }
@@ -1145,7 +1143,7 @@ static std::string makeProjectReportHtml(const project& proj, const std::string&
 
 
 // Export project report to HTML
-bool exportProjectReportHtml(const std::string& projectId, const std::string& outFile, const std::string& logoPath) {
+bool Print::exportProjectReportHtml(const std::string& projectId, const std::string& outFile, const std::string& logoPath) {
     if (projectId.empty()) {
         system::logMessage(system::messageClassification::ERROR, "exportProjectReportHtml: project ID is empty\n");
         return false;
@@ -1178,19 +1176,7 @@ bool exportProjectReportHtml(const std::string& projectId, const std::string& ou
     f.close();
 
     std::cout << "Exported project report to " << outFile << "\n";
-
-    const std::string absPath = std::filesystem::absolute(outFile).string();
-
-#ifdef _WIN32
-    std::string command = "start \"\" \"" + absPath + "\"";
-    std::system(command.c_str());
-#elif __APPLE__
-    std::string command = "open \"" + absPath + "\"";
-    std::system(command.c_str());
-#else
-    std::string command = "xdg-open \"" + absPath + "\"";
-    std::system(command.c_str());
-#endif
+    openInBrowser(outFile);
 
     return true;
 }
