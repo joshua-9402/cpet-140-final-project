@@ -126,8 +126,8 @@ bool db::createDatabase(const std::string& p_dbName) {
     } else if (
         // Weekly attendance database detection (format: MM-DD-DD.db or MM-DD-MM-DD.db)
         // Must have 2 or 3 hyphens and be short filename
-        (std::ranges::count(filename, '-') == 2 ||
-         std::ranges::count(filename, '-') == 3) &&
+        (std::count(filename.begin(), filename.end(), '-') == 2 ||
+         std::count(filename.begin(), filename.end(), '-') == 3) &&
         filename.find(".db") != std::string::npos &&
         filename.length() < 20 &&
         filename.find("PRJ") == std::string::npos) {
@@ -374,7 +374,7 @@ bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
     }
 
     std::string sql;
-    bool isNumericId = std::ranges::all_of(p_id, [](const char c) { return std::isdigit(static_cast<unsigned char>(c)); });
+    bool isNumericId = std::all_of(p_id.begin(), p_id.end(), [](const char c) { return std::isdigit(static_cast<unsigned char>(c)); });
 
     if (filename == appConfig::g_dbNamePayroll) {
         if (!isNumericId) {
