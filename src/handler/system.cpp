@@ -30,14 +30,11 @@
 #include <iostream>
 #include <streambuf>
 #include <memory>
+// Platform-specific includes only needed for fallback operations
 #ifdef _WIN32
-    #include <direct.h>  // For _mkdir on Windows
-    #include <sys/stat.h>  // For _stat on Windows
-    #define MKDIR(path) _mkdir(path)
+    #include <direct.h>
 #else
-    #include <sys/stat.h>  // For mkdir on Unix/Linux/macOS
-    #include <unistd.h>    // For rmdir and other POSIX functions
-    #define MKDIR(path) mkdir(path, 0777)
+    #include <unistd.h>
 #endif
 
 
@@ -56,6 +53,158 @@ namespace {
     // Std stream capture state
     std::atomic<bool> g_captureStd{ false };
     bool g_prevConsoleMirror = true;
+
+    // Validation helper functions
+    bool isNotEmpty(const std::string& str) {
+        return !str.empty() && std::any_of(str.begin(), str.end(),
+            [](unsigned char c) { return !std::isspace(c); });
+    }
+
+    bool isDigitsOnly(const std::string& str) {
+        return !str.empty() && std::all_of(str.begin(), str.end(),
+            [](unsigned char c) { return std::isdigit(c); });
+    }
+
+    bool isLettersAndSpacesOnly(const std::string& str) {
+        return !str.empty() && std::all_of(str.begin(), str.end(),
+            [](unsigned char c) { return std::isalpha(c) || std::isspace(c); });
+    }
+
+    bool isValidDecimal(const std::string& str) {
+        if (str.empty()) return false;
+        bool hasDecimal = false;
+        for (char c : str) {
+            if (c == '.') {
+                if (hasDecimal) return false;
+                hasDecimal = true;
+            } else if (!std::isdigit(static_cast<unsigned char>(c))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool isValidProjectID(const std::string& str) {
+        if (str.length() < 9 || str.substr(0, 4) != "PRJ-") return false;
+        return std::all_of(str.begin() + 4, str.end(),
+            [](unsigned char c) { return std::isdigit(c); });
+    }
+
+    bool isValidISODate(const std::string& str) {
+        if (str.length() != 10 || str[4] != '-' || str[7] != '-') return false;
+
+        // Validate digits in correct positions
+        for (int i = 0; i < 10; ++i) {
+            if (i == 4 || i == 7) continue;
+            if (!std::isdigit(static_cast<unsigned char>(str[i]))) return false;
+        }
+
+        // Validate date ranges
+        try {
+            const int year = std::stoi(str.substr(0, 4));
+            const int month = std::stoi(str.substr(5, 2));
+            const int day = std::stoi(str.substr(8, 2));
+
+            if (year < 1900 || year > 2100 || month < 1 || month > 12) return false;
+
+            const int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+            int maxDay = daysInMonth[month - 1];
+
+            if (month == 2 && ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0))) {
+                maxDay = 29;
+            }
+
+            return day >= 1 && day <= maxDay;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    bool validatePositiveInteger(const std::string& input) {
+        if (!isDigitsOnly(input)) return false;
+        try {
+            return std::stoll(input) > 0;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    bool validateNonNegativeInteger(const std::string& input) {
+        if (!isDigitsOnly(input)) return false;
+        try {
+            return std::stoll(input) >= 0;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    bool validatePositiveDecimal(const std::string& input) {
+        if (!isValidDecimal(input)) return false;
+        try {
+            return std::stod(input) > 0.0;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    bool validateNonNegativeDecimal(const std::string& input) {
+        if (!isValidDecimal(input)) return false;
+        try {
+            return std::stod(input) >= 0.0;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    // Shutdown helper functions
+    void encryptDatabasesOnShutdown() {
+        try {
+            if (security::DBEncryptionSession::hasKey()) {
+                security::DBEncryptionSession::encryptAllDbs();
+                security::DBEncryptionSession::clear();
+            }
+        } catch (const std::exception& e) {
+            system::logMessage(system::messageClassification::WARNING,
+                             "Error during database encryption at shutdown: " + std::string(e.what()) + "\n");
+        }
+    }
+
+    void cleanOldBackups() {
+        try {
+            if (!system::searchDirectory("backup")) return;
+
+            std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
+            for (const auto& entry : std::filesystem::directory_iterator("backup")) {
+                if (std::filesystem::is_directory(entry)) {
+                    directories.emplace_back(std::filesystem::last_write_time(entry), entry.path());
+                }
+            }
+
+            if (directories.size() <= 20) return;
+
+            std::partial_sort(directories.begin(), directories.begin() + 2, directories.end(),
+                            [](const auto &a, const auto &b) { return a.first < b.first; });
+
+            std::filesystem::remove_all(directories[0].second);
+            std::filesystem::remove_all(directories[1].second);
+        } catch (const std::exception& e) {
+            system::logMessage(system::messageClassification::WARNING,
+                             "Error cleaning old backups: " + std::string(e.what()) + "\n");
+        }
+    }
+
+    void createBackups() {
+        try {
+            if (!system::searchDirectory("backup")) {
+                system::createDirectory("backup");
+            }
+            system::copyDirectory("data", "backup/data-" + system::timeDateString());
+            system::copyDirectory("logs", "backup/logs-" + system::timeDateString());
+        } catch (const std::exception& e) {
+            system::logMessage(system::messageClassification::WARNING,
+                             "Error creating backups: " + std::string(e.what()) + "\n");
+        }
+    }
     struct LoggerStreamBuf : public std::streambuf {
         std::streambuf* orig;
         system::messageClassification level;
@@ -321,160 +470,103 @@ bool system::getCaptureStdStreams() {
 
 
 bool system::createDirectory(const std::string &p_directoryName) {
-    namespace fs = std::filesystem;
     std::error_code ec;
 
-    // If already exists and is a directory, we're done.
-    if (fs::exists(p_directoryName, ec) && fs::is_directory(p_directoryName, ec)) return true;
+    // Check if already exists
+    if (std::filesystem::exists(p_directoryName, ec) &&
+        std::filesystem::is_directory(p_directoryName, ec)) {
+        return true;
+    }
 
-    // Try to create directories (creates parents as needed)
-    if (fs::create_directories(p_directoryName, ec) && !ec) return true;
-
-    // Fallback to platform mkdir if std::filesystem failed for some reason
-    if (const char* folderName = p_directoryName.c_str(); MKDIR(folderName) == 0) return true;
-
-    // Final check: maybe directory now exists (race condition)
-    if (fs::exists(p_directoryName, ec) && fs::is_directory(p_directoryName, ec)) return true;
-
-    return false;
+    // Create directories (creates parents as needed)
+    return std::filesystem::create_directories(p_directoryName, ec) && !ec;
 }
 
 
-// Check whether a directory exists at the given path
 bool system::searchDirectory(const std::string& p_directoryName) {
-    try {
-        return std::filesystem::is_directory(p_directoryName);
-    } catch (...) {
-        // fallback to POSIX/stat or Windows _stat
-    }
-
-    #ifdef _WIN32
-        struct _stat info;
-        if (_stat(p_directoryName.c_str(), &info) == 0) {
-            return (info.st_mode & _S_IFDIR) != 0;
-        }
-    #else
-        struct stat info{};
-        if (stat(p_directoryName.c_str(), &info) == 0) {
-            return S_ISDIR(info.st_mode);
-        }
-    #endif
-
-    return false;
+    std::error_code ec;
+    return std::filesystem::is_directory(p_directoryName, ec) && !ec;
 }
 
 
 bool system::copyDirectory(const std::string &source, const std::string &destination) {
-    namespace fs = std::filesystem;
+    std::error_code ec;
 
-    try {
-        fs::create_directories(destination);
-        fs::copy(source, destination,
-                 fs::copy_options::recursive |
-                 fs::copy_options::overwrite_existing);
-        return true;
-    }
-    catch (const std::exception &e) {
-        std::cerr << "Copy failed: " << e.what() << std::endl;
+    std::filesystem::create_directories(destination, ec);
+    if (ec) {
+        logMessage(messageClassification::ERROR, "Failed to create destination directory: " + ec.message() + "\n");
         return false;
     }
+
+    std::filesystem::copy(source, destination,
+                          std::filesystem::copy_options::recursive |
+                          std::filesystem::copy_options::overwrite_existing, ec);
+
+    if (ec) {
+        logMessage(messageClassification::ERROR, "Copy failed: " + ec.message() + "\n");
+        return false;
+    }
+
+    return true;
 }
 
 
 bool system::deleteDirectory(const std::string& p_directoryName) {
     std::error_code ec;
-    const std::filesystem::path dir{p_directoryName};
 
-    // Ensure path exists and is a directory
-    if (!std::filesystem::exists(dir, ec) || !std::filesystem::is_directory(dir, ec)) {
+    if (!std::filesystem::exists(p_directoryName, ec) ||
+        !std::filesystem::is_directory(p_directoryName, ec)) {
         return false;
     }
 
-    // Try noexcept remove_all
-    const auto removed = std::filesystem::remove_all(dir, ec);
-    if (!ec) {
-        return removed > 0;
-    }
-
-    // Fallback: attempt platform-specific removal for empty directory
-    #ifdef _WIN32
-        return _rmdir(p_directoryName.c_str()) == 0;
-    #else
-        return rmdir(p_directoryName.c_str()) == 0;
-    #endif
+    return std::filesystem::remove_all(p_directoryName, ec) > 0 && !ec;
 }
 
 
-// Create an empty file at the given path, creating parent directories if necessary
 bool system::createFile(const std::string& p_filePath) {
-    std::error_code errorCode;
+    std::error_code ec;
     const std::filesystem::path path{p_filePath};
+    const auto parent = path.parent_path();
 
-    if (const auto parent = path.parent_path(); !parent.empty() && !std::filesystem::exists(parent, errorCode)) {
-        if (!std::filesystem::create_directories(parent, errorCode) || errorCode) {
+    // Create parent directories if needed
+    if (!parent.empty() && !std::filesystem::exists(parent, ec)) {
+        if (!std::filesystem::create_directories(parent, ec) || ec) {
             return false;
         }
     }
 
+    // Create the file
     std::ofstream file(p_filePath, std::ios::binary);
-    if (!file.is_open()) {
-        return false;
-    }
-        file.close();
-        return true;
+    return file.is_open();
 }
 
 
 bool system::searchFile(const std::string& p_fileName) {
-    std::error_code errorCode;
-    namespace fs = std::filesystem;
-    if (const fs::path p{p_fileName}; fs::exists(p, errorCode)) {
-        return fs::is_regular_file(p, errorCode) || fs::is_symlink(p, errorCode) || !fs::is_directory(p, errorCode);
+    std::error_code ec;
+
+    if (!std::filesystem::exists(p_fileName, ec)) {
+        return false;
     }
-    if (errorCode) {
-#ifdef _WIN32
-        struct _stat info;
-        if (_stat(p_fileName.c_str(), &info) == 0) {
-            return (info.st_mode & _S_IFDIR) == 0; // exists and is not a directory
-        }
-#else
-        struct stat info{};
-        if (stat(p_fileName.c_str(), &info) == 0) {
-            return S_ISREG(info.st_mode) || S_ISLNK(info.st_mode);
-        }
-#endif
-    }
-    return false;
+
+    return std::filesystem::is_regular_file(p_fileName, ec) ||
+           std::filesystem::is_symlink(p_fileName, ec);
 }
 
 
 bool system::deleteFile(const std::string& p_filePath) {
-    std::error_code errorCode;
-    // Try portable std::filesystem removal (non-throwing)
-    if (std::filesystem::remove(p_filePath, errorCode)) {
+    std::error_code ec;
+
+    // Try to remove the file
+    if (std::filesystem::remove(p_filePath, ec) && !ec) {
         return true;
     }
-    // If filesystem set an error, try to make file writable and retry
-    try {
-        std::filesystem::permissions(p_filePath,
-                                     std::filesystem::perms::owner_write,
-                                     std::filesystem::perm_options::add);
-        errorCode.clear();
-        if (std::filesystem::remove(p_filePath, errorCode)) {
-            return true;
-        }
-    } catch (...) {
-        // ignore and fall through to platform-specific attempts
-    }
-    // Platform-specific fallbacks
-    #ifdef _WIN32
-        // Try C std::remove as a fallback; on Windows this maps to _unlink/DeleteFile
-        if (std::remove(p_filePath.c_str()) == 0) return true;
-    #else
-        // POSIX unlink
-        if (unlink(p_filePath.c_str()) == 0) return true;
-    #endif
-    return false;
+
+    // If failed, try to make file writable and retry
+    std::filesystem::permissions(p_filePath,
+                                 std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add, ec);
+
+    return std::filesystem::remove(p_filePath, ec) && !ec;
 }
 
 bool system::printPayslips(const std::string& dbPath, const std::string& logoPath, const std::vector<int>& employeeIds) {
@@ -514,14 +606,15 @@ bool system::openFileInBrowser(const std::string& filePath) {
     std::string pathStr = absPath.string();
 
 #ifdef _WIN32
-    // Windows: use ShellExecute or start command
+    // Windows: use start command
     std::string command = "start \"\" \"" + pathStr + "\"";
-#elif __APPLE__
+#elif defined(__APPLE__)
     // macOS: use open command
     std::string command = "open \"" + pathStr + "\"";
 #else
-    // Linux: use xdg-open
-    std::string command = "xdg-open \"" + pathStr + "\"";
+    // Other platforms are not supported in this build configuration
+    logMessage(messageClassification::ERROR, "Opening files in browser is not supported on this platform.\n");
+    return false;
 #endif
 
     int result = std::system(command.c_str());
@@ -538,49 +631,9 @@ void system::appShutdown() {
     try {
         logMessage(messageClassification::INFO, "Application shutdown initiated.\n");
 
-        // Ensure databases are encrypted at shutdown if a session key exists
-        try {
-            if (security::DBEncryptionSession::hasKey()) {
-                security::DBEncryptionSession::encryptAllDbs();
-                security::DBEncryptionSession::clear();
-            }
-        } catch (const std::exception& e) {
-            logMessage(messageClassification::WARNING, "Error during database encryption at shutdown: " + std::string(e.what()) + "\n");
-        }
-
-        // Clean up old backups
-        try {
-            if (searchDirectory("backup")) {
-                std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
-                for (const auto& entry : std::filesystem::directory_iterator("backup")) {
-                    if (std::filesystem::is_directory(entry)) {
-                        directories.emplace_back(std::filesystem::last_write_time(entry), entry.path());
-                    }
-                }
-
-                if (directories.size() > 20) {
-                    std::partial_sort(directories.begin(), directories.begin() + 2, directories.end(),
-                                      [](auto const &a, auto const &b) { return a.first < b.first; });
-
-                    // Remove the two oldest backup directories
-                    std::filesystem::remove_all(directories[0].second);
-                    std::filesystem::remove_all(directories[1].second);
-                }
-            }
-        } catch (const std::exception& e) {
-            logMessage(messageClassification::WARNING, "Error cleaning old backups: " + std::string(e.what()) + "\n");
-        }
-
-        // Create new backups
-        try {
-            if (!searchDirectory("backup")) {
-                createDirectory("backup");
-            }
-            copyDirectory("data", "backup/data-" + timeDateString());
-            copyDirectory("logs", "backup/logs-" + timeDateString());
-        } catch (const std::exception& e) {
-            logMessage(messageClassification::WARNING, "Error creating backups: " + std::string(e.what()) + "\n");
-        }
+        encryptDatabasesOnShutdown();
+        cleanOldBackups();
+        createBackups();
 
         logMessage(messageClassification::INFO, "Application shutdown completed successfully.\n");
     } catch (const std::exception& e) {
@@ -588,7 +641,6 @@ void system::appShutdown() {
     } catch (...) {
         logMessage(messageClassification::ERROR, "Unknown critical error during shutdown.\n");
     }
-    // Return normally to allow main() to exit gracefully
 }
 
 // ============================================================================
@@ -596,98 +648,6 @@ void system::appShutdown() {
 // ============================================================================
 
 std::string system::validateInput(const ValidationType validationType, const std::string& input) {
-    // Helper lambda functions for validation
-    auto isNotEmpty = [](const std::string& str) -> bool {
-        if (str.empty()) return false;
-        for (char c : str) {
-            if (!std::isspace(static_cast<unsigned char>(c))) return true;
-        }
-        return false;
-    };
-
-    auto isDigitsOnly = [](const std::string& str) -> bool {
-        if (str.empty()) return false;
-        for (char c : str) {
-            if (!std::isdigit(static_cast<unsigned char>(c))) return false;
-        }
-        return true;
-    };
-
-    // Only letters and spaces (for names and positions)
-    auto isLettersAndSpacesOnly = [](const std::string& str) -> bool {
-        if (str.empty()) return false;
-        for (char c : str) {
-            if (!std::isalpha(static_cast<unsigned char>(c)) && !std::isspace(static_cast<unsigned char>(c))) {
-                return false;
-            }
-        }
-        return true;
-    };
-
-    // Only digits and decimal point (for numeric values)
-    auto isValidDecimal = [](const std::string& str) -> bool {
-        if (str.empty()) return false;
-        bool hasDecimal = false;
-        for (char c : str) {
-            if (c == '.') {
-                if (hasDecimal) return false; // Multiple decimal points
-                hasDecimal = true;
-            } else if (!std::isdigit(static_cast<unsigned char>(c))) {
-                return false;
-            }
-        }
-        return true;
-    };
-
-    auto isValidProjectID = [](const std::string& str) -> bool {
-        if (str.length() < 9) return false; // "PRJ-" + at least 5 digits
-        if (str.substr(0, 4) != "PRJ-") return false;
-        for (size_t i = 4; i < str.length(); ++i) {
-            if (!std::isdigit(static_cast<unsigned char>(str[i]))) return false;
-        }
-        return true;
-    };
-
-    // Strict ISO 8601 date format validation (YYYY-MM-DD)
-    auto isValidISODate = [](const std::string& str) -> bool {
-        if (str.length() != 10) return false;
-        if (str[4] != '-' || str[7] != '-') return false;
-
-        // Validate all digits in correct positions
-        for (int i = 0; i < 10; ++i) {
-            if (i == 4 || i == 7) continue;
-            if (!std::isdigit(static_cast<unsigned char>(str[i]))) return false;
-        }
-
-        // Validate date ranges
-        try {
-            const int year = std::stoi(str.substr(0, 4));
-            const int month = std::stoi(str.substr(5, 2));
-            const int day = std::stoi(str.substr(8, 2));
-
-            // Year validation
-            if (year < 1900 || year > 2100) return false;
-
-            // Month validation
-            if (month < 1 || month > 12) return false;
-
-            // Day validation based on month
-            const int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-            int maxDay = daysInMonth[month - 1];
-
-            // Leap year check for February
-            if (month == 2) {
-                const bool isLeapYear = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
-                if (isLeapYear) maxDay = 29;
-            }
-
-            return day >= 1 && day <= maxDay;
-        } catch (...) {
-            return false;
-        }
-    };
-
-    // Perform validation based on type
     switch (validationType) {
         case ValidationType::NOT_EMPTY:
             return isNotEmpty(input) ? input : "";
@@ -696,50 +656,25 @@ std::string system::validateInput(const ValidationType validationType, const std
             return isDigitsOnly(input) ? input : "";
 
         case ValidationType::POSITIVE_INTEGER:
-            if (!isDigitsOnly(input)) return "";
-            try {
-                const long long val = std::stoll(input);
-                return val > 0 ? input : "";
-            } catch (...) {
-                return "";
-            }
+        case ValidationType::EMPLOYEE_ID:
+            return validatePositiveInteger(input) ? input : "";
 
         case ValidationType::NON_NEGATIVE_INTEGER:
-            if (!isDigitsOnly(input)) return "";
-            try {
-                const long long val = std::stoll(input);
-                return val >= 0 ? input : "";
-            } catch (...) {
-                return "";
-            }
+            return validateNonNegativeInteger(input) ? input : "";
 
         case ValidationType::POSITIVE_DECIMAL:
-            if (!isValidDecimal(input)) return "";
-            try {
-                const double val = std::stod(input);
-                return val > 0.0 ? input : "";
-            } catch (...) {
-                return "";
-            }
+        case ValidationType::SALARY:
+            return validatePositiveDecimal(input) ? input : "";
 
         case ValidationType::NON_NEGATIVE_DECIMAL:
-            if (!isValidDecimal(input)) return "";
-            try {
-                const double val = std::stod(input);
-                return val >= 0.0 ? input : "";
-            } catch (...) {
-                return "";
-            }
+        case ValidationType::QUANTITY:
+            return validateNonNegativeDecimal(input) ? input : "";
 
         case ValidationType::ALPHANUMERIC_SPACES:
             if (!isNotEmpty(input)) return "";
-            for (char c : input) {
-                if (!std::isalnum(static_cast<unsigned char>(c)) &&
-                    !std::isspace(static_cast<unsigned char>(c))) {
-                    return "";
-                }
-            }
-            return input;
+            return std::all_of(input.begin(), input.end(), [](unsigned char c) {
+                return std::isalnum(c) || std::isspace(c);
+            }) ? input : "";
 
         case ValidationType::PROJECT_ID_FORMAT:
             return isValidProjectID(input) ? input : "";
@@ -747,89 +682,34 @@ std::string system::validateInput(const ValidationType validationType, const std
         case ValidationType::DATE_FORMAT:
             return isValidISODate(input) ? input : "";
 
-        case ValidationType::EMPLOYEE_ID:
-            if (!isNotEmpty(input)) return "";
-            if (!isDigitsOnly(input)) return "";
-            try {
-                const long long val = std::stoll(input);
-                return val > 0 ? input : "";
-            } catch (...) {
-                return "";
-            }
-
         case ValidationType::NAME:
-            if (!isNotEmpty(input)) return "";
-            if (input.length() > 100) return "";
-            // Name must contain only letters and spaces
-            if (!isLettersAndSpacesOnly(input)) return "";
-            return input;
+            return (isNotEmpty(input) && input.length() <= 100 &&
+                    isLettersAndSpacesOnly(input)) ? input : "";
 
         case ValidationType::POSITION:
-            if (!isNotEmpty(input)) return "";
-            if (input.length() > 50) return "";
-            // Position must contain only letters and spaces
-            if (!isLettersAndSpacesOnly(input)) return "";
-            return input;
-
-        case ValidationType::SALARY:
-            if (!isNotEmpty(input)) return "";
-            // Salary must be numeric (digits and decimal point only)
-            if (!isValidDecimal(input)) return "";
-            try {
-                const double val = std::stod(input);
-                return val > 0.0 ? input : "";
-            } catch (...) {
-                return "";
-            }
+            return (isNotEmpty(input) && input.length() <= 50 &&
+                    isLettersAndSpacesOnly(input)) ? input : "";
 
         case ValidationType::HOURS:
-            if (!isNotEmpty(input)) return "";
-            // Hours must be numeric (digits and decimal point only)
             if (!isValidDecimal(input)) return "";
             try {
                 const double val = std::stod(input);
-                if (val < 0.0 || val > 168.0) return ""; // Max hours in a week
-                return input;
+                return (val >= 0.0 && val <= 168.0) ? input : "";
             } catch (...) {
                 return "";
             }
 
         case ValidationType::ADVANCE:
-            // Empty is allowed for advance (defaults to 0)
             if (input.empty() || !isNotEmpty(input)) return input;
-            // Advance must be numeric (digits and decimal point only)
-            if (!isValidDecimal(input)) return "";
-            try {
-                const double val = std::stod(input);
-                return val >= 0.0 ? input : "";
-            } catch (...) {
-                return "";
-            }
-
-        case ValidationType::QUANTITY:
-            if (!isNotEmpty(input)) return "";
-            if (!isValidDecimal(input)) return "";
-            try {
-                const double val = std::stod(input);
-                return val >= 0.0 ? input : "";
-            } catch (...) {
-                return "";
-            }
+            return validateNonNegativeDecimal(input) ? input : "";
 
         case ValidationType::MATERIAL_ID:
             return isNotEmpty(input) ? input : "";
 
         case ValidationType::SITE_LOCATION:
             if (!isNotEmpty(input)) return "";
-            // Accept "Main Office", "Warehouse", or "PRJ-XXXXX" format
-            if (input == "Main Office" || input == "Warehouse") {
-                return input;
-            }
-            // Check if it matches PRJ-XXXXX format
-            if (isValidProjectID(input)) {
-                return input;
-            }
-            return "";
+            if (input == "Main Office" || input == "Warehouse") return input;
+            return isValidProjectID(input) ? input : "";
 
         default:
             logMessage(messageClassification::WARNING, "Unknown validation type requested\n");
