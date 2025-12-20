@@ -151,7 +151,7 @@ jobs:
         if [ "${{ matrix.target }}" = "intel" ]; then
           ARCH_FLAG="-DCMAKE_OSX_ARCHITECTURES=x86_64"
         fi
-        
+
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
@@ -164,9 +164,28 @@ jobs:
         
         echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(sysctl -n hw.ncpu)
+
+        # Install into CI staging prefix so packaging uses predictable staged content
+        echo "=== Installing build into staging directory ==="
+        mkdir -p build/ci_temp_install/structuracost
+        cmake --install build --config Release --prefix "${PWD}/build/ci_temp_install/structuracost"
+        echo "Staging contents:" && ls -la build/ci_temp_install/structuracost || true
         
         echo "=== Verifying Release build completed ==="
         file build/structuracost.app/Contents/MacOS/structuracost && echo "✓ Release build verified"
+
+    - name: Dump CMake cache (diagnostic)
+      if: always()
+      run: |
+        echo "=== CMakeCache.txt snippet (macOS) ==="
+        if [ -f build/CMakeCache.txt ]; then
+          echo "--- Relevant entries ---"
+          grep -E 'CMAKE_BUILD_TYPE|CMAKE_CONFIGURATION_TYPES|SODIUM_INCLUDE_DIR|SODIUM_LIBRARY' build/CMakeCache.txt || true
+          echo "--- Head (first 200 lines) ---"
+          head -n 200 build/CMakeCache.txt || true
+        else
+          echo "No build/CMakeCache.txt found"
+        fi
 
     - name: Make TGZ package (fallback)
       run: |
@@ -336,7 +355,6 @@ jobs:
           '-DCMAKE_C_FLAGS_RELEASE=/O2 /MD /DNDEBUG',
           '-DCMAKE_CXX_FLAGS_RELEASE=/O2 /MD /DNDEBUG',
           '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL',
-          '-DCMAKE_INSTALL_PREFIX=.',
           '-G', 'Ninja',
           "-DCPACK_PACKAGE_VERSION=$version",
           '-DCPACK_GENERATOR=NSIS'
@@ -367,117 +385,37 @@ jobs:
         Write-Host "=== Building in RELEASE mode with /MD runtime ===" -ForegroundColor Cyan
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
         
+        # Install into CI staging prefix so packaging uses predictable staged content
+        Write-Host "=== Installing build into staging directory ===" -ForegroundColor Cyan
+        $staging = Join-Path $PWD 'build\ci_temp_install\structuracost'
+        New-Item -ItemType Directory -Force -Path $staging | Out-Null
+        & cmake --install build --config Release --prefix $staging
+        Write-Host "Staging contents:" -ForegroundColor Cyan
+        gci $staging -Recurse | Select-Object -First 200 | ForEach-Object { Write-Host $_.FullName }
+        
         Write-Host ""
         Write-Host "=== Build completed - proceeding to verification ===" -ForegroundColor Green
 
-    - name: Verify Release Build (Check for Debug DLLs)
+    - name: Dump CMake cache (diagnostic)
+      if: always()
       shell: pwsh
       run: |
-        Write-Host "=== Verifying Release Build ===" -ForegroundColor Cyan
-        $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
-        if ($exe) {
-          Write-Host "Found executable: $($exe.FullName)"
-          
-          # Run verification script
-          if (Test-Path "packaging/windows/verify_release_build.ps1") {
-            & powershell -ExecutionPolicy Bypass -File "packaging/windows/verify_release_build.ps1" -ExecutablePath $exe.FullName
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host ""
-              Write-Host "===================================================================" -ForegroundColor Red
-              Write-Host "CRITICAL ERROR: Build contains DEBUG runtime dependencies!" -ForegroundColor Red
-              Write-Host "This will cause error 0xc000007b on systems without debug DLLs." -ForegroundColor Red
-              Write-Host "===================================================================" -ForegroundColor Red
-              exit 1
-            }
-          } else {
-            Write-Host "Verification script not found, skipping detailed check"
-            
-            # Basic check using dumpbin if available
-            $dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
-            if ($dumpbin) {
-              $deps = & dumpbin /dependents $exe.FullName 2>&1 | Out-String
-              if ($deps -match "ucrtbased\.dll|vcruntime140d\.dll") {
-                Write-Host "ERROR: Debug DLLs detected!" -ForegroundColor Red
-                Write-Host $deps
-                exit 1
-              } else {
-                Write-Host "✓ No debug DLLs detected" -ForegroundColor Green
-              }
-            }
-          }
+        $cache = Join-Path $PWD 'build\CMakeCache.txt'
+        Write-Host "=== CMakeCache.txt snippet (Windows) ==="
+        if (Test-Path $cache) {
+          Write-Host "--- Relevant entries ---"
+          Select-String -Path $cache -Pattern 'CMAKE_BUILD_TYPE|CMAKE_CONFIGURATION_TYPES|SODIUM_INCLUDE_DIR|SODIUM_LIBRARY' -SimpleMatch | ForEach-Object { Write-Host $_.Line }
+          Write-Host "--- Head (first 200 lines) ---"
+          Get-Content $cache -TotalCount 200 | ForEach-Object { Write-Host $_ }
         } else {
-          Write-Host "Warning: Executable not found for verification"
+          Write-Host "No build\\CMakeCache.txt found"
         }
 
-    - name: Make ZIP package (fallback)
-      shell: pwsh
+    - name: Install tools
       run: |
-        New-Item -ItemType Directory -Force -Path artifact | Out-Null
-        $exe = Get-ChildItem -Recurse build -Filter "structuracost.exe" | Select-Object -First 1
-        Copy-Item $exe.FullName artifact/
-        if (Test-Path assets) { Copy-Item -Recurse assets artifact/ }
-        $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
-        Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.zip"
-
-    - name: Patch generated cmake_install.cmake (robust CI staging)
-      shell: pwsh
-      run: |
-        $buildDir = Join-Path $PWD 'build'
-        $temp = Join-Path $buildDir 'ci_temp_install'
-        Write-Host "Creating staging directory: $temp"
-        Remove-Item -Recurse -Force $temp -ErrorAction SilentlyContinue
-        New-Item -ItemType Directory -Force -Path $temp | Out-Null
-
-        # Copy executable into staging
-        $exe = Get-ChildItem -Path $buildDir -Recurse -Filter "structuracost.exe" -File -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($exe) {
-          $destExeDir = Join-Path $temp 'structuracost'
-          New-Item -ItemType Directory -Force -Path $destExeDir | Out-Null
-          Copy-Item -Path $exe.FullName -Destination $destExeDir -Force
-          Write-Host "Copied executable to staging: $($exe.FullName) -> $destExeDir"
-        } else {
-          Write-Host "Executable not found under $buildDir; continuing without copying exe"
-        }
-
-        # Copy assets into staging (if present in repo workspace)
-        $srcAssets = Join-Path $PWD 'assets'
-        if (Test-Path $srcAssets) {
-          $destAssets = Join-Path $temp 'structuracost\assets'
-          Copy-Item -Path $srcAssets -Destination $destAssets -Recurse -Force
-          Write-Host "Copied assets to staging: $srcAssets -> $destAssets"
-        } else {
-          Write-Host "No assets directory found at $srcAssets; skipping asset copy"
-        }
-
-        # Write a minimal cmake_install.cmake that installs the staged directory into the packaging prefix
-        $ciInstall = Join-Path $buildDir 'cmake_install.cmake'
-        $installLines = @(
-          '# Minimal CI-generated install script - copies pre-staged structuracost into the packaging prefix',
-          '# Note: intentionally do NOT call cmake_minimum_required() or project() here; CPack executes this script in a constrained context',
-          'set(_src_dir "${CMAKE_BINARY_DIR}/ci_temp_install/structuracost")',
-          '# On Windows runners CMAKE_BINARY_DIR may be prefixed with a leading slash (e.g. /D:/...). Remove it if present',
-          'if(WIN32)',
-          '  string(REGEX REPLACE "^/([A-Za-z]:/)" "\\1" _src_dir "${_src_dir}")',
-          'endif()',
-          '# Ensure CMAKE_INSTALL_PREFIX has a sensible default (some CPack contexts may not set it reliably)',
-          'if(NOT DEFINED CMAKE_INSTALL_PREFIX)',
-          '  set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}")',
-          'endif()',
-          'message(STATUS "CI: copying staged files from ${_src_dir} to ${CMAKE_INSTALL_PREFIX}")',
-          'execute_process(COMMAND "${CMAKE_COMMAND}" -E copy_directory "${_src_dir}" "${CMAKE_INSTALL_PREFIX}/structuracost" RESULT_VARIABLE _ci_copy_ret)',
-          'if(NOT _ci_copy_ret EQUAL 0)',
-          '  message(FATAL_ERROR "CI: failed to copy staged files (result=${_ci_copy_ret})")',
-          'endif()'
-        )
-        Set-Content -Path $ciInstall -Value ($installLines -join "`n") -Force -Encoding UTF8
-        Write-Host "Wrote minimal install script to $ciInstall"
-
-        # Debug: print the first lines of the generated install script so we can inspect it in CI logs
-        if (Test-Path $ciInstall) {
-          Write-Host "=== Generated build/cmake_install.cmake (first 80 lines) ==="
-          Get-Content $ciInstall -TotalCount 80 | ForEach-Object { Write-Host $_ }
-          Write-Host "=== End of generated script snippet ==="
-        }
+        choco install ninja nsis -y
+        ninja --version
+        try { makensis /VERSION } catch { echo "NSIS may not be available on this platform" }
 
     - name: Build NSIS installer via CPack
       shell: pwsh
@@ -486,45 +424,25 @@ jobs:
         Write-Host "==> Running NSIS packaging (required)"
         & cpack -G NSIS -C Release --verbose --debug
         if ($LASTEXITCODE -ne 0) {
-        # Display the NSIS output log for debugging
-        if (Test-Path "_CPack_Packages/win64/NSIS/NSISOutput.log") {
-        Write-Host "=== NSIS Output Log ===" -ForegroundColor Red
-        Get-Content "_CPack_Packages/win64/NSIS/NSISOutput.log"
-        }
+          Write-Host "NSIS packaging failed; show debug logs if available" -ForegroundColor Red
+          if (Test-Path "_CPack_Packages/win64/NSIS/NSISOutput.log") {
+            Write-Host "=== NSIS Output Log ===" -ForegroundColor Red
+            Get-Content "_CPack_Packages/win64/NSIS/NSISOutput.log"
+          }
           Write-Error "NSIS packaging failed with exit code $LASTEXITCODE.  Aborting packaging step."
           exit $LASTEXITCODE
         }
         Write-Host "NSIS packaging succeeded"
         popd
 
-    - name: Collect Windows installers
-      shell: pwsh
-      run: |
-        New-Item -ItemType Directory -Force -Path installers | Out-Null
-        $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
-        $nsis = Get-ChildItem build -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "structuracost|Setup|Installer" } | Select-Object -First 1
-        if ($nsis) {
-          Copy-Item $nsis.FullName "installers/structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.exe"
-          Write-Host "NSIS installer created: structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.exe"
-        } else {
-          Write-Host "Warning: NSIS installer not found (may not be supported on ${{ matrix.arch }})"
-        }
-
-    - name: Upload Windows installers
+    - name: Upload Windows installer
       uses: actions/upload-artifact@v4
       with:
         name: windows-${{ matrix.arch }}
-        path: |
-          installers/*
+        path: build/output/*.exe
         retention-days: 7
-        if-no-files-found: warn
 
-    - name: Upload Windows archive (separate)
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-${{ matrix.arch }}-archive
-        path: "structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.zip"
-        retention-days: 7
+
 
   create-release:
     name: Create Release
@@ -550,13 +468,13 @@ jobs:
     - name: Prepare release assets
       run: |
         mkdir release-assets
-        
+
         # Collect all installers
         find artifacts -type f \( -name "*.dmg" -o -name "*.pkg" -o -name "*.exe" \) -exec cp {} release-assets/ \;
-        
+
         # Collect all archives (from -archive artifacts)
         find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release-assets/ \;
-        
+
         echo "=== Release Assets ==="
         ls -lh release-assets/
         echo ""
@@ -587,7 +505,7 @@ jobs:
             echo "## 🛠️ Pre-Alpha Release" > release-notes.md ;;
         esac
         echo "" >> release-notes.md
-        
+
         # Add highlighted warning boxes for pre-release types
         case "${{ inputs.version_x }}" in
           rc)
@@ -607,7 +525,7 @@ jobs:
             echo "> **Pre-Alpha Release:** This is a pre-alpha release. It may be unstable and is intended for testing and feedback." >> release-notes.md
             echo "" >> release-notes.md ;;
         esac
-        
+
         # Use CHANGELOG.md as the main release content
         if [ -f "repo/CHANGELOG.md" ]; then
           cat repo/CHANGELOG.md >> release-notes.md

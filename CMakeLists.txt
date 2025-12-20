@@ -14,7 +14,36 @@ if(NOT DEFINED CMAKE_INSTALL_PREFIX)
 endif()
 
 project(cpet_140_final_project LANGUAGES C CXX)
-set(CMAKE_BUILD_TYPE Release)
+
+# Enforce Release mode when running in CI (GitHub Actions) or when explicitly requested.
+# - For single-config generators (Makefile, Ninja) we force CMAKE_BUILD_TYPE=Release.
+# - For multi-config generators (Visual Studio, Xcode) we restrict allowed configurations to Release only.
+# This prevents accidental Debug builds in CI and ensures downstream packaging contains Release artifacts.
+if(DEFINED ENV{GITHUB_ACTIONS} OR DEFINED ENV{CI} OR DEFINED ENV{FORCE_RELEASE_BUILD})
+    message(STATUS "CI detected: enforcing Release build configuration")
+    if(NOT CMAKE_CONFIGURATION_TYPES)
+        # Single-config generator (Ninja, Unix Makefiles)
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (forced by CI)" FORCE)
+    else()
+        # Multi-config generator (Visual Studio, Xcode) - restrict to Release only
+        set(CMAKE_CONFIGURATION_TYPES "Release" CACHE STRING "Configurations (restricted by CI)" FORCE)
+        # Also set a default build type for tools that read it
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (CI default)" FORCE)
+    endif()
+else()
+    # Not in CI: preserve existing behavior but default to Release if the user hasn't specified anything.
+    if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Default build type (non-CI)" FORCE)
+    endif()
+endif()
+
+# Strict check: if we're in CI, fail configure immediately if build type isn't Release
+if(DEFINED ENV{GITHUB_ACTIONS} OR DEFINED ENV{CI} OR DEFINED ENV{FORCE_RELEASE_BUILD})
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+        message(FATAL_ERROR "CI requires Release build; CMAKE_BUILD_TYPE is '${CMAKE_BUILD_TYPE}'. Please configure with Release.")
+    endif()
+endif()
+
 set(CMAKE_CXX_STANDARD 20)           # set C++20 standard
 set(CMAKE_CXX_STANDARD_REQUIRED ON)  # enforce C++20 standard
 set(CMAKE_CXX_EXTENSIONS OFF)        # disable compiler-specific extensions
