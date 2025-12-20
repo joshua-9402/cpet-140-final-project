@@ -347,11 +347,24 @@ jobs:
         }
         popd
 
+    - name: Collect Windows installer
+      shell: pwsh
+      run: |
+        $installer = Get-ChildItem -Path build -Filter "*.exe" | Select-Object -First 1
+        if ($installer) {
+          $newName = "structuracost-windows-${{ matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.exe"
+          Copy-Item $installer.FullName -Destination $newName
+          Write-Host "Collected installer: $newName"
+        } else {
+          Write-Error "No installer found in build directory"
+          exit 1
+        }
+
     - name: Upload Windows installer
       uses: actions/upload-artifact@v4
       with:
         name: windows-${{ matrix.arch }}
-        path: build/output/*.exe
+        path: structuracost-windows-${{ matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.exe
         retention-days: 7
 
 
