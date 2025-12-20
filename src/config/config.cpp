@@ -37,7 +37,12 @@ std::string appConfig::g_errorTitle    = "ERROR";
 
 std::string appConfig::g_fontName      = "fonts/OpenSans-Regular.ttf";
 std::string appConfig::g_assetsDirectory = "assets/";
-std::string appConfig::g_dataDirectory = "data/";
+
+// Use application support directory for data storage
+std::string appConfig::g_dataDirectory = system::getAppSupportDirectory() + "/data/";
+std::string appConfig::g_backupDirectory = system::getAppSupportDirectory() + "/backup/";
+std::string appConfig::g_logsDirectory = system::getAppSupportDirectory() + "/logs/";
+
 std::string appConfig::g_projectDirectory = "projects/";
 std::string appConfig::g_payrollDirectory  = "payroll/";
 

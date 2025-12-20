@@ -35,7 +35,9 @@ class appConfig {
 
         static std::string g_fontName;            // Default font path (relative to assets)
         static std::string g_assetsDirectory;     // Assets directory path
-        static std::string g_dataDirectory;       // Data directory path
+        static std::string g_dataDirectory;       // Data directory path (full path)
+        static std::string g_backupDirectory;     // Backup directory path (full path)
+        static std::string g_logsDirectory;       // Logs directory path (full path)
         static std::string g_projectDirectory;    // Projects directory path
         static std::string g_payrollDirectory;    // Payroll database directory path
         static std::string g_projectExpenseDirectory; // Project expenses directory path
