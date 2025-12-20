@@ -208,6 +208,9 @@ elseif(WIN32)
         install(FILES "${CMAKE_SOURCE_DIR}/assets/icons/app_icon.png" DESTINATION ".")
     endif()
 
+    set(APP_ICON_RC ${CMAKE_SOURCE_DIR}/assets/icons/app_icon.rc)
+    target_sources(structuracost PRIVATE ${APP_ICON_RC})
+
 # NOTE: Linux packaging removed by project policy — no installer will be produced for Linux/Unix.
 # If a package for Linux is needed in the future, add a dedicated CI pipeline and packaging job.
 endif()
