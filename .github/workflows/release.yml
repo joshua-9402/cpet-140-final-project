@@ -454,7 +454,8 @@ jobs:
         $stagedPath = ($temp -replace '\\','/')
         $installScript = @"
         # Minimal CI-generated install script - installs pre-staged 'structuracost' directory
-        file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/" TYPE DIRECTORY FILES "${stagedPath}/structuracost" USE_SOURCE_PERMISSIONS)
+        # Use a relative DESTINATION (.) to avoid absolute path creation when CMAKE_INSTALL_PREFIX is empty
+        file(INSTALL DESTINATION "." TYPE DIRECTORY FILES "${stagedPath}/structuracost" USE_SOURCE_PERMISSIONS)
         "@
         Set-Content -Path $ciInstall -Value $installScript -Force -Encoding UTF8
         Write-Host "Wrote minimal install script to $ciInstall"
