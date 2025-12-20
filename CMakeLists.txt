@@ -375,7 +375,7 @@ if(WIN32)
     set(CPACK_NSIS_CREATE_ICONS_EXTRA
         "CreateShortCut '$DESKTOP\\\\StructuraCost.lnk' '$INSTDIR\\\\structuracost.exe' '' '$INSTDIR\\\\structuracost.exe' 0")
     set(CPACK_NSIS_DELETE_ICONS_EXTRA
-        "Delete '$DESKTOP\\\\StructuraCost.lnk')")
+        "Delete '$DESKTOP\\\\StructuraCost.lnk'")
 
     # Add dependency installer scripts and docs into the package root (only if present)
     if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1")
