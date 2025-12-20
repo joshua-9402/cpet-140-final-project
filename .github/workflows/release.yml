@@ -453,12 +453,15 @@ jobs:
         $ciInstall = Join-Path $buildDir 'cmake_install.cmake'
         $installLines = @(
           '# Minimal CI-generated install script - copies pre-staged structuracost into the packaging prefix',
-          'cmake_minimum_required(VERSION 3.0)',
-          'project(CIPackagingScript NONE)',
+          '# Note: intentionally do NOT call cmake_minimum_required() or project() here; CPack executes this script in a constrained context',
           'set(_src_dir "${CMAKE_BINARY_DIR}/ci_temp_install/structuracost")',
           '# On Windows runners CMAKE_BINARY_DIR may be prefixed with a leading slash (e.g. /D:/...). Remove it if present',
           'if(WIN32)',
-          '  string(REGEX REPLACE "^/([A-Za-z]:/)" "\\\\1" _src_dir "${_src_dir}")',
+          '  string(REGEX REPLACE "^/([A-Za-z]:/)" "\\1" _src_dir "${_src_dir}")',
+          'endif()',
+          '# Ensure CMAKE_INSTALL_PREFIX has a sensible default (some CPack contexts may not set it reliably)',
+          'if(NOT DEFINED CMAKE_INSTALL_PREFIX)',
+          '  set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}")',
           'endif()',
           'message(STATUS "CI: copying staged files from ${_src_dir} to ${CMAKE_INSTALL_PREFIX}")',
           'execute_process(COMMAND "${CMAKE_COMMAND}" -E copy_directory "${_src_dir}" "${CMAKE_INSTALL_PREFIX}/structuracost" RESULT_VARIABLE _ci_copy_ret)',
@@ -468,6 +471,13 @@ jobs:
         )
         Set-Content -Path $ciInstall -Value ($installLines -join "`n") -Force -Encoding UTF8
         Write-Host "Wrote minimal install script to $ciInstall"
+
+        # Debug: print the first lines of the generated install script so we can inspect it in CI logs
+        if (Test-Path $ciInstall) {
+          Write-Host "=== Generated build/cmake_install.cmake (first 80 lines) ==="
+          Get-Content $ciInstall -TotalCount 80 | ForEach-Object { Write-Host $_ }
+          Write-Host "=== End of generated script snippet ==="
+        }
 
     - name: Build NSIS installer via CPack
       shell: pwsh
