@@ -50,6 +50,10 @@ class system {
 
         static std::string timeDateString();
 
+        // Get the application support directory path for storing app data
+        // Returns platform-specific path (e.g., ~/Library/Application Support/StructuraCost on macOS)
+        static std::string getAppSupportDirectory();
+
         // Logs a message to the rolling daily log file under `logs/`.
         // Thread-safe. Messages below the current log level are ignored.
         static void logMessage(messageClassification classification, const std::string &message);

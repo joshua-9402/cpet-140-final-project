@@ -171,10 +171,10 @@ namespace {
 
     void cleanOldBackups() {
         try {
-            if (!system::searchDirectory("backup")) return;
+            if (!system::searchDirectory(appConfig::g_backupDirectory)) return;
 
             std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
-            for (const auto& entry : std::filesystem::directory_iterator("backup")) {
+            for (const auto& entry : std::filesystem::directory_iterator(appConfig::g_backupDirectory)) {
                 if (std::filesystem::is_directory(entry)) {
                     directories.emplace_back(std::filesystem::last_write_time(entry), entry.path());
                 }
@@ -195,11 +195,11 @@ namespace {
 
     void createBackups() {
         try {
-            if (!system::searchDirectory("backup")) {
-                system::createDirectory("backup");
+            if (!system::searchDirectory(appConfig::g_backupDirectory)) {
+                system::createDirectory(appConfig::g_backupDirectory);
             }
-            system::copyDirectory("data", "backup/data-" + system::timeDateString());
-            system::copyDirectory("logs", "backup/logs-" + system::timeDateString());
+            system::copyDirectory(appConfig::g_dataDirectory, appConfig::g_backupDirectory + "data-" + system::timeDateString());
+            system::copyDirectory(appConfig::g_logsDirectory, appConfig::g_backupDirectory + "logs-" + system::timeDateString());
         } catch (const std::exception& e) {
             system::logMessage(system::messageClassification::WARNING,
                              "Error creating backups: " + std::string(e.what()) + "\n");
@@ -317,6 +317,46 @@ std::string system::timeDateString() {
                   std::to_string(system::fetchTime(PartDateTime::SECOND));
 }
 
+// Get the application support directory path for storing app data
+// Returns platform-specific path (e.g., ~/Library/Application Support/StructuraCost on macOS)
+std::string system::getAppSupportDirectory() {
+    std::string appSupportPath;
+
+#ifdef __APPLE__
+    // macOS: ~/Library/Application Support/StructuraCost
+    const char* home = std::getenv("HOME");
+    if (home) {
+        appSupportPath = std::string(home) + "/Library/Application Support/StructuraCost";
+    } else {
+        appSupportPath = "./StructuraCost"; // Fallback
+    }
+#elif defined(_WIN32)
+    // Windows: %APPDATA%\StructuraCost
+    const char* appdata = std::getenv("APPDATA");
+    if (appdata) {
+        appSupportPath = std::string(appdata) + "\\StructuraCost";
+    } else {
+        appSupportPath = ".\\StructuraCost"; // Fallback
+    }
+#else
+    // Linux/Unix: ~/.local/share/StructuraCost
+    const char* home = std::getenv("HOME");
+    if (home) {
+        appSupportPath = std::string(home) + "/.local/share/StructuraCost";
+    } else {
+        appSupportPath = "./StructuraCost"; // Fallback
+    }
+#endif
+
+    // Ensure the directory exists
+    std::error_code ec;
+    if (!std::filesystem::exists(appSupportPath, ec)) {
+        std::filesystem::create_directories(appSupportPath, ec);
+    }
+
+    return appSupportPath;
+}
+
 
 // Logs messages to a rolling daily log file under logs/ (thread-safe)
 void system::logMessage(const messageClassification classification, const std::string& message) {
@@ -345,7 +385,7 @@ void system::logMessage(const messageClassification classification, const std::s
     const std::string timestamp = std::to_string(year) + "-" + pad2(month) + "-" + pad2(day) +
                                   " " + pad2(hour) + ":" + pad2(minute) + ":" + pad2(second);
 
-    const std::string fileName = "logs/structuracost-" + std::to_string(year) + "-" + pad2(month) + "-" + pad2(day) + ".log";
+    const std::string fileName = appConfig::g_logsDirectory + "structuracost-" + std::to_string(year) + "-" + pad2(month) + "-" + pad2(day) + ".log";
 
     // Determine classification prefix
     std::string prefix;
