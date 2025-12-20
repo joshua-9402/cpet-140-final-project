@@ -342,12 +342,26 @@ jobs:
           '-DCPACK_GENERATOR=NSIS'
         )
         
+        # Add libsodium paths if they were set by the install step
+        if ($env:SODIUM_INCLUDE_DIR) {
+          Write-Host "Adding libsodium include dir: $env:SODIUM_INCLUDE_DIR" -ForegroundColor Yellow
+          $cmakeArgs += "-DSODIUM_INCLUDE_DIR=$env:SODIUM_INCLUDE_DIR"
+        }
+        if ($env:SODIUM_LIBRARY_FILE) {
+          Write-Host "Adding libsodium library: $env:SODIUM_LIBRARY_FILE" -ForegroundColor Yellow
+          $cmakeArgs += "-DSODIUM_LIBRARY=$env:SODIUM_LIBRARY_FILE"
+        }
+        
         if ('${{ matrix.arch }}' -eq 'arm64') {
           $cmakeArgs += '-DCMAKE_SYSTEM_NAME=Windows'
           $cmakeArgs += '-DCMAKE_SYSTEM_PROCESSOR=ARM64'
         }
         
         & cmake @cmakeArgs
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "CMake configuration failed!" -ForegroundColor Red
+          exit 1
+        }
         
         Write-Host ""
         Write-Host "=== Building in RELEASE mode with /MD runtime ===" -ForegroundColor Cyan

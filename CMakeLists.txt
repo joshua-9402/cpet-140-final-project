@@ -101,10 +101,29 @@ target_include_directories(structuracost PRIVATE ${CMAKE_SOURCE_DIR}/dependencie
 # -------------------------------
 # Use a small, cross-platform detection: prefer an installed libsodium (system or package manager)
 # If found, add include dir and link the library. Otherwise emit a warning and continue.
-find_library(SODIUM_LIBRARY NAMES sodium libsodium)
-find_path(SODIUM_INCLUDE_DIR sodium.h)
+# Support SODIUM_LIBRARY and SODIUM_INCLUDE_DIR hints from environment or CMake cache.
+find_library(SODIUM_LIBRARY
+    NAMES sodium libsodium
+    HINTS ${SODIUM_LIBRARY} ENV SODIUM_LIBRARY_FILE
+    PATHS
+        ${CMAKE_SOURCE_DIR}/dependencies/libsodium
+        ${CMAKE_SOURCE_DIR}/dependencies/libsodium/lib
+        ${CMAKE_SOURCE_DIR}/dependencies/libsodium/x64/Release/v143/dynamic
+        ${CMAKE_SOURCE_DIR}/dependencies/libsodium/Win32/Release/v143/dynamic
+    PATH_SUFFIXES lib
+)
+
+find_path(SODIUM_INCLUDE_DIR
+    NAMES sodium.h
+    HINTS ${SODIUM_INCLUDE_DIR} ENV SODIUM_INCLUDE_DIR
+    PATHS
+        ${CMAKE_SOURCE_DIR}/dependencies/libsodium/include
+    PATH_SUFFIXES include
+)
 
 if(SODIUM_LIBRARY AND SODIUM_INCLUDE_DIR)
+    message(STATUS "Found libsodium: ${SODIUM_LIBRARY}")
+    message(STATUS "Found sodium.h: ${SODIUM_INCLUDE_DIR}")
     target_include_directories(structuracost PRIVATE ${SODIUM_INCLUDE_DIR})
     target_link_libraries(structuracost PRIVATE ${SODIUM_LIBRARY})
 else()
@@ -121,7 +140,10 @@ if(UNIX AND NOT APPLE)
     set(APP_INSTALL_PREFIX "/opt/structuracost" CACHE PATH "Install prefix")
     set(CPACK_PACKAGING_INSTALL_PREFIX "${APP_INSTALL_PREFIX}")
 elseif(APPLE)
-    set(CPACK_PACKAGING_INSTALL_PREFIX "/tmp/_cpack_staging")
+    # For macOS DMG, install to /Applications in the DMG (not the actual /Applications)
+    # CPack will stage this in a temporary directory during DMG creation
+    set(CMAKE_INSTALL_PREFIX "/Applications" CACHE PATH "Install prefix" FORCE)
+    set(CPACK_PACKAGING_INSTALL_PREFIX "/Applications")
 endif()
 
 
