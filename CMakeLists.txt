@@ -289,6 +289,57 @@ elseif(WIN32)
     set(APP_ICON_RC ${CMAKE_SOURCE_DIR}/assets/icons/app_icon.rc)
     target_sources(structuracost PRIVATE ${APP_ICON_RC})
 
+    # Add dependency installer scripts and docs into the package root (only if present)
+
+    # Create a build-local packaging resources directory and copy needed packaging helpers there.
+    # Using build-local copies avoids CPack/installer issues with absolute source tree paths.
+    set(PACKAGING_RES_DIR "${CMAKE_BINARY_DIR}/ci_packaging/resources/windows")
+    file(MAKE_DIRECTORY "${PACKAGING_RES_DIR}")
+
+    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1")
+        file(COPY "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1" DESTINATION "${PACKAGING_RES_DIR}")
+    endif()
+    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1")
+        file(COPY "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1" DESTINATION "${PACKAGING_RES_DIR}")
+    endif()
+    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt")
+        file(COPY "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt" DESTINATION "${PACKAGING_RES_DIR}")
+    endif()
+    if(EXISTS "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md")
+        file(COPY "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md" DESTINATION "${PACKAGING_RES_DIR}/doc")
+    endif()
+
+    # Debug: print staged packaging resources at configure time so CI logs show what will be installed
+    file(GLOB_RECURSE _CI_STAGED_FILES RELATIVE "${PACKAGING_RES_DIR}" "${PACKAGING_RES_DIR}/*")
+    if(_CI_STAGED_FILES)
+        message(STATUS "CI: packaging resources staged in ${PACKAGING_RES_DIR}:")
+        foreach(_ci_f IN LISTS _CI_STAGED_FILES)
+            message(STATUS "CI: staged -> ${PACKAGING_RES_DIR}/${_ci_f}")
+        endforeach()
+    else()
+        message(STATUS "CI: packaging resources directory ${PACKAGING_RES_DIR} is empty")
+    endif()
+
+    # Install from the build-local packaging directory (only if the staged files exist)
+    if(EXISTS "${PACKAGING_RES_DIR}/install_dependencies.ps1")
+        install(FILES "${PACKAGING_RES_DIR}/install_dependencies.ps1" DESTINATION ".")
+    endif()
+    if(EXISTS "${PACKAGING_RES_DIR}/install_libsodium.ps1")
+        install(FILES "${PACKAGING_RES_DIR}/install_libsodium.ps1" DESTINATION ".")
+    endif()
+    if(EXISTS "${PACKAGING_RES_DIR}/README_WINDOWS.txt")
+        install(FILES "${PACKAGING_RES_DIR}/README_WINDOWS.txt" DESTINATION ".")
+    endif()
+    if(EXISTS "${PACKAGING_RES_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md")
+        install(FILES "${PACKAGING_RES_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md" DESTINATION "doc")
+    endif()
+
+    # Keep NSIS extra install commands (executing dependency installer)
+    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+        DetailPrint 'Installing required dependencies...'
+        ExecWait 'powershell -ExecutionPolicy Bypass -WindowStyle Normal -File \\\"$INSTDIR\\\\install_dependencies.ps1\\\" -InstallDir \\\"$INSTDIR\\\"'
+    ")
+
 # NOTE: Linux packaging removed by project policy — no installer will be produced for Linux/Unix.
 # If a package for Linux is needed in the future, add a dedicated CI pipeline and packaging job.
 endif()
@@ -326,11 +377,19 @@ if(WIN32)
     set(CPACK_NSIS_DELETE_ICONS_EXTRA
         "Delete '$DESKTOP\\\\StructuraCost.lnk')")
 
-    # Add dependency installer scripts and docs into the package root (unchanged)
-    install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1" DESTINATION ".")
-    install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1" DESTINATION ".")
-    install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt" DESTINATION ".")
-    install(FILES "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md" DESTINATION "doc")
+    # Add dependency installer scripts and docs into the package root (only if present)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1")
+        install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1" DESTINATION ".")
+    endif()
+    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1")
+        install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1" DESTINATION ".")
+    endif()
+    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt")
+        install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt" DESTINATION ".")
+    endif()
+    if(EXISTS "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md")
+        install(FILES "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md" DESTINATION "doc")
+    endif()
 
     # Keep NSIS extra install commands (executing dependency installer)
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
