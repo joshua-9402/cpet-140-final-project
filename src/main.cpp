@@ -48,8 +48,8 @@ void systemCheck() {
     system::logMessage(system::messageClassification::INFO, "sqlite initialized successfully.\n");
 
     // Create the necessary directories and database files
-    if (!system::searchDirectory("logs")) {system::createDirectory("logs");}
-    if (!system::searchDirectory("backup")) {system::createDirectory("backup");}
+    if (!system::searchDirectory(appConfig::g_logsDirectory)) {system::createDirectory(appConfig::g_logsDirectory);}
+    if (!system::searchDirectory(appConfig::g_backupDirectory)) {system::createDirectory(appConfig::g_backupDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
 
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_payrollDirectory);}
