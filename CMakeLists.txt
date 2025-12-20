@@ -1,4 +1,14 @@
 cmake_minimum_required(VERSION 3.22) # minimum CMake version
+
+# Set install prefix early (before project()) to prevent CMake from using platform defaults
+# This ensures CPack can stage files properly without permission or absolute path issues
+if(APPLE AND NOT DEFINED CMAKE_INSTALL_PREFIX)
+    set(CMAKE_INSTALL_PREFIX "/Applications" CACHE PATH "Install prefix for macOS" FORCE)
+elseif(WIN32 AND NOT DEFINED CMAKE_INSTALL_PREFIX)
+    # Windows: use a relative staging path for CPack (NSIS will handle final install location)
+    set(CMAKE_INSTALL_PREFIX "." CACHE PATH "Install prefix for Windows" FORCE)
+endif()
+
 project(cpet_140_final_project LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)           # set C++20 standard
 set(CMAKE_CXX_STANDARD_REQUIRED ON)  # enforce C++20 standard
@@ -144,6 +154,10 @@ elseif(APPLE)
     # CPack will stage this in a temporary directory during DMG creation
     set(CMAKE_INSTALL_PREFIX "/Applications" CACHE PATH "Install prefix" FORCE)
     set(CPACK_PACKAGING_INSTALL_PREFIX "/Applications")
+elseif(WIN32)
+    # Windows: Allow CPack to stage files with absolute paths (NSIS will handle final location)
+    set(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
+    set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
 endif()
 
 
