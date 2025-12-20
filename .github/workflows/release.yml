@@ -158,6 +158,35 @@ jobs:
         cmake --build build --config Release -j $(sysctl -n hw.ncpu)
         cmake --install build --config Release --prefix "${PWD}/build/ci_temp_install/structuracost"
 
+    - name: Ad-hoc codesign (macOS)
+      run: |
+        set -euo pipefail
+        STAGING_DIR="${PWD}/build/ci_temp_install/structuracost"
+        echo "Staging dir: $STAGING_DIR"
+
+        # Try to find an .app bundle first
+        APP=$(find "$STAGING_DIR" -maxdepth 3 -type d -name "*.app" | head -n 1 || true)
+        if [ -n "$APP" ]; then
+          echo "Signing app: $APP"
+          codesign --force --timestamp=none --sign - --deep "$APP"
+          codesign --verify --deep --strict "$APP"
+          spctl --assess --type execute --verbose "$APP" || true
+          echo "App ad-hoc signed and verified."
+        else
+          # Fallback: find a standalone executable
+          BIN=$(find "$STAGING_DIR" -maxdepth 4 -type f -perm -111 -name "structuracost*" | head -n 1 || true)
+          if [ -n "$BIN" ]; then
+            echo "Signing binary: $BIN"
+            codesign --force --timestamp=none --sign - "$BIN"
+            codesign --verify --strict "$BIN"
+            spctl --assess --type execute --verbose "$BIN" || true
+            echo "Binary ad-hoc signed and verified."
+          else
+            echo "No .app or executable found to sign in $STAGING_DIR"
+            echo "Warning: nothing to sign, continuing"
+          fi
+        fi
+
     - name: Build installers via CPack (DMG + PKG)
       run: |
         cmake --build build --target package
@@ -209,83 +238,57 @@ jobs:
     - name: Install libsodium
       shell: pwsh
       run: |
-        Write-Host "=== Installing libsodium (arch-aware) ==="
+        # Minimal libsodium install/lookup for CI. Sets SODIUM_INCLUDE_DIR and SODIUM_LIBRARY_FILE if found.
         $url = "https://download.libsodium.org/libsodium/releases/libsodium-1.0.20-stable-msvc.zip"
         $zipFile = "$env:TEMP\libsodium.zip"
         $extractPath = "${{ github.workspace }}\dependencies\libsodium"
         New-Item -ItemType Directory -Force -Path $extractPath | Out-Null
-        Invoke-WebRequest -Uri $url -OutFile $zipFile
-        Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
-
-        # Handle nested 'libsodium' folder from archive
-        $root = $extractPath
-        if (Test-Path "$extractPath\libsodium") { $root = "$extractPath\libsodium" }
-
-        # Ensure include directory present
-        if (-not (Test-Path "$extractPath\include\sodium.h")) {
-          $includeSrc = Get-ChildItem -Path $root -Recurse -Directory -Filter "include" | Select-Object -First 1
-          if ($includeSrc) {
-            $dest = Join-Path $extractPath "include"
-            $destPath = (Resolve-Path -LiteralPath $dest -ErrorAction SilentlyContinue).Path
-            if (-not $destPath -or ($includeSrc.FullName -ne $destPath)) {
-              Copy-Item -Path $includeSrc.FullName -Destination $dest -Recurse -Force
-            }
-          }
+        try {
+          Invoke-WebRequest -Uri $url -OutFile $zipFile -UseBasicParsing -ErrorAction Stop
+          Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
+        } catch {
+          Write-Error "Failed to download or extract libsodium: $_"
+          exit 1
         }
 
+        # Use the extracted folder as root if present
+        $root = (Test-Path "$extractPath\libsodium") ? "$extractPath\libsodium" : $extractPath
+
+        # Find candidate libraries (prefer arch-specific folders)
         $arch = "${{ matrix.arch }}"
-        Write-Host "Target architecture: $arch"
-
-        # Gather candidate libs filtered by architecture
-        $candidates = @()
-        Get-ChildItem -Path $root -Recurse -Include "libsodium.lib","libsodium.a" | ForEach-Object {
-          $p = $_.FullName
-          if ($arch -eq "x64") {
-            if ($p -match "x64|x86_64|Win64" -and $p -notmatch "ARM64") { $candidates += $p }
-          } else {
-            if ($p -match "ARM64" -and $p -notmatch "x64|x86_64") { $candidates += $p }
+        $candidates = Get-ChildItem -Path $root -Recurse -Include "libsodium.lib","libsodium.a" -File -ErrorAction SilentlyContinue
+        if ($candidates) {
+          # Prefer items with architecture hints
+          $filtered = $candidates | Where-Object { $_.FullName -match ($arch -eq 'x64' ? 'x64|x86_64|Win64' : 'ARM64') }
+          $pick = ($filtered | Select-Object -First 1) -or ($candidates | Select-Object -First 1)
+          if ($pick) {
+            "SODIUM_LIBRARY_FILE=$($pick.FullName)" >> $env:GITHUB_ENV
+            Write-Host "SODIUM_LIBRARY_FILE set"
           }
         }
 
-        if ($candidates.Count -eq 0) {
-          Write-Host "No architecture-filtered libs found; using first found libsodium.* if any"
-          $fallback = Get-ChildItem -Path $root -Recurse -Include "libsodium.lib","libsodium.a" | Select-Object -First 1
-          if ($fallback) { $candidates += $fallback.FullName }
-        }
-
-        if ($candidates.Count -gt 0) {
-          $libPick = $candidates[0]
-          "SODIUM_LIBRARY_FILE=$libPick" >> $env:GITHUB_ENV
-          Write-Host "Selected libsodium library: $libPick"
-        } else {
-          Write-Host "WARNING: libsodium library not found; build may fail"
-        }
-
-        $header = Get-ChildItem -Path $extractPath -Recurse -Filter "sodium.h" | Select-Object -First 1
+        $header = Get-ChildItem -Path $root -Recurse -Filter "sodium.h" -File -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($header) {
           $incDir = Split-Path -Parent $header.FullName
           "SODIUM_INCLUDE_DIR=$incDir" >> $env:GITHUB_ENV
-          Write-Host "Include dir: $incDir"
+          Write-Host "SODIUM_INCLUDE_DIR set"
         } else {
-          Write-Host "ERROR: sodium.h not found"; exit 1
+          Write-Error "sodium.h not found in extracted libsodium archive"
+          exit 1
         }
-
-        Write-Host "=== libsodium install complete ==="
 
     - name: Verify libsodium
       shell: pwsh
       run: |
-        Write-Host "=== Verifying libsodium ==="
         if (-not $env:SODIUM_INCLUDE_DIR -or -not (Test-Path "$env:SODIUM_INCLUDE_DIR\sodium.h")) {
-          Write-Host "libsodium header missing"; exit 1
+          Write-Error "libsodium header missing or SODIUM_INCLUDE_DIR not set"
+          exit 1
         }
-        Write-Host "Header OK: $env:SODIUM_INCLUDE_DIR\sodium.h"
-        if ($env:SODIUM_LIBRARY_FILE -and (Test-Path $env:SODIUM_LIBRARY_FILE)) {
-          Write-Host "Library OK: $env:SODIUM_LIBRARY_FILE"
-        } else {
-          Write-Host "Library not set (may attempt dynamic linkage)"
+        if ($env:SODIUM_LIBRARY_FILE -and -not (Test-Path $env:SODIUM_LIBRARY_FILE)) {
+          Write-Error "SODIUM_LIBRARY_FILE is set but the file does not exist: $env:SODIUM_LIBRARY_FILE"
+          exit 1
         }
-        Write-Host "Verification complete"
+        Write-Host "libsodium verification OK"
 
     - name: Install tools
       shell: pwsh
@@ -303,36 +306,19 @@ jobs:
       shell: pwsh
       run: |
         $version = "${{ needs.prepare-version.outputs.version_numeric }}" -replace '^v', ''
-        
         $cmakeArgs = @(
-          '-B', 'build', '-G', 'Ninja'
-          '-DCMAKE_BUILD_TYPE=Release'
-          '-DCMAKE_C_FLAGS_RELEASE=/O2 /MD /DNDEBUG'
-          '-DCMAKE_CXX_FLAGS_RELEASE=/O2 /MD /DNDEBUG'
-          '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL'
-          "-DCPACK_PACKAGE_VERSION=$version"
+          '-B','build','-G','Ninja',
+          '-DCMAKE_BUILD_TYPE=Release',
+          '-DCMAKE_C_FLAGS_RELEASE=/O2 /MD /DNDEBUG',
+          '-DCMAKE_CXX_FLAGS_RELEASE=/O2 /MD /DNDEBUG',
+          '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL',
+          "-DCPACK_PACKAGE_VERSION=$version",
           '-DCPACK_GENERATOR=NSIS'
         )
-        
-        if ($env:SODIUM_INCLUDE_DIR) {
-          $cmakeArgs += "-DSODIUM_INCLUDE_DIR=$env:SODIUM_INCLUDE_DIR"
-        }
-        if ($env:SODIUM_LIBRARY_FILE) {
-          $cmakeArgs += "-DSODIUM_LIBRARY=$env:SODIUM_LIBRARY_FILE"
-        }
-        
-        if ('${{ matrix.arch }}' -eq 'arm64') {
-          $cmakeArgs += '-DCMAKE_SYSTEM_NAME=Windows', '-DCMAKE_SYSTEM_PROCESSOR=ARM64'
-        }
-        
+        if ('${{ matrix.arch }}' -eq 'arm64') { $cmakeArgs += '-DCMAKE_SYSTEM_NAME=Windows'; $cmakeArgs += '-DCMAKE_SYSTEM_PROCESSOR=ARM64' }
         & cmake @cmakeArgs
         if ($LASTEXITCODE -ne 0) { exit 1 }
-        
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
-        
-        $staging = Join-Path $PWD 'build\ci_temp_install\structuracost'
-        New-Item -ItemType Directory -Force -Path $staging | Out-Null
-        & cmake --install build --config Release --prefix $staging
 
     - name: Build NSIS installer via CPack
       shell: pwsh
@@ -350,13 +336,15 @@ jobs:
     - name: Collect Windows installer
       shell: pwsh
       run: |
-        $installer = Get-ChildItem -Path build -Filter "*.exe" | Select-Object -First 1
+        # Search recursively for the most recent .exe produced by CPack/NSIS
+        $installer = Get-ChildItem -Path build -Recurse -Include "*.exe" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($installer) {
           $newName = "structuracost-windows-${{ matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.exe"
-          Copy-Item $installer.FullName -Destination $newName
-          Write-Host "Collected installer: $newName"
+          Copy-Item $installer.FullName -Destination $newName -Force
+          Write-Host "Collected installer: $newName (source: $($installer.FullName))"
         } else {
-          Write-Error "No installer found in build directory"
+          Write-Error "No installer found in build directory (searched recursively)"
+          Write-Host "Debug: list of files under build:"; Get-ChildItem -Path build -Recurse -File | Select-Object -First 50 | ForEach-Object { Write-Host $_.FullName }
           exit 1
         }
 

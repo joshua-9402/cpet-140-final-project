@@ -95,6 +95,9 @@ hello_imgui_add_app(
         src/ui/ui.cpp
         src/ui/ui.h
 
+        src/ui/modules/testUI.cpp
+        src/ui/modules/testUI.h
+
 
         # The Main Systems
         src/core/payroll.cpp
@@ -163,8 +166,7 @@ find_path(SODIUM_INCLUDE_DIR
 )
 
 if(SODIUM_LIBRARY AND SODIUM_INCLUDE_DIR)
-    message(STATUS "Found libsodium: ${SODIUM_LIBRARY}")
-    message(STATUS "Found sodium.h: ${SODIUM_INCLUDE_DIR}")
+    # libsodium found - configure targets
     target_include_directories(structuracost PRIVATE ${SODIUM_INCLUDE_DIR})
     target_link_libraries(structuracost PRIVATE ${SODIUM_LIBRARY})
 else()
@@ -217,7 +219,7 @@ if(APPLE)
         set(MACOSX_BUNDLE_LONG_VERSION_STRING "${CPACK_PACKAGE_VERSION}")
     endif()
 
-    # Configure Info.plist from template into the build directory
+    # Configure File from template into the build directory
     # The template uses @VAR@ substitution (we use @ONLY in configure_file)
     configure_file("${CMAKE_SOURCE_DIR}/packaging/macos/Info.plist.in"
                    "${CMAKE_BINARY_DIR}/Info.plist"
@@ -312,13 +314,12 @@ elseif(WIN32)
         endif()
     endforeach()
 
-    # Log staged files
+    # (Staging is performed above.)
+    # Provide a concise count-only status message for CI logs.
     file(GLOB_RECURSE _CI_STAGED_FILES RELATIVE "${PACKAGING_RES_DIR}" "${PACKAGING_RES_DIR}/*")
-    if(_CI_STAGED_FILES)
-        message(STATUS "Staged packaging resources:")
-        foreach(_ci_f ${_CI_STAGED_FILES})
-            message(STATUS "  -> ${_ci_f}")
-        endforeach()
+    list(LENGTH _CI_STAGED_FILES _STAGED_COUNT)
+    if(_STAGED_COUNT)
+        message(STATUS "Staged ${_STAGED_COUNT} packaging files")
     endif()
 
     # NSIS install commands
