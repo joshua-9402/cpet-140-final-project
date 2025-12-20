@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.22) # minimum CMake version
 
 if(APPLE AND NOT DEFINED CMAKE_INSTALL_PREFIX)
-    set(CMAKE_INSTALL_PREFIX "/Applications" CACHE PATH "Install prefix for macOS" FORCE)
+    # macOS: use relative path for CPack staging; DMG will show /Applications as install target
+    set(CMAKE_INSTALL_PREFIX "." CACHE PATH "Install prefix for macOS DMG staging" FORCE)
 elseif(WIN32 AND NOT DEFINED CMAKE_INSTALL_PREFIX)
     # Windows: use a relative staging path for CPack (NSIS will handle final install location)
     set(CMAKE_INSTALL_PREFIX "." CACHE PATH "Install prefix for Windows" FORCE)
@@ -144,14 +145,10 @@ endif()
 # -------------------------------
 # Install rules for packaging
 # -------------------------------
-if(UNIX AND NOT APPLE)
-    set(APP_INSTALL_PREFIX "/opt/structuracost" CACHE PATH "Install prefix")
-    set(CPACK_PACKAGING_INSTALL_PREFIX "${APP_INSTALL_PREFIX}")
-elseif(APPLE)
-    # For macOS DMG, install to /Applications in the DMG (not the actual /Applications)
-    # CPack will stage this in a temporary directory during DMG creation
-    set(CMAKE_INSTALL_PREFIX "/Applications" CACHE PATH "Install prefix" FORCE)
-    set(CPACK_PACKAGING_INSTALL_PREFIX "/Applications")
+if(APPLE)
+    # macOS: Use relative install for CPack staging
+    # CPack DragNDrop will create an Applications symlink in the DMG automatically
+    set(CPACK_PACKAGING_INSTALL_PREFIX "/")
 elseif(WIN32)
     # Windows: Allow CPack to stage files with absolute paths (NSIS will handle final location)
     set(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
@@ -299,6 +296,13 @@ elseif(APPLE)
     # build separate binaries for each architecture (or a universal binary) and
     # package them separately — CPack/CPack DragNDrop will create a .dmg per build.
     set(CPACK_GENERATOR "DragNDrop")
+
+    # Configure DMG to show Applications folder link (standard macOS DMG layout)
+    set(CPACK_DMG_VOLUME_NAME "StructuraCost")
+    set(CPACK_DMG_FORMAT "UDBZ")
+
+    # Create symlink to /Applications in the DMG for drag-and-drop installation
+    set(CPACK_DMG_CREATE_SYMLINK TRUE)
 
     # Link macOS Security framework if available (unchanged)
     find_library(SECURITY_FRAMEWORK Security)

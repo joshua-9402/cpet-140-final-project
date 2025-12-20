@@ -156,7 +156,6 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
-          -DCMAKE_INSTALL_PREFIX="/Applications" \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
           ${ARCH_FLAG} \
           -DCPACK_PACKAGE_VERSION="${VERSION}" \
