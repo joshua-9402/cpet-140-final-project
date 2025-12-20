@@ -1,16 +1,6 @@
 ## What's Changed
 
-- Major rewrite of project structure and build systems
-  - Simplified build targets and added explicit installation rules, exported targets, and package config.
-  - CI pipeline updated to build, test, and produce distributable artifacts for supported platforms.
-  - Result: clearer module boundaries, faster incremental builds, and reproducible artifacts.
-
-- Removed Linux support:
-  - Linux-specific binaries and CI were removed to focus maintenance on macOS and Windows.
-  - Rationale: limited maintenance resources and priority on native macOS/Windows integrations.
-  - Impact: no prebuilt Linux packages or CI verification; Linux users must build from source and may need to adapt platform-specific code.
-  - Migration: if you depend on Linux, consider forking prior to this change or restoring Linux-specific commits from the repository history.
-  - Note: This is a breaking change for users/projects deploying on Linux; update deployment scripts and packaging accordingly.
+- macOS: added ad-hoc code signing for the `.app` artifact and a CI step to apply ad-hoc signing to macOS builds to reduce Gatekeeper friction.
 
 
 ## Supported Platforms
