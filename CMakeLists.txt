@@ -94,6 +94,12 @@ endif()
 # Add include directory for SQLite3 headers
 target_include_directories(structuracost PRIVATE ${CMAKE_SOURCE_DIR}/dependencies/sqlite)
 
+# Ensure threading support is available for portability (fixes CMAKE_HAVE_LIBC_PTHREAD test failures)
+find_package(Threads REQUIRED)
+if(TARGET structuracost)
+    target_link_libraries(structuracost PRIVATE Threads::Threads)
+endif()
+
 ########################################################################################################################
 #                                                                                                                      #
 #                                                THIS AREA IS OFF LIMITS                                               #
