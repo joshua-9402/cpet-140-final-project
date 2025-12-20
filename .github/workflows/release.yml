@@ -140,57 +140,23 @@ jobs:
 
     - name: Configure and Build
       run: |
-        echo "=== ENFORCING RELEASE BUILD MODE (macOS ${{ matrix.target }}) ==="
-        echo "CMAKE_BUILD_TYPE: Release"
-        echo "This build MUST NOT contain any debug symbols or debug runtime libraries"
-        
         VERSION="${{ needs.prepare-version.outputs.version_numeric }}"
-        VERSION="${VERSION#v}"  # Remove leading 'v'
+        VERSION="${VERSION#v}"
         
         ARCH_FLAG=""
-        if [ "${{ matrix.target }}" = "intel" ]; then
-          ARCH_FLAG="-DCMAKE_OSX_ARCHITECTURES=x86_64"
-        fi
+        [ "${{ matrix.target }}" = "intel" ] && ARCH_FLAG="-DCMAKE_OSX_ARCHITECTURES=x86_64"
 
-        cmake -B build \
+        cmake -B build -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
           ${ARCH_FLAG} \
           -DCPACK_PACKAGE_VERSION="${VERSION}" \
-          -DCPACK_GENERATOR="DragNDrop;productbuild" \
-          -G Ninja
+          -DCPACK_GENERATOR="DragNDrop;productbuild"
         
-        echo "=== Building in RELEASE mode with optimizations ==="
         cmake --build build --config Release -j $(sysctl -n hw.ncpu)
-
-        # Install into CI staging prefix so packaging uses predictable staged content
-        echo "=== Installing build into staging directory ==="
-        mkdir -p build/ci_temp_install/structuracost
         cmake --install build --config Release --prefix "${PWD}/build/ci_temp_install/structuracost"
-        echo "Staging contents:" && ls -la build/ci_temp_install/structuracost || true
-        
-        echo "=== Verifying Release build completed ==="
-        file build/structuracost.app/Contents/MacOS/structuracost && echo "✓ Release build verified"
-
-    - name: Dump CMake cache (diagnostic)
-      if: always()
-      run: |
-        echo "=== CMakeCache.txt snippet (macOS) ==="
-        if [ -f build/CMakeCache.txt ]; then
-          echo "--- Relevant entries ---"
-          grep -E 'CMAKE_BUILD_TYPE|CMAKE_CONFIGURATION_TYPES|SODIUM_INCLUDE_DIR|SODIUM_LIBRARY' build/CMakeCache.txt || true
-          echo "--- Head (first 200 lines) ---"
-          head -n 200 build/CMakeCache.txt || true
-        else
-          echo "No build/CMakeCache.txt found"
-        fi
-
-    - name: Make TGZ package (fallback)
-      run: |
-        cd build
-        tar -czf ../structuracost-macos-${{ matrix.target }}-${{ needs.prepare-version.outputs.combined_version }}.tar.gz structuracost.app
 
     - name: Build installers via CPack (DMG + PKG)
       run: |
@@ -336,103 +302,49 @@ jobs:
     - name: Configure and Build
       shell: pwsh
       run: |
-        Write-Host "=================================================================" -ForegroundColor Red
-        Write-Host "  CRITICAL: ENFORCING RELEASE BUILD MODE (Windows ${{ matrix.arch }})" -ForegroundColor Red
-        Write-Host "=================================================================" -ForegroundColor Red
-        Write-Host ""
-        Write-Host "CMAKE_BUILD_TYPE: Release" -ForegroundColor Yellow
-        Write-Host "MSVC Runtime: MultiThreadedDLL (/MD)" -ForegroundColor Yellow
-        Write-Host "This build MUST NOT contain debug runtime libraries!" -ForegroundColor Yellow
-        Write-Host "Debug DLLs (ucrtbased.dll, vcruntime140d.dll) are FORBIDDEN" -ForegroundColor Yellow
-        Write-Host ""
-        
-        # Configure with NSIS only - EXPLICITLY ENFORCE RELEASE MODE
         $version = "${{ needs.prepare-version.outputs.version_numeric }}" -replace '^v', ''
         
         $cmakeArgs = @(
-          '-B', 'build',
-          '-DCMAKE_BUILD_TYPE=Release',
-          '-DCMAKE_C_FLAGS_RELEASE=/O2 /MD /DNDEBUG',
-          '-DCMAKE_CXX_FLAGS_RELEASE=/O2 /MD /DNDEBUG',
-          '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL',
-          '-G', 'Ninja',
-          "-DCPACK_PACKAGE_VERSION=$version",
+          '-B', 'build', '-G', 'Ninja'
+          '-DCMAKE_BUILD_TYPE=Release'
+          '-DCMAKE_C_FLAGS_RELEASE=/O2 /MD /DNDEBUG'
+          '-DCMAKE_CXX_FLAGS_RELEASE=/O2 /MD /DNDEBUG'
+          '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL'
+          "-DCPACK_PACKAGE_VERSION=$version"
           '-DCPACK_GENERATOR=NSIS'
         )
         
-        # Add libsodium paths if they were set by the install step
         if ($env:SODIUM_INCLUDE_DIR) {
-          Write-Host "Adding libsodium include dir: $env:SODIUM_INCLUDE_DIR" -ForegroundColor Yellow
           $cmakeArgs += "-DSODIUM_INCLUDE_DIR=$env:SODIUM_INCLUDE_DIR"
         }
         if ($env:SODIUM_LIBRARY_FILE) {
-          Write-Host "Adding libsodium library: $env:SODIUM_LIBRARY_FILE" -ForegroundColor Yellow
           $cmakeArgs += "-DSODIUM_LIBRARY=$env:SODIUM_LIBRARY_FILE"
         }
         
         if ('${{ matrix.arch }}' -eq 'arm64') {
-          $cmakeArgs += '-DCMAKE_SYSTEM_NAME=Windows'
-          $cmakeArgs += '-DCMAKE_SYSTEM_PROCESSOR=ARM64'
+          $cmakeArgs += '-DCMAKE_SYSTEM_NAME=Windows', '-DCMAKE_SYSTEM_PROCESSOR=ARM64'
         }
         
         & cmake @cmakeArgs
-        if ($LASTEXITCODE -ne 0) {
-          Write-Host "CMake configuration failed!" -ForegroundColor Red
-          exit 1
-        }
+        if ($LASTEXITCODE -ne 0) { exit 1 }
         
-        Write-Host ""
-        Write-Host "=== Building in RELEASE mode with /MD runtime ===" -ForegroundColor Cyan
         cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
         
-        # Install into CI staging prefix so packaging uses predictable staged content
-        Write-Host "=== Installing build into staging directory ===" -ForegroundColor Cyan
         $staging = Join-Path $PWD 'build\ci_temp_install\structuracost'
         New-Item -ItemType Directory -Force -Path $staging | Out-Null
         & cmake --install build --config Release --prefix $staging
-        Write-Host "Staging contents:" -ForegroundColor Cyan
-        gci $staging -Recurse | Select-Object -First 200 | ForEach-Object { Write-Host $_.FullName }
-        
-        Write-Host ""
-        Write-Host "=== Build completed - proceeding to verification ===" -ForegroundColor Green
-
-    - name: Dump CMake cache (diagnostic)
-      if: always()
-      shell: pwsh
-      run: |
-        $cache = Join-Path $PWD 'build\CMakeCache.txt'
-        Write-Host "=== CMakeCache.txt snippet (Windows) ==="
-        if (Test-Path $cache) {
-          Write-Host "--- Relevant entries ---"
-          Select-String -Path $cache -Pattern 'CMAKE_BUILD_TYPE|CMAKE_CONFIGURATION_TYPES|SODIUM_INCLUDE_DIR|SODIUM_LIBRARY' -SimpleMatch | ForEach-Object { Write-Host $_.Line }
-          Write-Host "--- Head (first 200 lines) ---"
-          Get-Content $cache -TotalCount 200 | ForEach-Object { Write-Host $_ }
-        } else {
-          Write-Host "No build\\CMakeCache.txt found"
-        }
-
-    - name: Install tools
-      run: |
-        choco install ninja nsis -y
-        ninja --version
-        try { makensis /VERSION } catch { echo "NSIS may not be available on this platform" }
 
     - name: Build NSIS installer via CPack
       shell: pwsh
       run: |
         pushd build
-        Write-Host "==> Running NSIS packaging (required)"
-        & cpack -G NSIS -C Release --verbose --debug
+        & cpack -G NSIS -C Release --verbose
         if ($LASTEXITCODE -ne 0) {
-          Write-Host "NSIS packaging failed; show debug logs if available" -ForegroundColor Red
           if (Test-Path "_CPack_Packages/win64/NSIS/NSISOutput.log") {
-            Write-Host "=== NSIS Output Log ===" -ForegroundColor Red
             Get-Content "_CPack_Packages/win64/NSIS/NSISOutput.log"
           }
-          Write-Error "NSIS packaging failed with exit code $LASTEXITCODE.  Aborting packaging step."
           exit $LASTEXITCODE
         }
-        Write-Host "NSIS packaging succeeded"
         popd
 
     - name: Upload Windows installer

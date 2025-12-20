@@ -15,38 +15,35 @@ endif()
 
 project(cpet_140_final_project LANGUAGES C CXX)
 
-# Enforce Release mode when running in CI (GitHub Actions) or when explicitly requested.
-# - For single-config generators (Makefile, Ninja) we force CMAKE_BUILD_TYPE=Release.
-# - For multi-config generators (Visual Studio, Xcode) we restrict allowed configurations to Release only.
-# This prevents accidental Debug builds in CI and ensures downstream packaging contains Release artifacts.
+# Enforce Release build mode in CI environments
+set(_IS_CI_BUILD OFF)
 if(DEFINED ENV{GITHUB_ACTIONS} OR DEFINED ENV{CI} OR DEFINED ENV{FORCE_RELEASE_BUILD})
+    set(_IS_CI_BUILD ON)
+endif()
+
+if(_IS_CI_BUILD)
     message(STATUS "CI detected: enforcing Release build configuration")
-    if(NOT CMAKE_CONFIGURATION_TYPES)
-        # Single-config generator (Ninja, Unix Makefiles)
-        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (forced by CI)" FORCE)
-    else()
-        # Multi-config generator (Visual Studio, Xcode) - restrict to Release only
+
+    # Force Release for both single-config and multi-config generators
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (forced by CI)" FORCE)
+    if(CMAKE_CONFIGURATION_TYPES)
         set(CMAKE_CONFIGURATION_TYPES "Release" CACHE STRING "Configurations (restricted by CI)" FORCE)
-        # Also set a default build type for tools that read it
-        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (CI default)" FORCE)
+    endif()
+
+    # Strict validation
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+        message(FATAL_ERROR "CI requires Release build; CMAKE_BUILD_TYPE is '${CMAKE_BUILD_TYPE}'")
     endif()
 else()
-    # Not in CI: preserve existing behavior but default to Release if the user hasn't specified anything.
+    # Default to Release if not specified
     if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Default build type (non-CI)" FORCE)
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Default build type" FORCE)
     endif()
 endif()
 
-# Strict check: if we're in CI, fail configure immediately if build type isn't Release
-if(DEFINED ENV{GITHUB_ACTIONS} OR DEFINED ENV{CI} OR DEFINED ENV{FORCE_RELEASE_BUILD})
-    if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
-        message(FATAL_ERROR "CI requires Release build; CMAKE_BUILD_TYPE is '${CMAKE_BUILD_TYPE}'. Please configure with Release.")
-    endif()
-endif()
-
-set(CMAKE_CXX_STANDARD 20)           # set C++20 standard
-set(CMAKE_CXX_STANDARD_REQUIRED ON)  # enforce C++20 standard
-set(CMAKE_CXX_EXTENSIONS OFF)        # disable compiler-specific extensions
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 include(FetchContent) # Fetch Hello ImGui (automatic download)
@@ -289,52 +286,42 @@ elseif(WIN32)
     set(APP_ICON_RC ${CMAKE_SOURCE_DIR}/assets/icons/app_icon.rc)
     target_sources(structuracost PRIVATE ${APP_ICON_RC})
 
-    # Add dependency installer scripts and docs into the package root (only if present)
-
-    # Create a build-local packaging resources directory and copy needed packaging helpers there.
-    # Using build-local copies avoids CPack/installer issues with absolute source tree paths.
+    # Stage packaging resources into build directory to avoid absolute path issues
     set(PACKAGING_RES_DIR "${CMAKE_BINARY_DIR}/ci_packaging/resources/windows")
     file(MAKE_DIRECTORY "${PACKAGING_RES_DIR}")
 
-    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1")
-        file(COPY "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1" DESTINATION "${PACKAGING_RES_DIR}")
-    endif()
-    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1")
-        file(COPY "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1" DESTINATION "${PACKAGING_RES_DIR}")
-    endif()
-    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt")
-        file(COPY "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt" DESTINATION "${PACKAGING_RES_DIR}")
-    endif()
-    if(EXISTS "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md")
-        file(COPY "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md" DESTINATION "${PACKAGING_RES_DIR}/doc")
-    endif()
+    # Define packaging files to copy and install
+    set(_PACKAGING_FILES
+        "packaging/windows/install_dependencies.ps1:."
+        "packaging/windows/install_libsodium.ps1:."
+        "packaging/windows/README_WINDOWS.txt:."
+        "doc/WINDOWS_ERROR_0xc000007b_FIX.md:doc"
+    )
 
-    # Debug: print staged packaging resources at configure time so CI logs show what will be installed
+    # Copy files to staging directory and install them
+    foreach(_file_spec ${_PACKAGING_FILES})
+        string(REPLACE ":" ";" _parts "${_file_spec}")
+        list(GET _parts 0 _src_rel)
+        list(GET _parts 1 _dest)
+        set(_src_path "${CMAKE_SOURCE_DIR}/${_src_rel}")
+        get_filename_component(_filename "${_src_path}" NAME)
+
+        if(EXISTS "${_src_path}")
+            file(COPY "${_src_path}" DESTINATION "${PACKAGING_RES_DIR}/${_dest}")
+            install(FILES "${PACKAGING_RES_DIR}/${_dest}/${_filename}" DESTINATION "${_dest}")
+        endif()
+    endforeach()
+
+    # Log staged files
     file(GLOB_RECURSE _CI_STAGED_FILES RELATIVE "${PACKAGING_RES_DIR}" "${PACKAGING_RES_DIR}/*")
     if(_CI_STAGED_FILES)
-        message(STATUS "CI: packaging resources staged in ${PACKAGING_RES_DIR}:")
-        foreach(_ci_f IN LISTS _CI_STAGED_FILES)
-            message(STATUS "CI: staged -> ${PACKAGING_RES_DIR}/${_ci_f}")
+        message(STATUS "Staged packaging resources:")
+        foreach(_ci_f ${_CI_STAGED_FILES})
+            message(STATUS "  -> ${_ci_f}")
         endforeach()
-    else()
-        message(STATUS "CI: packaging resources directory ${PACKAGING_RES_DIR} is empty")
     endif()
 
-    # Install from the build-local packaging directory (only if the staged files exist)
-    if(EXISTS "${PACKAGING_RES_DIR}/install_dependencies.ps1")
-        install(FILES "${PACKAGING_RES_DIR}/install_dependencies.ps1" DESTINATION ".")
-    endif()
-    if(EXISTS "${PACKAGING_RES_DIR}/install_libsodium.ps1")
-        install(FILES "${PACKAGING_RES_DIR}/install_libsodium.ps1" DESTINATION ".")
-    endif()
-    if(EXISTS "${PACKAGING_RES_DIR}/README_WINDOWS.txt")
-        install(FILES "${PACKAGING_RES_DIR}/README_WINDOWS.txt" DESTINATION ".")
-    endif()
-    if(EXISTS "${PACKAGING_RES_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md")
-        install(FILES "${PACKAGING_RES_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md" DESTINATION "doc")
-    endif()
-
-    # Keep NSIS extra install commands (executing dependency installer)
+    # NSIS install commands
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
         DetailPrint 'Installing required dependencies...'
         ExecWait 'powershell -ExecutionPolicy Bypass -WindowStyle Normal -File \\\"$INSTDIR\\\\install_dependencies.ps1\\\" -InstallDir \\\"$INSTDIR\\\"'
@@ -377,19 +364,6 @@ if(WIN32)
     set(CPACK_NSIS_DELETE_ICONS_EXTRA
         "Delete '$DESKTOP\\\\StructuraCost.lnk'")
 
-    # Add dependency installer scripts and docs into the package root (only if present)
-    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1")
-        install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_dependencies.ps1" DESTINATION ".")
-    endif()
-    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1")
-        install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/install_libsodium.ps1" DESTINATION ".")
-    endif()
-    if(EXISTS "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt")
-        install(FILES "${CMAKE_SOURCE_DIR}/packaging/windows/README_WINDOWS.txt" DESTINATION ".")
-    endif()
-    if(EXISTS "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md")
-        install(FILES "${CMAKE_SOURCE_DIR}/doc/WINDOWS_ERROR_0xc000007b_FIX.md" DESTINATION "doc")
-    endif()
 
     # Keep NSIS extra install commands (executing dependency installer)
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
