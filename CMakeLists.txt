@@ -95,9 +95,6 @@ hello_imgui_add_app(
         src/ui/ui.cpp
         src/ui/ui.h
 
-        src/ui/modules/testUI.cpp
-        src/ui/modules/testUI.h
-
 
         # The Main Systems
         src/core/payroll.cpp
