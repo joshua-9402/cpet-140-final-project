@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.22) # minimum CMake version
 
 # CRITICAL: Disable absolute path errors BEFORE project() for all platforms
-# This allows CPack to stage files with resolved absolute paths during packaging
-set(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
-set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
+# Use CACHE so the setting is visible to generated cmake_install.cmake used by CPack
+set(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION OFF CACHE BOOL "Allow absolute install destinations during CPack staging" FORCE)
+set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION OFF CACHE BOOL "Suppress warnings for absolute install destinations during CPack staging" FORCE)
 
 # Configure install prefix BEFORE project() to ensure early initialization
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -14,6 +14,7 @@ if(NOT DEFINED CMAKE_INSTALL_PREFIX)
 endif()
 
 project(cpet_140_final_project LANGUAGES C CXX)
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 20)           # set C++20 standard
 set(CMAKE_CXX_STANDARD_REQUIRED ON)  # enforce C++20 standard
 set(CMAKE_CXX_EXTENSIONS OFF)        # disable compiler-specific extensions
@@ -156,7 +157,10 @@ if(APPLE)
     set(CPACK_PACKAGING_INSTALL_PREFIX "/")
 elseif(WIN32)
     # Windows: NSIS will handle final install location
-    # (CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION already set before project())
+    # Ensure CPack stages into a relative prefix to avoid absolute DESTINATION errors
+    # (use a cache variable so CI can still override if desired)
+    set(CPACK_PACKAGING_INSTALL_PREFIX "." CACHE PATH "Install prefix for CPack staging on Windows")
+    # (CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION is set unconditionally at top of file)
 endif()
 
 
@@ -228,7 +232,8 @@ if(APPLE)
 # -------------------------------
 elseif(WIN32)
     install(TARGETS structuracost RUNTIME DESTINATION ".")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/" DESTINATION "assets" PATTERN "*")
+    # Use a relative path here so the generated install script does not embed absolute source paths
+    install(DIRECTORY assets/ DESTINATION "assets" PATTERN "*")
 
     # If there are prebuilt libsodium dlls in dependencies, include them in the installer root
     file(GLOB_RECURSE _WIN_SODIUM_DLLS "${CMAKE_SOURCE_DIR}/dependencies/libsodium/*.dll")

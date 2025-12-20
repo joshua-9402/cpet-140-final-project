@@ -419,6 +419,46 @@ jobs:
         $archName = "${{ matrix.arch }}" -eq "x64" ? "x86_64" : "${{ matrix.arch }}"
         Compress-Archive -Path artifact/* -DestinationPath "structuracost-windows-$archName-${{ needs.prepare-version.outputs.combined_version }}.zip"
 
+    - name: Patch generated cmake_install.cmake (robust CI staging)
+      shell: pwsh
+      run: |
+        $buildDir = Join-Path $PWD 'build'
+        $temp = Join-Path $buildDir 'ci_temp_install'
+        Write-Host "Creating staging directory: $temp"
+        Remove-Item -Recurse -Force $temp -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $temp | Out-Null
+
+        # Copy executable into staging
+        $exe = Get-ChildItem -Path $buildDir -Recurse -Filter "structuracost.exe" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($exe) {
+          $destExeDir = Join-Path $temp 'structuracost'
+          New-Item -ItemType Directory -Force -Path $destExeDir | Out-Null
+          Copy-Item -Path $exe.FullName -Destination $destExeDir -Force
+          Write-Host "Copied executable to staging: $($exe.FullName) -> $destExeDir"
+        } else {
+          Write-Host "Executable not found under $buildDir; continuing without copying exe"
+        }
+
+        # Copy assets into staging (if present in repo workspace)
+        $srcAssets = Join-Path $PWD 'assets'
+        if (Test-Path $srcAssets) {
+          $destAssets = Join-Path $temp 'structuracost\assets'
+          Copy-Item -Path $srcAssets -Destination $destAssets -Recurse -Force
+          Write-Host "Copied assets to staging: $srcAssets -> $destAssets"
+        } else {
+          Write-Host "No assets directory found at $srcAssets; skipping asset copy"
+        }
+
+        # Write a minimal cmake_install.cmake that installs the staged directory into the packaging prefix
+        $ciInstall = Join-Path $buildDir 'cmake_install.cmake'
+        $stagedPath = ($temp -replace '\\','/')
+        $installScript = @"
+        # Minimal CI-generated install script - installs pre-staged 'structuracost' directory
+        file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/" TYPE DIRECTORY FILES "${stagedPath}/structuracost" USE_SOURCE_PERMISSIONS)
+        "@
+        Set-Content -Path $ciInstall -Value $installScript -Force -Encoding UTF8
+        Write-Host "Wrote minimal install script to $ciInstall"
+
     - name: Build NSIS installer via CPack
       shell: pwsh
       run: |
@@ -458,7 +498,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: windows-${{ matrix.arch }}-archive
-        path: structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.zip
+        path: "structuracost-windows-${{ matrix.arch == 'x64' && 'x86_64' || matrix.arch }}-${{ needs.prepare-version.outputs.combined_version }}.zip"
         retention-days: 7
 
   create-release:
@@ -563,7 +603,7 @@ jobs:
         prerelease: ${{ inputs.version_x != 'stable' }}
         generate_release_notes: true
         body_path: release-notes.md
-        files: release-assets/*
+        files: "release-assets/*"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
