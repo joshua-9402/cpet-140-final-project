@@ -451,11 +451,20 @@ jobs:
 
         # Write a minimal cmake_install.cmake that installs the staged directory into the packaging prefix
         $ciInstall = Join-Path $buildDir 'cmake_install.cmake'
-        $stagedPath = ($temp -replace '\\','/')
-
         $installLines = @(
-          '# Minimal CI-generated install script - installs pre-staged ''structuracost'' directory',
-          'file(INSTALL DESTINATION "." TYPE DIRECTORY FILES "' + $stagedPath + '/structuracost" USE_SOURCE_PERMISSIONS)'
+          '# Minimal CI-generated install script - copies pre-staged structuracost into the packaging prefix',
+          'cmake_minimum_required(VERSION 3.0)',
+          'project(CIPackagingScript NONE)',
+          'set(_src_dir "${CMAKE_BINARY_DIR}/ci_temp_install/structuracost")',
+          '# On Windows runners CMAKE_BINARY_DIR may be prefixed with a leading slash (e.g. /D:/...). Remove it if present',
+          'if(WIN32)',
+          '  string(REGEX REPLACE "^/([A-Za-z]:/)" "\\\\1" _src_dir "${_src_dir}")',
+          'endif()',
+          'message(STATUS "CI: copying staged files from ${_src_dir} to ${CMAKE_INSTALL_PREFIX}")',
+          'execute_process(COMMAND "${CMAKE_COMMAND}" -E copy_directory "${_src_dir}" "${CMAKE_INSTALL_PREFIX}/structuracost" RESULT_VARIABLE _ci_copy_ret)',
+          'if(NOT _ci_copy_ret EQUAL 0)',
+          '  message(FATAL_ERROR "CI: failed to copy staged files (result=${_ci_copy_ret})")',
+          'endif()'
         )
         Set-Content -Path $ciInstall -Value ($installLines -join "`n") -Force -Encoding UTF8
         Write-Host "Wrote minimal install script to $ciInstall"
