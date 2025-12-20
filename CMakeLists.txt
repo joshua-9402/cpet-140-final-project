@@ -231,9 +231,18 @@ if(APPLE)
 # PACKAGING: Windows (installer payload)
 # -------------------------------
 elseif(WIN32)
-    install(TARGETS structuracost RUNTIME DESTINATION ".")
-    # Use a relative path here so the generated install script does not embed absolute source paths
-    install(DIRECTORY assets/ DESTINATION "assets" PATTERN "*")
+    # Install executable into root of package
+    install(TARGETS structuracost
+            RUNTIME
+            DESTINATION "."
+            COMPONENT Application)
+
+    # Install assets with explicit component
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/"
+            DESTINATION "assets"
+            COMPONENT Application
+            PATTERN "*"
+            PATTERN ". git" EXCLUDE)
 
     # If there are prebuilt libsodium dlls in dependencies, include them in the installer root
     file(GLOB_RECURSE _WIN_SODIUM_DLLS "${CMAKE_SOURCE_DIR}/dependencies/libsodium/*.dll")
