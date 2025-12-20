@@ -452,16 +452,12 @@ jobs:
         # Write a minimal cmake_install.cmake that installs the staged directory into the packaging prefix
         $ciInstall = Join-Path $buildDir 'cmake_install.cmake'
         $stagedPath = ($temp -replace '\\','/')
-        $installScript = @"
-        # Minimal CI-generated install script
-          file(INSTALL
-          DESTINATION "\${CMAKE_INSTALL_PREFIX}"
-          TYPE DIRECTORY
-          FILES "${stagedPath}/structuracost"
-          USE_SOURCE_PERMISSIONS
-          PATTERN ". git" EXCLUDE)
-          "@
-        Set-Content -Path $ciInstall -Value $installScript -Force -Encoding UTF8
+
+        $installLines = @(
+          '# Minimal CI-generated install script - installs pre-staged ''structuracost'' directory',
+          'file(INSTALL DESTINATION "." TYPE DIRECTORY FILES "' + $stagedPath + '/structuracost" USE_SOURCE_PERMISSIONS)'
+        )
+        Set-Content -Path $ciInstall -Value ($installLines -join "`n") -Force -Encoding UTF8
         Write-Host "Wrote minimal install script to $ciInstall"
 
     - name: Build NSIS installer via CPack
@@ -474,7 +470,7 @@ jobs:
         # Display the NSIS output log for debugging
         if (Test-Path "_CPack_Packages/win64/NSIS/NSISOutput.log") {
         Write-Host "=== NSIS Output Log ===" -ForegroundColor Red
-        Get-Content "_CPack_Packages/win64/NSIS/NSISOutput. log"
+        Get-Content "_CPack_Packages/win64/NSIS/NSISOutput.log"
         }
           Write-Error "NSIS packaging failed with exit code $LASTEXITCODE.  Aborting packaging step."
           exit $LASTEXITCODE
