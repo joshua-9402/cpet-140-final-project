@@ -151,36 +151,13 @@ jobs:
         if [ "${{ matrix.target }}" = "intel" ]; then
           ARCH_FLAG="-DCMAKE_OSX_ARCHITECTURES=x86_64"
         fi
-
-        # Detect libsodium include/library paths (Homebrew or /usr/local)
-        SODIUM_ARGS=""
-        if [ -f /opt/homebrew/include/sodium.h ]; then
-          SODIUM_INCLUDE_DIR=/opt/homebrew/include
-          SODIUM_LIB_FILE=/opt/homebrew/lib/libsodium.dylib
-        elif [ -f /usr/local/include/sodium.h ]; then
-          SODIUM_INCLUDE_DIR=/usr/local/include
-          SODIUM_LIB_FILE=/usr/local/lib/libsodium.dylib
-        else
-          SODIUM_INCLUDE_DIR=""
-          SODIUM_LIB_FILE=""
-        fi
-
-        if [ -n "$SODIUM_INCLUDE_DIR" ]; then
-          echo "SODIUM_INCLUDE_DIR=$SODIUM_INCLUDE_DIR" >> $GITHUB_ENV
-          echo "SODIUM_LIBRARY_FILE=$SODIUM_LIB_FILE" >> $GITHUB_ENV
-          SODIUM_ARGS="-DSODIUM_INCLUDE_DIR=$SODIUM_INCLUDE_DIR -DSODIUM_LIBRARY=$SODIUM_LIB_FILE"
-          echo "Detected libsodium: include=$SODIUM_INCLUDE_DIR lib=$SODIUM_LIB_FILE"
-        else
-          echo "libsodium not found in Homebrew or /usr/local; CMake will attempt to find it itself or fail if required"
-        fi
-
+        
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG" \
           -DCMAKE_OSX_DEPLOYMENT_TARGET=${{ matrix.deployment }} \
           ${ARCH_FLAG} \
-          ${SODIUM_ARGS} \
           -DCPACK_PACKAGE_VERSION="${VERSION}" \
           -DCPACK_GENERATOR="DragNDrop;productbuild" \
           -G Ninja
@@ -474,16 +451,14 @@ jobs:
 
         # Write a minimal cmake_install.cmake that installs the staged directory into the packaging prefix
         $ciInstall = Join-Path $buildDir 'cmake_install.cmake'
-
-        # Minimal CMake script for CI packaging: DO NOT use cmake_minimum_required() or project()
-        # It will copy the pre-staged 'ci_temp_install/structuracost' directory into the CPack staging prefix
         $installLines = @(
           '# Minimal CI-generated install script - copies pre-staged structuracost into the packaging prefix',
-          '# Note: intentionally no cmake_minimum_required() or project() to keep this script compatible with CPack runtime',
+          'cmake_minimum_required(VERSION 3.0)',
+          'project(CIPackagingScript NONE)',
           'set(_src_dir "${CMAKE_BINARY_DIR}/ci_temp_install/structuracost")',
-          "# On Windows runners CMAKE_BINARY_DIR may be prefixed with a leading slash (e.g. /D:/...). Remove it if present",
+          '# On Windows runners CMAKE_BINARY_DIR may be prefixed with a leading slash (e.g. /D:/...). Remove it if present',
           'if(WIN32)',
-          '  string(REGEX REPLACE "^/([A-Za-z]:/)" "\\1" _src_dir "${_src_dir}")',
+          '  string(REGEX REPLACE "^/([A-Za-z]:/)" "\\\\1" _src_dir "${_src_dir}")',
           'endif()',
           'message(STATUS "CI: copying staged files from ${_src_dir} to ${CMAKE_INSTALL_PREFIX}")',
           'execute_process(COMMAND "${CMAKE_COMMAND}" -E copy_directory "${_src_dir}" "${CMAKE_INSTALL_PREFIX}/structuracost" RESULT_VARIABLE _ci_copy_ret)',
