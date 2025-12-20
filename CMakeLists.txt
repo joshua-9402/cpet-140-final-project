@@ -126,6 +126,53 @@ endif()
 
 
 # -------------------------------
+# ICONS: Application icons for different platforms
+# -------------------------------
+if(APPLE)
+    set(MACOSX_BUNDLE_ICON_FILE AppIcon.icns)
+    set(APP_ICON ${CMAKE_SOURCE_DIR}/assets/icons/AppIcon.icns)
+
+    set_source_files_properties(
+            ${APP_ICON}
+            PROPERTIES
+            MACOSX_PACKAGE_LOCATION "Resources"
+    )
+
+    target_sources(structuracost PRIVATE ${APP_ICON})
+
+    # Ensure bundle id and version strings are available for Info.plist
+    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.structuracost.app" CACHE STRING "Bundle identifier for macOS app bundle")
+
+    if(NOT CPACK_PACKAGE_VERSION OR CPACK_PACKAGE_VERSION STREQUAL "v0.0.0")
+        # default when CPACK_PACKAGE_VERSION not set
+        set(MACOSX_BUNDLE_SHORT_VERSION_STRING "0.0.0")
+        set(MACOSX_BUNDLE_LONG_VERSION_STRING "0.0.0")
+    else()
+        set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${CPACK_PACKAGE_VERSION}")
+        set(MACOSX_BUNDLE_LONG_VERSION_STRING "${CPACK_PACKAGE_VERSION}")
+    endif()
+
+    # Configure Info.plist from template into the build directory
+    # The template uses @VAR@ substitution (we use @ONLY in configure_file)
+    configure_file("${CMAKE_SOURCE_DIR}/packaging/macos/Info.plist.in"
+                   "${CMAKE_BINARY_DIR}/Info.plist"
+                   @ONLY)
+
+    # Attach the Info.plist to the generated bundle and mark as a bundle
+    set_target_properties(structuracost PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_BINARY_DIR}/Info.plist"
+    )
+    add_custom_command(TARGET structuracost POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/Info.plist"
+            "$<TARGET_BUNDLE_DIR:structuracost>/Contents/Info.plist"
+    )
+
+endif()
+
+
+# -------------------------------
 # PACKAGING: macOS (app bundle) - install rules and resource copying
 # -------------------------------
 if(APPLE)
