@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.22) # minimum CMake version
 
-# Set install prefix early (before project()) to prevent CMake from using platform defaults
-# This ensures CPack can stage files properly without permission or absolute path issues
 if(APPLE AND NOT DEFINED CMAKE_INSTALL_PREFIX)
     set(CMAKE_INSTALL_PREFIX "/Applications" CACHE PATH "Install prefix for macOS" FORCE)
 elseif(WIN32 AND NOT DEFINED CMAKE_INSTALL_PREFIX)
