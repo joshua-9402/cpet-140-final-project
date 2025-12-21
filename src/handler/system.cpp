@@ -38,253 +38,249 @@
 #endif
 
 
-namespace {
-    // Logging controls (thread-safe)
-    std::mutex g_logMutex;
-    std::atomic<system::messageClassification> g_minLevel{ system::messageClassification::INFO };
-    std::atomic<bool> g_logToConsole{ true };
+static std::mutex g_logMutex;
+static std::atomic<system::messageClassification> g_minLevel{ system::messageClassification::INFO };
+static std::atomic<bool> g_logToConsole{ true };
 
-    // Last log message tracking for duplicate detection
-    std::string g_lastLogMessage;
-    std::string g_lastLogLine;
-    int g_lastLogCount = 0;
-    std::streampos g_lastLogPosition = 0;
+static std::string g_lastLogMessage;
+static std::string g_lastLogLine;
+static int g_lastLogCount = 0;
+static std::streampos g_lastLogPosition = 0;
 
-    // Std stream capture state
-    std::atomic<bool> g_captureStd{ false };
-    bool g_prevConsoleMirror = true;
+static std::atomic<bool> g_captureStd{ false };
+static bool g_prevConsoleMirror = true;
 
-    // Validation helper functions
-    bool isNotEmpty(const std::string& str) {
-        return !str.empty() && std::any_of(str.begin(), str.end(),
-            [](unsigned char c) { return !std::isspace(c); });
-    }
-
-    bool isDigitsOnly(const std::string& str) {
-        return !str.empty() && std::all_of(str.begin(), str.end(),
-            [](unsigned char c) { return std::isdigit(c); });
-    }
-
-    bool isLettersAndSpacesOnly(const std::string& str) {
-        return !str.empty() && std::all_of(str.begin(), str.end(),
-            [](unsigned char c) { return std::isalpha(c) || std::isspace(c); });
-    }
-
-    bool isValidDecimal(const std::string& str) {
-        if (str.empty()) return false;
-        bool hasDecimal = false;
-        for (char c : str) {
-            if (c == '.') {
-                if (hasDecimal) return false;
-                hasDecimal = true;
-            } else if (!std::isdigit(static_cast<unsigned char>(c))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    bool isValidProjectID(const std::string& str) {
-        if (str.length() < 9 || str.substr(0, 4) != "PRJ-") return false;
-        return std::all_of(str.begin() + 4, str.end(),
-            [](unsigned char c) { return std::isdigit(c); });
-    }
-
-    bool isValidISODate(const std::string& str) {
-        if (str.length() != 10 || str[4] != '-' || str[7] != '-') return false;
-
-        // Validate digits in correct positions
-        for (int i = 0; i < 10; ++i) {
-            if (i == 4 || i == 7) continue;
-            if (!std::isdigit(static_cast<unsigned char>(str[i]))) return false;
-        }
-
-        // Validate date ranges
-        try {
-            const int year = std::stoi(str.substr(0, 4));
-            const int month = std::stoi(str.substr(5, 2));
-            const int day = std::stoi(str.substr(8, 2));
-
-            if (year < 1900 || year > 2100 || month < 1 || month > 12) return false;
-
-            const int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-            int maxDay = daysInMonth[month - 1];
-
-            if (month == 2 && ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0))) {
-                maxDay = 29;
-            }
-
-            return day >= 1 && day <= maxDay;
-        } catch (...) {
-            return false;
-        }
-    }
-
-    bool validatePositiveInteger(const std::string& input) {
-        if (!isDigitsOnly(input)) return false;
-        try {
-            return std::stoll(input) > 0;
-        } catch (...) {
-            return false;
-        }
-    }
-
-    bool validateNonNegativeInteger(const std::string& input) {
-        if (!isDigitsOnly(input)) return false;
-        try {
-            return std::stoll(input) >= 0;
-        } catch (...) {
-            return false;
-        }
-    }
-
-    bool validatePositiveDecimal(const std::string& input) {
-        if (!isValidDecimal(input)) return false;
-        try {
-            return std::stod(input) > 0.0;
-        } catch (...) {
-            return false;
-        }
-    }
-
-    bool validateNonNegativeDecimal(const std::string& input) {
-        if (!isValidDecimal(input)) return false;
-        try {
-            return std::stod(input) >= 0.0;
-        } catch (...) {
-            return false;
-        }
-    }
-
-    // Shutdown helper functions
-    void encryptDatabasesOnShutdown() {
-        try {
-            if (security::DBEncryptionSession::hasKey()) {
-                security::DBEncryptionSession::encryptAllDbs();
-                security::DBEncryptionSession::clear();
-            }
-        } catch (const std::exception& e) {
-            system::logMessage(system::messageClassification::WARNING,
-                             "Error during database encryption at shutdown: " + std::string(e.what()) + "\n");
-        }
-    }
-
-    void cleanOldBackups() {
-        try {
-            if (!system::searchDirectory(appConfig::g_backupDirectory)) return;
-
-            std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
-            for (const auto& entry : std::filesystem::directory_iterator(appConfig::g_backupDirectory)) {
-                if (std::filesystem::is_directory(entry)) {
-                    directories.emplace_back(std::filesystem::last_write_time(entry), entry.path());
-                }
-            }
-
-            if (directories.size() <= 20) return;
-
-            std::partial_sort(directories.begin(), directories.begin() + 2, directories.end(),
-                            [](const auto &a, const auto &b) { return a.first < b.first; });
-
-            std::filesystem::remove_all(directories[0].second);
-            std::filesystem::remove_all(directories[1].second);
-        } catch (const std::exception& e) {
-            system::logMessage(system::messageClassification::WARNING,
-                             "Error cleaning old backups: " + std::string(e.what()) + "\n");
-        }
-    }
-
-    void createBackups() {
-        try {
-            if (!system::searchDirectory(appConfig::g_backupDirectory)) {
-                system::createDirectory(appConfig::g_backupDirectory);
-            }
-            system::copyDirectory(appConfig::g_dataDirectory, appConfig::g_backupDirectory + "data-" + system::timeDateString());
-            system::copyDirectory(appConfig::g_logsDirectory, appConfig::g_backupDirectory + "logs-" + system::timeDateString());
-        } catch (const std::exception& e) {
-            system::logMessage(system::messageClassification::WARNING,
-                             "Error creating backups: " + std::string(e.what()) + "\n");
-        }
-    }
-    struct LoggerStreamBuf : public std::streambuf {
-        std::streambuf* orig;
-        system::messageClassification level;
-        std::string buffer;
-        std::mutex mtx;
-
-        explicit LoggerStreamBuf(std::streambuf* original, system::messageClassification lvl)
-            : orig(original), level(lvl) {
-            setp(nullptr, nullptr); // we don't use put area buffering
-        }
-
-        // Prevent recursion when logger itself writes to std::cerr
-        static thread_local bool s_inLogging;
-
-        int overflow(int ch) override {
-            if (ch == EOF) return 0;
-            const char c = static_cast<char>(ch);
-            // Forward to original streambuf
-            if (orig) orig->sputc(c);
-
-            // Accumulate and flush on newline
-            std::lock_guard<std::mutex> lock(mtx);
-            buffer.push_back(c);
-            if (c == '\n') {
-                if (!s_inLogging) {
-                    s_inLogging = true;
-                    // Strip trailing newline for the log line (logger ensures newline)
-                    std::string line = buffer;
-                    if (!line.empty() && line.back() == '\n') line.pop_back();
-                    system::logMessage(level, line);
-                    s_inLogging = false;
-                }
-                buffer.clear();
-            }
-            return ch;
-        }
-
-        std::streamsize xsputn(const char* s, std::streamsize n) override {
-            if (orig) orig->sputn(s, n);
-            std::lock_guard<std::mutex> lock(mtx);
-            buffer.append(s, static_cast<size_t>(n));
-            // Flush complete lines
-            size_t pos = 0;
-            while (true) {
-                size_t nl = buffer.find('\n', pos);
-                if (nl == std::string::npos) break;
-                if (!s_inLogging) {
-                    s_inLogging = true;
-                    std::string line = buffer.substr(0, nl);
-                    system::logMessage(level, line);
-                    s_inLogging = false;
-                }
-                buffer.erase(0, nl + 1);
-                pos = 0;
-            }
-            return n;
-        }
-
-        int sync() override {
-            if (orig) orig->pubsync();
-            std::lock_guard<std::mutex> lock(mtx);
-            if (!buffer.empty()) {
-                if (!s_inLogging) {
-                    s_inLogging = true;
-                    std::string line = buffer;
-                    system::logMessage(level, line);
-                    s_inLogging = false;
-                }
-                buffer.clear();
-            }
-            return 0;
-        }
-    };
-    thread_local bool LoggerStreamBuf::s_inLogging = false;
-
-    std::unique_ptr<LoggerStreamBuf> g_coutBuf;
-    std::unique_ptr<LoggerStreamBuf> g_cerrBuf;
-    std::streambuf* g_origCout = nullptr;
-    std::streambuf* g_origCerr = nullptr;
+// Validation helper functions (file-local)
+static bool isNotEmpty(const std::string& str) {
+    return !str.empty() && std::any_of(str.begin(), str.end(),
+        [](unsigned char c) { return !std::isspace(c); });
 }
+
+static bool isDigitsOnly(const std::string& str) {
+    return !str.empty() && std::all_of(str.begin(), str.end(),
+        [](unsigned char c) { return std::isdigit(c); });
+}
+
+static bool isLettersAndSpacesOnly(const std::string& str) {
+    return !str.empty() && std::all_of(str.begin(), str.end(),
+        [](unsigned char c) { return std::isalpha(c) || std::isspace(c); });
+}
+
+static bool isValidDecimal(const std::string& str) {
+    if (str.empty()) return false;
+    bool hasDecimal = false;
+    for (char c : str) {
+        if (c == '.') {
+            if (hasDecimal) return false;
+            hasDecimal = true;
+        } else if (!std::isdigit(static_cast<unsigned char>(c))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool isValidProjectID(const std::string& str) {
+    if (str.length() < 9 || str.substr(0, 4) != "PRJ-") return false;
+    return std::all_of(str.begin() + 4, str.end(),
+        [](unsigned char c) { return std::isdigit(c); });
+}
+
+static bool isValidISODate(const std::string& str) {
+    if (str.length() != 10 || str[4] != '-' || str[7] != '-') return false;
+
+    // Validate digits in correct positions
+    for (int i = 0; i < 10; ++i) {
+        if (i == 4 || i == 7) continue;
+        if (!std::isdigit(static_cast<unsigned char>(str[i]))) return false;
+    }
+
+    // Validate date ranges
+    try {
+        const int year = std::stoi(str.substr(0, 4));
+        const int month = std::stoi(str.substr(5, 2));
+        const int day = std::stoi(str.substr(8, 2));
+
+        if (year < 1900 || year > 2100 || month < 1 || month > 12) return false;
+
+        const int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+        int maxDay = daysInMonth[month - 1];
+
+        if (month == 2 && ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0))) {
+            maxDay = 29;
+        }
+
+        return day >= 1 && day <= maxDay;
+    } catch (...) {
+        return false;
+    }
+}
+
+static bool validatePositiveInteger(const std::string& input) {
+    if (!isDigitsOnly(input)) return false;
+    try {
+        return std::stoll(input) > 0;
+    } catch (...) {
+        return false;
+    }
+}
+
+static bool validateNonNegativeInteger(const std::string& input) {
+    if (!isDigitsOnly(input)) return false;
+    try {
+        return std::stoll(input) >= 0;
+    } catch (...) {
+        return false;
+    }
+}
+
+static bool validatePositiveDecimal(const std::string& input) {
+    if (!isValidDecimal(input)) return false;
+    try {
+        return std::stod(input) > 0.0;
+    } catch (...) {
+        return false;
+    }
+}
+
+static bool validateNonNegativeDecimal(const std::string& input) {
+    if (!isValidDecimal(input)) return false;
+    try {
+        return std::stod(input) >= 0.0;
+    } catch (...) {
+        return false;
+    }
+}
+
+// Shutdown helper functions
+static void encryptDatabasesOnShutdown() {
+    try {
+        if (security::DBEncryptionSession::hasKey()) {
+            security::DBEncryptionSession::encryptAllDbs();
+            security::DBEncryptionSession::clear();
+        }
+    } catch (const std::exception& e) {
+        system::logMessage(system::messageClassification::WARNING,
+                         "Error during database encryption at shutdown: " + std::string(e.what()) + "\n");
+    }
+}
+
+static void cleanOldBackups() {
+    try {
+        if (!system::searchDirectory(appConfig::g_backupDirectory)) return;
+
+        std::vector<std::pair<std::filesystem::file_time_type, std::filesystem::path>> directories;
+        for (const auto& entry : std::filesystem::directory_iterator(appConfig::g_backupDirectory)) {
+            if (std::filesystem::is_directory(entry)) {
+                directories.emplace_back(std::filesystem::last_write_time(entry), entry.path());
+            }
+        }
+
+        if (directories.size() <= 20) return;
+
+        std::partial_sort(directories.begin(), directories.begin() + 2, directories.end(),
+                        [](const auto &a, const auto &b) { return a.first < b.first; });
+
+        std::filesystem::remove_all(directories[0].second);
+        std::filesystem::remove_all(directories[1].second);
+    } catch (const std::exception& e) {
+        system::logMessage(system::messageClassification::WARNING,
+                         "Error cleaning old backups: " + std::string(e.what()) + "\n");
+    }
+}
+
+static void createBackups() {
+    try {
+        if (!system::searchDirectory(appConfig::g_backupDirectory)) {
+            system::createDirectory(appConfig::g_backupDirectory);
+        }
+        system::copyDirectory(appConfig::g_dataDirectory, appConfig::g_backupDirectory + "data-" + system::timeDateString());
+        system::copyDirectory(appConfig::g_logsDirectory, appConfig::g_backupDirectory + "logs-" + system::timeDateString());
+    } catch (const std::exception& e) {
+        system::logMessage(system::messageClassification::WARNING,
+                         "Error creating backups: " + std::string(e.what()) + "\n");
+    }
+}
+
+struct LoggerStreamBuf : public std::streambuf {
+    std::streambuf* orig;
+    system::messageClassification level;
+    std::string buffer;
+    std::mutex mtx;
+
+    explicit LoggerStreamBuf(std::streambuf* original, system::messageClassification lvl)
+        : orig(original), level(lvl) {
+        setp(nullptr, nullptr); // we don't use put area buffering
+    }
+
+    // Prevent recursion when logger itself writes to std::cerr
+    static thread_local bool s_inLogging;
+
+    int overflow(int ch) override {
+        if (ch == EOF) return 0;
+        const char c = static_cast<char>(ch);
+        // Forward to original streambuf
+        if (orig) orig->sputc(c);
+
+        // Accumulate and flush on newline
+        std::lock_guard<std::mutex> lock(mtx);
+        buffer.push_back(c);
+        if (c == '\n') {
+            if (!s_inLogging) {
+                s_inLogging = true;
+                // Strip trailing newline for the log line (logger ensures newline)
+                std::string line = buffer;
+                if (!line.empty() && line.back() == '\n') line.pop_back();
+                system::logMessage(level, line);
+                s_inLogging = false;
+            }
+            buffer.clear();
+        }
+        return ch;
+    }
+
+    std::streamsize xsputn(const char* s, std::streamsize n) override {
+        if (orig) orig->sputn(s, n);
+        std::lock_guard<std::mutex> lock(mtx);
+        buffer.append(s, static_cast<size_t>(n));
+        // Flush complete lines
+        size_t pos = 0;
+        while (true) {
+            size_t nl = buffer.find('\n', pos);
+            if (nl == std::string::npos) break;
+            if (!s_inLogging) {
+                s_inLogging = true;
+                std::string line = buffer.substr(0, nl);
+                system::logMessage(level, line);
+                s_inLogging = false;
+            }
+            buffer.erase(0, nl + 1);
+            pos = 0;
+        }
+        return n;
+    }
+
+    int sync() override {
+        if (orig) orig->pubsync();
+        std::lock_guard<std::mutex> lock(mtx);
+        if (!buffer.empty()) {
+            if (!s_inLogging) {
+                s_inLogging = true;
+                std::string line = buffer;
+                system::logMessage(level, line);
+                s_inLogging = false;
+            }
+            buffer.clear();
+        }
+        return 0;
+    }
+};
+thread_local bool LoggerStreamBuf::s_inLogging = false;
+
+static std::unique_ptr<LoggerStreamBuf> g_coutBuf;
+static std::unique_ptr<LoggerStreamBuf> g_cerrBuf;
+static std::streambuf* g_origCout = nullptr;
+static std::streambuf* g_origCerr = nullptr;
 
 
 // Returns the requested part of the current local time.
@@ -318,28 +314,35 @@ std::string system::timeDateString() {
 }
 
 // Get the application support directory path for storing app data
-// Returns platform-specific path (e.g., ~/Library/Application Support/StructuraCost on macOS)
+// Returns platform-specific path (e.g., ~/Documents/StructuraCost on macOS/Windows)
 std::string system::getAppSupportDirectory() {
     std::string appSupportPath;
 
 #ifdef __APPLE__
-    // macOS: ~/Library/Application Support/StructuraCost
+    // Prefer the user's Documents folder on macOS
     const char* home = std::getenv("HOME");
     if (home) {
-        appSupportPath = std::string(home) + "/Library/Application Support/StructuraCost";
+        appSupportPath = std::string(home) + "/Documents/StructuraCost";
     } else {
-        appSupportPath = "./StructuraCost"; // Fallback
+        // Fallback to Application Support style if HOME not available
+        appSupportPath = "./StructuraCost";
     }
 #elif defined(_WIN32)
-    // Windows: %APPDATA%\StructuraCost
-    const char* appdata = std::getenv("APPDATA");
-    if (appdata) {
-        appSupportPath = std::string(appdata) + "\\StructuraCost";
+    // Prefer the user's Documents folder on Windows (USERPROFILE + "\\Documents")
+    const char* userProfile = std::getenv("USERPROFILE");
+    if (userProfile) {
+        appSupportPath = std::string(userProfile) + "\\Documents\\StructuraCost";
     } else {
-        appSupportPath = ".\\StructuraCost"; // Fallback
+        // Fallback to APPDATA if USERPROFILE not available
+        const char* appdata = std::getenv("APPDATA");
+        if (appdata) {
+            appSupportPath = std::string(appdata) + "\\StructuraCost";
+        } else {
+            appSupportPath = ".\\StructuraCost"; // last resort
+        }
     }
 #else
-    // Linux/Unix: ~/.local/share/StructuraCost
+    // Linux/Unix: keep the original behavior (~/.local/share/StructuraCost)
     const char* home = std::getenv("HOME");
     if (home) {
         appSupportPath = std::string(home) + "/.local/share/StructuraCost";
@@ -756,6 +759,8 @@ std::string system::validateInput(const ValidationType validationType, const std
             return "";
     }
 }
+
+
 
 
 
