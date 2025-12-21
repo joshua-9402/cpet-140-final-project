@@ -95,6 +95,25 @@ hello_imgui_add_app(
         src/ui/ui.cpp
         src/ui/ui.h
 
+        # UI Modules
+        src/ui/modules/loginUI.cpp
+        src/ui/modules/loginUI.h
+
+        src/ui/modules/accountUI.cpp
+        src/ui/modules/accountUI.h
+
+        src/ui/modules/summaryUI.cpp
+        src/ui/modules/summaryUI.h
+
+        src/ui/modules/payrollUI.cpp
+        src/ui/modules/payrollUI.h
+
+        src/ui/modules/monitorUI.cpp
+        src/ui/modules/monitorUI.h
+
+        src/ui/modules/testUI.cpp
+        src/ui/modules/testUI.h
+
 
         # The Main Systems
         src/core/payroll.cpp
@@ -107,15 +126,6 @@ hello_imgui_add_app(
         # Assets location
         ASSETS_LOCATION "assets/"
 )
-
-# Ensure the generated target `structuracost` uses C++20 explicitly (some helper macros may not propagate global setting)
-if(TARGET structuracost)
-    set_target_properties(structuracost PROPERTIES
-        CXX_STANDARD 20
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS OFF
-    )
-endif()
 
 # Add include directory for SQLite3 headers
 target_include_directories(structuracost PRIVATE ${CMAKE_SOURCE_DIR}/dependencies/sqlite)
