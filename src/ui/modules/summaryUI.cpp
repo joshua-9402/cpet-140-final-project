@@ -1,3 +1,20 @@
+/*
+ * CpET 140 Final Project — Summary UI module
+ * StructuraCost - UI - Summary module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Display dashboards and concise summaries: payroll, project, and material summaries.
+ *
+ * Boundaries
+ * - Presentation only. Aggregation is delegated to `monitor` and `print` modules.
+ *
+ * Notes
+ * - Keep rendering fast; heavy aggregation should occur in background or precomputed steps.
+ */
+
 #include "summaryUI.h"
 #include <string>
 #include <algorithm>

@@ -1,3 +1,20 @@
+/*
+ * CpET 140 Final Project — Account UI module
+ * StructuraCost - UI - Account module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Display and manage company account settings, logos, and business details.
+ *
+ * Boundaries
+ * - UI-only: delegates persistence to `db` and `system` handlers.
+ *
+ * Notes
+ * - Should be lightweight and not perform blocking I/O on the UI thread.
+ */
+
 #include "accountUI.h"
 #include "../../ui/ui.h"
 #include "../../security/cryptography.h"

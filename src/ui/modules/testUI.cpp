@@ -1,3 +1,20 @@
+/*
+ * CpET 140 Final Project — Test UI module
+ * StructuraCost - UI - Test module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Provide diagnostic and development UI tools for testing features and workflows.
+ *
+ * Boundaries
+ * - Presentation only; test utilities should not contain production business logic.
+ *
+ * Notes
+ * - Useful during development; consider removing or gating with debug flags for release builds.
+ */
+
 #include "testUI.h"
 #include <string>
 #include <algorithm>

@@ -1,3 +1,20 @@
+/*
+ * CpET 140 Final Project — Payroll UI module
+ * StructuraCost - UI - Payroll module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Render payroll-related user interfaces: payroll lists, payslip generation, and payroll reports.
+ *
+ * Boundaries
+ * - Presentation only. No direct persistence or heavy payroll calculation here; delegate to `payroll` and `db` modules.
+ *
+ * Notes
+ * - Keep UI logic thin; heavy logic and calculations must remain in `core/payroll.cpp`.
+ */
+
 #include "payrollUI.h"
 #include <string>
 #include <filesystem>

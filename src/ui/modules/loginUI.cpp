@@ -1,3 +1,20 @@
+/*
+ * CpET 140 Final Project — Login UI module
+ * StructuraCost - UI - Login module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Render the login screen and handle user credential entry and submission.
+ *
+ * Boundaries
+ * - Presentation only. Authentication work is delegated to `security/auth`.
+ *
+ * Notes
+ * - Avoid blocking I/O on the UI thread; any long-running auth tasks should be offloaded.
+ */
+
 #include "loginUI.h"
 #include <string>
 #include <sstream>

@@ -1,3 +1,22 @@
+/*
+ * CpET 140 Final Project — Monitor UI module
+ * StructuraCost - UI - Monitor module
+ *
+ * Contributors:
+ *  Joshua Literal
+ *
+ * Purpose
+ * - Provide the monitoring and data-management user interface: employee/project/attendance
+ *   viewers and management forms, and helpers to load and present database rows.
+ *
+ * Boundaries
+ * - Presentation only. No direct database persistence or heavy business logic here; delegate to
+ *   `monitor` and `db` modules for data access and mutations.
+ *
+ * Notes
+ * - Immediate-mode UI built on HelloImGui/ImGui; functions should be kept small and focused.
+ */
+
 #include "monitorUI.h"
 #include <string>
 #include <algorithm>
