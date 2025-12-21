@@ -1,0 +1,69 @@
+[
+  {"file":"src/main.cpp","type":"spacing","line":33,"symbol":"systemCheck","description":"Only one blank line before next top-level function","suggestion":"Insert one additional blank line between top-level functions"},
+  {"file":"src/main.cpp","type":"local_variable","line":87,"symbol":"wasAuthenticated","description":"Local variable does not use the 'l' prefix","suggestion":"Rename to lWasAuthenticated"},
+  {"file":"src/main.cpp","type":"global","line":100,"symbol":"s_runBackground","description":"File-scope static uses 's_' prefix instead of 'g_'","suggestion":"Rename to g_runBackground or document 's_' exception"},
+
+  {"file":"src/security/auth.cpp","type":"parameter","line":29,"symbol":"username","description":"Parameter missing 'p' prefix","suggestion":"Rename to pUsername"},
+  {"file":"src/security/auth.cpp","type":"parameter","line":29,"symbol":"password","description":"Parameter missing 'p' prefix","suggestion":"Rename to pPassword"},
+  {"file":"src/security/auth.cpp","type":"parameter","line":39,"symbol":"username","description":"Parameter missing 'p' prefix","suggestion":"Rename to pUsername"},
+  {"file":"src/security/auth.cpp","type":"parameter","line":39,"symbol":"password","description":"Parameter missing 'p' prefix","suggestion":"Rename to pPassword"},
+  {"file":"src/security/auth.cpp","type":"parameter","line":49,"symbol":"username","description":"Parameter missing 'p' prefix","suggestion":"Rename to pUsername"},
+  {"file":"src/security/auth.cpp","type":"parameter","line":49,"symbol":"password","description":"Parameter missing 'p' prefix","suggestion":"Rename to pPassword"},
+
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":42,"symbol":"keyBits","description":"Parameter missing 'p' prefix","suggestion":"Rename to pKeyBits"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":52,"symbol":"key","description":"Parameter missing 'p' prefix","suggestion":"Rename to pKey"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":63,"symbol":"key","description":"Parameter missing 'p' prefix","suggestion":"Rename to pKey"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":63,"symbol":"hashLen","description":"Parameter missing 'p' prefix","suggestion":"Rename to pHashLen"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":100,"symbol":"filePath","description":"Parameter missing 'p' prefix","suggestion":"Rename to pFilePath"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":100,"symbol":"key","description":"Parameter missing 'p' prefix","suggestion":"Rename to pKey"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":169,"symbol":"path","description":"Parameter missing 'p' prefix","suggestion":"Rename to pPath"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":178,"symbol":"password","description":"Parameter missing 'p' prefix","suggestion":"Rename to pPassword"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":194,"symbol":"encPath","description":"Parameter missing 'p' prefix","suggestion":"Rename to pEncPath"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":232,"symbol":"dbPath","description":"Parameter missing 'p' prefix","suggestion":"Rename to pDbPath"},
+  {"file":"src/security/cryptography.cpp","type":"parameter","line":318,"symbol":"errorMsg","description":"Parameter missing 'p' prefix for out param","suggestion":"Rename to pErrorMsg"},
+
+  {"file":"src/core/payroll.cpp","type":"parameter","line":47,"symbol":"emp","description":"Parameter missing 'p' prefix","suggestion":"Rename to pEmp"},
+  {"file":"src/core/payroll.cpp","type":"parameter","line":56,"symbol":"gross","description":"Parameter missing 'p' prefix","suggestion":"Rename to pGross"},
+  {"file":"src/core/payroll.cpp","type":"parameter","line":61,"symbol":"gross","description":"Parameter missing 'p' prefix","suggestion":"Rename to pGross"},
+  {"file":"src/core/payroll.cpp","type":"parameter","line":66,"symbol":"gross","description":"Parameter missing 'p' prefix","suggestion":"Rename to pGross"},
+  {"file":"src/core/payroll.cpp","type":"parameter","line":72,"symbol":"weeklyGrossAfterDeductions","description":"Parameter name is long and missing 'p' prefix","suggestion":"Rename to pWeeklyGrossAfterDeductions"},
+  {"file":"src/core/payroll.cpp","type":"parameter","line":94,"symbol":"emp","description":"Parameter missing 'p' prefix","suggestion":"Rename to pEmp"},
+  {"file":"src/core/payroll.cpp","type":"local_variable","line":null,"symbol":"regular,overtimeHours,overtimeRate","description":"Locals missing 'l' prefix","suggestion":"Rename to lRegular, lOvertimeHours, lOvertimeRate"},
+
+  {"file":"src/core/monitor.cpp","type":"multiple","line":null,"symbol":"addProject(...)","description":"Many parameter and local naming/spacing violations (~120 occurrences)","suggestion":"Apply per-file automated renames: pProjectId/pProjectName/... and l* for locals"},
+  {"file":"src/core/monitor.cpp","type":"multiple","line":null,"symbol":"addEmployee(... hoursWorked, advance)","description":"hoursWorked/advance parameters missing p- prefix; many locals need l- prefix","suggestion":"Rename pHoursWorked, pAdvance; local renames to l*"},
+  {"file":"src/core/monitor.cpp","type":"multiple","line":null,"symbol":"listEmployees(maxRows)","description":"maxRows parameter missing p- prefix; locals need l- prefix","suggestion":"Rename pMaxRows; local renames to l*"},
+
+  {"file":"src/ui/modules/monitorUI.cpp","type":"global","line":null,"symbol":"s_maxRowsEmployee,s_showHeadersEmployee,weekOptions,weekDates","description":"File-scope statics use s_ or no prefix instead of g_ or l_","suggestion":"Rename to g_maxRowsEmployee/g_weekOptions or move to local l_* depending on intended scope"},
+
+  {"file":"src/ui/modules/payrollUI.cpp","type":"local_variable","line":null,"symbol":"payrollSummary,totalEmployees,cardWidth,cardHeight,displayedEmployees","description":"Locals/constants not using l_/c_ prefixes","suggestion":"Rename to lPayrollSummary, lTotalEmployees, cCardWidth, cCardHeight, lDisplayedEmployees"},
+
+  {"file":"src/ui/modules/summaryUI.cpp","type":"local_variable","line":null,"symbol":"payrollSummary,projectSummary,totalEmployees","description":"Locals missing l_ prefix","suggestion":"Rename to lPayrollSummary, lProjectSummary, lTotalEmployees"},
+  {"file":"src/ui/modules/summaryUI.cpp","type":"global","line":null,"symbol":"payslipWeekOptions,selectedPayslipWeekIndex","description":"Module static/ global naming inconsistent","suggestion":"Rename to gPayslipWeekOptions or lPayslipWeekOptions and lSelectedPayslipWeekIndex"},
+
+  {"file":"src/ui/modules/loginUI.cpp","type":"local_variable","line":null,"symbol":"username,password,loginErrorMessage","description":"Local buffers/vars missing l_ prefix","suggestion":"Rename to lUsername, lPassword, lLoginErrorMessage"},
+
+  {"file":"src/ui/modules/testUI.cpp","type":"local_variable","line":null,"symbol":"passkey,hashedPasskey,passkeyHashed","description":"Local test vars missing l_ prefix","suggestion":"Rename to lPasskey, lHashedPasskey, lPasskeyHashed"},
+
+  {"file":"src/ui/ui.cpp","type":"parameter","line":null,"symbol":"constructUI params (a_title, a_fontLocation, a_widthPx, a_heightPx, a_window)","description":"API parameters use a_ prefix instead of p_","suggestion":"Rename to pTitle, pFontLocation, pWidthPx, pHeightPx, pWindow"},
+  {"file":"src/ui/ui.cpp","type":"global","line":null,"symbol":"s_focusFrames","description":"Uses s_ prefix (file-static) — inconsistent","suggestion":"Rename to lFocusFrames if local static or gFocusFrames if module-global"},
+
+  {"file":"src/handler/system.cpp","type":"parameter","line":null,"symbol":"many functions","description":"Some functions use p_ correctly; others don't — mixed usage","suggestion":"Standardize parameter prefixes to p_* across the file"},
+
+  {"file":"src/handler/print.cpp","type":"parameter_local","line":null,"symbol":"fetchAllEmployees:dbPath; locals e, buffer, result","description":"Parameters/locals missing prefixes","suggestion":"Rename to pDbPath, lEmployee, lBuffer, lResult"},
+
+  {"file":"src/handler/db.cpp","type":"parameter_local","line":null,"symbol":"dbPath,values,stmt,row,id","description":"DB adapter parameters and locals missing p_/l_ prefixes","suggestion":"Rename to pDbPath, pValues, lStmt, lRow, lId"},
+
+  {"file":"src/core/headers_and_types","type":"type_naming","line":null,"symbol":"Employee,Monitor,PayrollSummary,ProjectSummary,Cryptography,Print","description":"Types/classes use PascalCase but README requests lowerCamelCase","suggestion":"Consider renaming types to lowerCamelCase (e.g., employee, monitor) — high-risk change"},
+
+  {"file":"src/ui/modules/accountUI.cpp","type":"local_variable","line":null,"symbol":"name,position","description":"Locals use plain names instead of l_ prefix","suggestion":"Rename to lName, lPosition"},
+
+  {"file":"other","type":"summary","line":null,"symbol":"multiple","description":"Other files contain similar parameter/local/global prefix violations","suggestion":"Refer to detailed combined report for per-file actions"},
+
+  {"file":"src/security/cryptography.h","type":"type_naming","line":null,"symbol":"Cryptography,DBEncryptionSession","description":"Class names PascalCase vs README lowerCamelCase rule","suggestion":"Rename to cryptography, dbEncryptionSession (requires widespread updates)"},
+  {"file":"src/handler/print.h","type":"type_naming","line":null,"symbol":"Print","description":"Class name PascalCase","suggestion":"Rename to print or printModule"},
+  {"file":"src/core/monitor.h","type":"type_naming","line":null,"symbol":"PayrollSummary,ProjectSummary,Monitor","description":"Type names PascalCase","suggestion":"Rename to payrollSummary, projectSummary, monitor"},
+  {"file":"src/core/payroll.h","type":"type_naming","line":null,"symbol":"Employee,PayrollResult","description":"Type names PascalCase","suggestion":"Rename to employee, payrollResult"},
+  {"file":"src/handler/system.h","type":"type_naming","line":null,"symbol":"PartDateTime,ValidationType","description":"Enum names PascalCase","suggestion":"Rename to partDateTime, validationType"}
+]
+
