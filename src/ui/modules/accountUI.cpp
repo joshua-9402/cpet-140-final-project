@@ -17,8 +17,9 @@
 
 #include "accountUI.h"
 #include "../../ui/ui.h"
-#include "../../security/cryptography.h"
+//#include "../../security/cryptography.h"
 #include "../../config/config.h"
+#include "../../handler/system.h"
 #include "hello_imgui/hello_imgui.h"
 
 void account::displayAccount() {
@@ -34,10 +35,10 @@ void account::displayAccount() {
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f); // Small vertical spacing
     if (ImGui::Button("Log Out", ui::fullWidthButtonSize(40))) {
         // Encrypt all DBs before logging out (only if a session key exists)
-        if (security::DBEncryptionSession::hasKey()) {
-            security::DBEncryptionSession::encryptAllDbs();
-            security::DBEncryptionSession::clear();
-        }
+        // if (security::DBEncryptionSession::hasKey()) {
+        //     security::DBEncryptionSession::encryptAllDbs();
+        //     security::DBEncryptionSession::clear();
+        // }
         appConfig::g_auth = false;
         appConfig::g_testMode = false;
         ui::g_userName = "";
@@ -48,7 +49,9 @@ void account::displayAccount() {
             // Ensure the runner applies the resize when it exits the current Run
             params->appWindowParams.windowGeometry.resizeAppWindowAtNextFrame = true;
             // Request app to quit so HelloImGui::Run returns, and we can restart at login
+            system::logMessage(system::messageClassification::INFO, "User successfully logged out.");
             params->appShallExit = true;
+            // After exiting, the main() function will check g_auth and reconstruct the login UI
         }
     }
 }
