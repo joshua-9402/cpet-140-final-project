@@ -24,6 +24,10 @@
 #include <sstream>
 #include <iomanip>
 
+// For debounced per-field validation
+#include <chrono>
+#include <unordered_map>
+
 #include "../../dependencies/sqlite/sqlite3.h"
 
 #include "hello_imgui/hello_imgui.h"
@@ -33,8 +37,37 @@
 #include "../../core/monitor.h"
 
 
+struct State {
+    bool touched = false;
+    bool valid   = true;
+};
+
+static std::unordered_map<ImGuiID, State> g_states;
 static std::vector<std::string> weekOptions;
 static std::vector<std::string> weekDates;
+
+// Debounced validator: validates at most once per second per input field.
+// Behavior: when validation returns an empty string (invalid), the textbox background becomes red.
+// No inline text, no tooltip — only the red background for invalid state, updated every 1 second.
+static void InputTextValidated(const char* p_id, char* p_buffer, int p_bufSize, system::inputType p_validationType, float p_itemWidth = 0.0f) {
+    State& l_state = g_states[ImGui::GetID(p_id)];
+
+    // Real-time validation
+    l_state.valid = (p_buffer[0] == '\0') || !system::validateInput(p_validationType, p_buffer).empty();;
+
+    // Highlight red if invalid
+    if (!l_state.valid)
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, {0.6f, 0.15f, 0.15f, 1.0f});
+
+    if (p_itemWidth > 0.0f)
+        ImGui::SetNextItemWidth(p_itemWidth);
+
+    ImGui::InputText(p_id, p_buffer, p_bufSize);
+
+    if (!l_state.valid)
+        ImGui::PopStyleColor();
+}
+
 
 
 void employeeDatabaseUI()  {
@@ -94,10 +127,6 @@ void employeeDatabaseUI()  {
 
 
 void employeeManagementUI()  {
-    // ==============================================
-    // EMPLOYEE MANAGEMENT SECTION
-    // ==============================================
-
     static char name[128], position[128], employeeID[128], location[128], salary[128], hoursWorked[128], advance[128];
 
     ImGui::SetWindowFontScale(1.1f);
@@ -108,47 +137,20 @@ void employeeManagementUI()  {
     ImGui::BeginChild("Employee Management", ImVec2(0, 400), true);
     ImGui::Spacing();
 
-    // Convert to strings for validation
-    const std::string nameStr(name);
-    const std::string positionStr(position);
-    const std::string employeeIDStr(employeeID);
-    const std::string locationStr(location);
-    const std::string salaryStr(salary);
-    const std::string hoursWorkedStr(hoursWorked);
-    const std::string advanceStr(advance);
-
-    // Real-time validation
-    const bool nameValid = nameStr.empty() || !system::validateInput(system::ValidationType::NAME, nameStr).empty();
-    const bool positionValid = positionStr.empty() || !system::validateInput(system::ValidationType::POSITION, positionStr).empty();
-    const bool employeeIDValid = employeeIDStr.empty() || !system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr).empty();
-    const bool locationValid = locationStr.empty() || !system::validateInput(system::ValidationType::SITE_LOCATION, locationStr).empty();
-    const bool salaryValid = salaryStr.empty() || !system::validateInput(system::ValidationType::SALARY, salaryStr).empty();
-    const bool hoursValid = hoursWorkedStr.empty() || !system::validateInput(system::ValidationType::HOURS, hoursWorkedStr).empty();
-    const bool advanceValid = advanceStr.empty() || !system::validateInput(system::ValidationType::ADVANCE, advanceStr).empty();
-
     // Employee Form Fields - Row 1
     ImGui::Text("Name:");
     ImGui::SameLine(120.0f);
-    ImGui::SetNextItemWidth(300.0f);
-    if (!nameValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##name", name, IM_ARRAYSIZE(name));
-    if (!nameValid) ImGui::PopStyleColor();
+    InputTextValidated("##name", name, IM_ARRAYSIZE(name), system::NAME, 300.0f);
 
     ImGui::SameLine(450.0f);
     ImGui::Text("Position:");
     ImGui::SameLine(550.0f);
-    ImGui::SetNextItemWidth(250.0f);
-    if (!positionValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##position", position, IM_ARRAYSIZE(position));
-    if (!positionValid) ImGui::PopStyleColor();
+    InputTextValidated("##position", position, IM_ARRAYSIZE(position), system::POSITION, 250.0f);
 
     ImGui::SameLine(830.0f);
     ImGui::Text("Employee ID:");
     ImGui::SameLine(950.0f);
-    ImGui::SetNextItemWidth(150.0f);
-    if (!employeeIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##employeeID", employeeID, IM_ARRAYSIZE(employeeID));
-    if (!employeeIDValid) ImGui::PopStyleColor();
+    InputTextValidated("##employeeID", employeeID, IM_ARRAYSIZE(employeeID), system::EMPLOYEE_ID, 150.0f);
 
     ImGui::Spacing();
 
@@ -201,41 +203,41 @@ void employeeManagementUI()  {
     ImGui::SameLine(400.0f);
     ImGui::Text("Hourly Rate:");
     ImGui::SameLine(510.0f);
-    ImGui::SetNextItemWidth(120.0f);
-    if (!salaryValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##salary", salary, IM_ARRAYSIZE(salary));
-    if (!salaryValid) ImGui::PopStyleColor();
+    InputTextValidated("##salary", salary, IM_ARRAYSIZE(salary), system::REGULAR_HOURS, 120.0f);
 
     ImGui::SameLine(660.0f);
     ImGui::Text("Regular Hours:");
     ImGui::SameLine(780.0f);
-    ImGui::SetNextItemWidth(120.0f);
-    if (!hoursValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##hoursWorked", hoursWorked, IM_ARRAYSIZE(hoursWorked));
-    if (!hoursValid) ImGui::PopStyleColor();
+    InputTextValidated("##hoursWorked", hoursWorked, IM_ARRAYSIZE(hoursWorked), system::NUMBER, 120.0f);
 
     ImGui::SameLine(930.0f);
     ImGui::Text("Advance:");
     ImGui::SameLine(1020.0f);
-    ImGui::SetNextItemWidth(120.0f);
-    if (!advanceValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##advance", advance, IM_ARRAYSIZE(advance));
-    if (!advanceValid) ImGui::PopStyleColor();
+    InputTextValidated("##advance", advance, IM_ARRAYSIZE(advance), system::ADVANCE, 120.0f);
 
     ImGui::Spacing();
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
+    // Prepare string copies of current buffers for validation and actions (required by action handlers)
+    const std::string nameStr(name);
+    const std::string positionStr(position);
+    const std::string employeeIDStr(employeeID);
+    const std::string locationStr(location);
+    const std::string salaryStr(salary);
+    const std::string hoursWorkedStr(hoursWorked);
+    const std::string advanceStr(advance);
+
     // Employee Action Buttons
     if (ImGui::Button("Add New Employee", ImVec2(260.0f, 40.0f))) {
         // Validate all inputs before adding
-        const std::string validatedName = system::validateInput(system::ValidationType::NAME, nameStr);
-        const std::string validatedPosition = system::validateInput(system::ValidationType::POSITION, positionStr);
-        const std::string validatedLocation = system::validateInput(system::ValidationType::SITE_LOCATION, locationStr);
-        const std::string validatedSalary = system::validateInput(system::ValidationType::SALARY, salaryStr);
-        const std::string validatedHours = system::validateInput(system::ValidationType::HOURS, hoursWorkedStr);
-        const std::string validatedAdvance = system::validateInput(system::ValidationType::ADVANCE, advanceStr);
+        const std::string validatedName = system::validateInput(system::NAME, nameStr);
+        const std::string validatedPosition = system::validateInput(system::POSITION, positionStr);
+        const std::string validatedLocation = system::validateInput(system::SITE_LOCATION, locationStr);
+        const std::string validatedSalary = system::validateInput(system::NUMBER, salaryStr);
+        const std::string validatedHours = system::validateInput(system::NUMBER, hoursWorkedStr);
+        const std::string validatedAdvance = system::validateInput(system::ADVANCE, advanceStr);
 
         if (validatedName.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Name is required and must be valid (max 100 characters).\n");
@@ -262,18 +264,18 @@ void employeeManagementUI()  {
 
     ImGui::SameLine();
     if (ImGui::Button("Update Employee", ImVec2(260.0f, 40.0f))) {
-        const std::string validatedEmployeeID = system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr);
+        const std::string validatedEmployeeID = system::validateInput(system::EMPLOYEE_ID, employeeIDStr);
 
         if (validatedEmployeeID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Employee ID is required for update.\n");
         } else {
             // Validate provided fields (allow partial updates)
-            std::string validatedName = nameStr.empty() ? nameStr : system::validateInput(system::ValidationType::NAME, nameStr);
-            std::string validatedPosition = positionStr.empty() ? positionStr : system::validateInput(system::ValidationType::POSITION, positionStr);
-            std::string validatedLocation = locationStr.empty() ? locationStr : system::validateInput(system::ValidationType::SITE_LOCATION, locationStr);
-            std::string validatedSalary = salaryStr.empty() ? salaryStr : system::validateInput(system::ValidationType::SALARY, salaryStr);
-            std::string validatedHours = hoursWorkedStr.empty() ? hoursWorkedStr : system::validateInput(system::ValidationType::HOURS, hoursWorkedStr);
-            std::string validatedAdvance = system::validateInput(system::ValidationType::ADVANCE, advanceStr);
+            std::string validatedName = nameStr.empty() ? nameStr : system::validateInput(system::NAME, nameStr);
+            std::string validatedPosition = positionStr.empty() ? positionStr : system::validateInput(system::POSITION, positionStr);
+            std::string validatedLocation = locationStr.empty() ? locationStr : system::validateInput(system::SITE_LOCATION, locationStr);
+            std::string validatedSalary = salaryStr.empty() ? salaryStr : system::validateInput(system::REGULAR_HOURS, salaryStr);
+            std::string validatedHours = hoursWorkedStr.empty() ? hoursWorkedStr : system::validateInput(system::NUMBER, hoursWorkedStr);
+            std::string validatedAdvance = system::validateInput(system::ADVANCE, advanceStr);
 
             bool hasValidationError = false;
             if (!nameStr.empty() && validatedName.empty()) {
@@ -310,7 +312,7 @@ void employeeManagementUI()  {
 
     ImGui::SameLine();
     if (ImGui::Button("Delete Employee", ImVec2(260.0f, 40.0f))) {
-        if (const std::string validatedEmployeeID = system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr); validatedEmployeeID.empty()) {
+        if (const std::string validatedEmployeeID = system::validateInput(system::EMPLOYEE_ID, employeeIDStr); validatedEmployeeID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Employee ID is required for deletion.\n");
         } else {
             if (monitor::deleteEmployee(validatedEmployeeID)) {
@@ -324,7 +326,7 @@ void employeeManagementUI()  {
 
     ImGui::SameLine();
     if (ImGui::Button("Load Employee", ImVec2(260.0f, 40.0f))) {
-        const std::string validatedEmployeeID = system::validateInput(system::ValidationType::EMPLOYEE_ID, employeeIDStr);
+        const std::string validatedEmployeeID = system::validateInput(system::EMPLOYEE_ID, employeeIDStr);
 
         if (validatedEmployeeID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Employee ID is required to load employee data.\n");
@@ -557,15 +559,11 @@ void attendanceManagementUI() {
     // Convert to strings for validation
     const std::string attendanceEmpIDStr(attendanceEmployeeID);
 
-    // Validation for employee ID
-    const bool attendanceEmpIDValid = attendanceEmpIDStr.empty() || !system::validateInput(system::ValidationType::EMPLOYEE_ID, attendanceEmpIDStr).empty();
-
     ImGui::Text("Employee ID:");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(120.0f);
-    if (!attendanceEmpIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##attendanceEmployeeID", attendanceEmployeeID, IM_ARRAYSIZE(attendanceEmployeeID));
-    if (!attendanceEmpIDValid) ImGui::PopStyleColor();
+    // Debounced red-only validator: marks red only when non-empty and invalid (checked every 1s)
+    InputTextValidated("##attendanceEmployeeID", attendanceEmployeeID, IM_ARRAYSIZE(attendanceEmployeeID), system::EMPLOYEE_ID, 120.0f);
 
     ImGui::SameLine();
     ImGui::Text("  Week:");
@@ -886,27 +884,17 @@ void projectManagementUI() {
         }
     }
 
-    // Real-time validation
-    const bool projectIDValid = projectIDStr.empty() || !system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr).empty();
-    const bool projectNameValid = projectNameStr.empty() || !system::validateInput(system::ValidationType::NAME, projectNameStr).empty();
-    const bool startDateValid = startDateStr.empty() || !system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr).empty();
-    const bool endDateValid = endDateStr.empty() || !system::validateInput(system::ValidationType::DATE_FORMAT, endDateStr).empty();
-
-    // Project Form Fields
+    // Project Form Fields (use debounced red-only validator)
     ImGui::Text("Project ID:");
     ImGui::SameLine(120.0f);
     ImGui::SetNextItemWidth(120.0f);
-    if (!projectIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##projectID", projectID, IM_ARRAYSIZE(projectID));
-    if (!projectIDValid) ImGui::PopStyleColor();
+    InputTextValidated("##projectID", projectID, IM_ARRAYSIZE(projectID), system::PROJECT_ID, 120.0f);
 
     ImGui::SameLine(270.0f);
     ImGui::Text("Project Name:");
     ImGui::SameLine(400.0f);
     ImGui::SetNextItemWidth(400.0f);
-    if (!projectNameValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##projectName", projectName, IM_ARRAYSIZE(projectName));
-    if (!projectNameValid) ImGui::PopStyleColor();
+    InputTextValidated("##projectName", projectName, IM_ARRAYSIZE(projectName), system::NAME, 400.0f);
 
     ImGui::Spacing();
 
@@ -922,18 +910,12 @@ void projectManagementUI() {
     ImGui::SameLine(300.0f);
     ImGui::Text("Start Date:");
     ImGui::SameLine(400.0f);
-    ImGui::SetNextItemWidth(200.0f);
-    if (!startDateValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##startDate", startDate, IM_ARRAYSIZE(startDate));
-    if (!startDateValid) ImGui::PopStyleColor();
+    InputTextValidated("##startDate", startDate, IM_ARRAYSIZE(startDate), system::DATE, 200.0f);
 
     ImGui::SameLine(630.0f);
     ImGui::Text("End Date:");
     ImGui::SameLine(720.0f);
-    ImGui::SetNextItemWidth(200.0f);
-    if (!endDateValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##endDate", endDate, IM_ARRAYSIZE(endDate));
-    if (!endDateValid) ImGui::PopStyleColor();
+    InputTextValidated("##endDate", endDate, IM_ARRAYSIZE(endDate), system::DATE, 200.0f);
 
     ImGui::Spacing();
 
@@ -949,10 +931,10 @@ void projectManagementUI() {
     // Project Action Buttons
     if (ImGui::Button("Add New Project", ImVec2(260.0f, 40.0f))) {
         // Validate project ID format
-        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
-        const std::string validatedProjectName = system::validateInput(system::ValidationType::NAME, projectNameStr);
-        const std::string validatedStartDate = system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr);
-        const std::string validatedEndDate = endDateStr.empty() ? endDateStr : system::validateInput(system::ValidationType::DATE_FORMAT, endDateStr);
+        const std::string validatedProjectID = system::validateInput(system::PROJECT_ID, projectIDStr);
+        const std::string validatedProjectName = system::validateInput(system::NAME, projectNameStr);
+        const std::string validatedStartDate = system::validateInput(system::DATE, startDateStr);
+        const std::string validatedEndDate = endDateStr.empty() ? endDateStr : system::validateInput(system::DATE, endDateStr);
 
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Project ID must follow format PRJ-##### (e.g., PRJ-00001).\n");
@@ -974,15 +956,15 @@ void projectManagementUI() {
 
     ImGui::SameLine();
     if (ImGui::Button("Update Project", ImVec2(260.0f, 40.0f))) {
-        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
+        const std::string validatedProjectID = system::validateInput(system::PROJECT_ID, projectIDStr);
 
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required for update.\n");
         } else {
             // Validate other fields if provided
-            std::string validatedProjectName = projectNameStr.empty() ? projectNameStr : system::validateInput(system::ValidationType::NAME, projectNameStr);
-            std::string validatedStartDate = startDateStr.empty() ? startDateStr : system::validateInput(system::ValidationType::DATE_FORMAT, startDateStr);
-            std::string validatedEndDate = endDateStr.empty() ? endDateStr : system::validateInput(system::ValidationType::DATE_FORMAT, endDateStr);
+            std::string validatedProjectName = projectNameStr.empty() ? projectNameStr : system::validateInput(system::NAME, projectNameStr);
+            std::string validatedStartDate = startDateStr.empty() ? startDateStr : system::validateInput(system::DATE, startDateStr);
+            std::string validatedEndDate = endDateStr.empty() ? endDateStr : system::validateInput(system::DATE, endDateStr);
 
             bool hasValidationError = false;
             if (!projectNameStr.empty() && validatedProjectName.empty()) {
@@ -1010,7 +992,7 @@ void projectManagementUI() {
 
     ImGui::SameLine();
     if (ImGui::Button("Delete Project", ImVec2(260.0f, 40.0f))) {
-        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
+        const std::string validatedProjectID = system::validateInput(system::PROJECT_ID, projectIDStr);
 
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required for deletion.\n");
@@ -1027,7 +1009,7 @@ void projectManagementUI() {
 
     ImGui::SameLine();
     if (ImGui::Button("Load Project", ImVec2(260.0f, 40.0f))) {
-        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, projectIDStr);
+        const std::string validatedProjectID = system::validateInput(system::PROJECT_ID, projectIDStr);
 
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID is required to load project data.\n");
@@ -1235,53 +1217,36 @@ void materialManagementUI() {
         }
     }
 
-    // Real-time validation
-    const bool matProjectIDValid = materialProjectIDStr.empty() || !system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr).empty();
-    const bool matIDValid = materialIDStr.empty() || !system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr).empty();
-    const bool matNameValid = materialNameStr.empty() || !system::validateInput(system::ValidationType::NAME, materialNameStr).empty();
-    const bool matQuantityValid = materialQuantityStr.empty() || !system::validateInput(system::ValidationType::QUANTITY, materialQuantityStr).empty();
-    const bool matPriceValid = materialUnitPriceStr.empty() || !system::validateInput(system::ValidationType::SALARY, materialUnitPriceStr).empty();
-
-    // Materials Form Fields
+    // Materials Form Fields (use debounced validator)
     ImGui::Text("Project ID:");
     ImGui::SameLine(120.0f);
     ImGui::SetNextItemWidth(120.0f);
-    if (!matProjectIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##materialProjectID", materialProjectID, IM_ARRAYSIZE(materialProjectID));
-    if (!matProjectIDValid) ImGui::PopStyleColor();
+    InputTextValidated("##materialProjectID", materialProjectID, IM_ARRAYSIZE(materialProjectID), system::PROJECT_ID, 120.0f);
 
     ImGui::SameLine(270.0f);
     ImGui::Text("Material ID:");
     ImGui::SameLine(380.0f);
     ImGui::SetNextItemWidth(150.0f);
-    if (!matIDValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##materialID", materialID, IM_ARRAYSIZE(materialID));
-    if (!matIDValid) ImGui::PopStyleColor();
+    InputTextValidated("##materialID", materialID, IM_ARRAYSIZE(materialID), system::MATERIAL_ID, 150.0f);
 
     ImGui::SameLine(560.0f);
     ImGui::Text("Material Name:");
     ImGui::SameLine(690.0f);
     ImGui::SetNextItemWidth(400.0f);
-    if (!matNameValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##materialName", materialName, IM_ARRAYSIZE(materialName));
-    if (!matNameValid) ImGui::PopStyleColor();
+    InputTextValidated("##materialName", materialName, IM_ARRAYSIZE(materialName), system::NAME, 400.0f);
 
     ImGui::Spacing();
 
     ImGui::Text("Quantity:");
     ImGui::SameLine(120.0f);
     ImGui::SetNextItemWidth(150.0f);
-    if (!matQuantityValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##materialQuantity", materialQuantity, IM_ARRAYSIZE(materialQuantity));
-    if (!matQuantityValid) ImGui::PopStyleColor();
+    InputTextValidated("##materialQuantity", materialQuantity, IM_ARRAYSIZE(materialQuantity), system::NUMBER, 150.0f);
 
     ImGui::SameLine(300.0f);
     ImGui::Text("Unit Price (PHP):");
     ImGui::SameLine(450.0f);
     ImGui::SetNextItemWidth(150.0f);
-    if (!matPriceValid) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.0f));
-    ImGui::InputText("##materialUnitPrice", materialUnitPrice, IM_ARRAYSIZE(materialUnitPrice));
-    if (!matPriceValid) ImGui::PopStyleColor();
+    InputTextValidated("##materialUnitPrice", materialUnitPrice, IM_ARRAYSIZE(materialUnitPrice), system::NUMBER, 150.0f);
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -1289,11 +1254,11 @@ void materialManagementUI() {
 
     // Materials Action Buttons
     if (ImGui::Button("Add New Material", ImVec2(350.0f, 40.0f))) {
-        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr);
-        const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
-        const std::string validatedMaterialName = system::validateInput(system::ValidationType::NAME, materialNameStr);
-        const std::string validatedQuantity = system::validateInput(system::ValidationType::QUANTITY, materialQuantityStr);
-        const std::string validatedUnitPrice = system::validateInput(system::ValidationType::SALARY, materialUnitPriceStr);
+        const std::string validatedProjectID = system::validateInput(system::PROJECT_ID, materialProjectIDStr);
+        const std::string validatedMaterialID = system::validateInput(system::MATERIAL_ID, materialIDStr);
+        const std::string validatedMaterialName = system::validateInput(system::NAME, materialNameStr);
+        const std::string validatedQuantity = system::validateInput(system::NUMBER, materialQuantityStr);
+        const std::string validatedUnitPrice = system::validateInput(system::NUMBER, materialUnitPriceStr);
 
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required.\n");
@@ -1322,8 +1287,8 @@ void materialManagementUI() {
 
     ImGui::SameLine();
     if (ImGui::Button("Update Material", ImVec2(350.0f, 40.0f))) {
-        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr);
-        const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
+        const std::string validatedProjectID = system::validateInput(system::PROJECT_ID, materialProjectIDStr);
+        const std::string validatedMaterialID = system::validateInput(system::MATERIAL_ID, materialIDStr);
 
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required.\n");
@@ -1331,9 +1296,9 @@ void materialManagementUI() {
             system::logMessage(system::messageClassification::WARNING, "DB: Material ID cannot be empty.\n");
         } else {
             // Validate other fields if provided
-            std::string validatedMaterialName = materialNameStr.empty() ? materialNameStr : system::validateInput(system::ValidationType::NAME, materialNameStr);
-            std::string validatedQuantity = materialQuantityStr.empty() ? materialQuantityStr : system::validateInput(system::ValidationType::QUANTITY, materialQuantityStr);
-            std::string validatedUnitPrice = materialUnitPriceStr.empty() ? materialUnitPriceStr : system::validateInput(system::ValidationType::SALARY, materialUnitPriceStr);
+            std::string validatedMaterialName = materialNameStr.empty() ? materialNameStr : system::validateInput(system::NAME, materialNameStr);
+            std::string validatedQuantity = materialQuantityStr.empty() ? materialQuantityStr : system::validateInput(system::NUMBER, materialQuantityStr);
+            std::string validatedUnitPrice = materialUnitPriceStr.empty() ? materialUnitPriceStr : system::validateInput(system::NUMBER, materialUnitPriceStr);
 
             bool hasValidationError = false;
             if (!materialNameStr.empty() && validatedMaterialName.empty()) {
@@ -1365,9 +1330,8 @@ void materialManagementUI() {
 
     ImGui::SameLine();
     if (ImGui::Button("Delete Material", ImVec2(350.0f, 40.0f))) {
-        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr);
-        const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
-
+        const std::string validatedProjectID = system::validateInput(system::PROJECT_ID, materialProjectIDStr);
+        const std::string validatedMaterialID = system::validateInput(system::MATERIAL_ID, materialIDStr);
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required for deletion.\n");
         } else if (validatedMaterialID.empty()) {
@@ -1387,8 +1351,8 @@ void materialManagementUI() {
     }
 
     if (ImGui::Button("Load Material", ImVec2(350.0f, 40.0f))) {
-        const std::string validatedProjectID = system::validateInput(system::ValidationType::PROJECT_ID_FORMAT, materialProjectIDStr);
-        const std::string validatedMaterialID = system::validateInput(system::ValidationType::MATERIAL_ID, materialIDStr);
+        const std::string validatedProjectID = system::validateInput(system::PROJECT_ID, materialProjectIDStr);
+        const std::string validatedMaterialID = system::validateInput(system::MATERIAL_ID, materialIDStr);
 
         if (validatedProjectID.empty()) {
             system::logMessage(system::messageClassification::WARNING, "DB: Valid Project ID (PRJ-#####) is required to load material data.\n");
