@@ -7,9 +7,8 @@ Usage (during installer execution):
   powershell -ExecutionPolicy Bypass -File install_dependencies.ps1 -InstallDir "$INSTDIR"
 
 Notes:
-- If a companion script `install_libsodium.ps1` is present alongside this script (or in the InstallDir), this script will try to invoke it.
-- This script is conservative: if the companion script is not present, it prints a message and exits 0 (successful).
-- If you want the installer to *actually* download and install system-level dependencies, extend `install_libsodium.ps1` and/or add admin checks here.
+- This script intentionally does NOT attempt to install libsodium or other optional runtime dependencies.
+- If you want the installer to install additional runtime dependencies, add companion scripts under packaging/windows and invoke them from your installer packaging logic outside of this file.
 #>
 param(
     [string]$InstallDir = ".",
@@ -42,34 +41,18 @@ function Write-Err {
 
 Write-Info "install_dependencies.ps1: invoked. InstallDir='$InstallDir'"
 
-# Look for a companion script that actually installs libsodium or other runtime deps
-$scriptCandidates = @()
-$scriptCandidates += Join-Path -Path $PSScriptRoot -ChildPath 'install_libsodium.ps1'
-$scriptCandidates += Join-Path -Path $PSScriptRoot -ChildPath 'install_libsodium.psm1'
-$scriptCandidates += Join-Path -Path $InstallDir -ChildPath 'install_libsodium.ps1'
-$scriptCandidates += Join-Path -Path $InstallDir -ChildPath 'install_libsodium.psm1'
+# This packaging helper intentionally does not auto-install third-party runtime libraries.
+# If your installer needs to bundle additional DLLs, include them in the installer payload and copy them here.
 
-$found = $false
-foreach ($c in $scriptCandidates) {
-    if (Test-Path $c) {
-        Write-Info "Found companion script: $c"
-        try {
-            & powershell -NoProfile -ExecutionPolicy Bypass -File $c -InstallDir $InstallDir
-            $rc = $LASTEXITCODE
-            if ($rc -ne 0) {
-                Write-Warn "Companion script returned non-zero exit code: $rc"
-            }
-        } catch {
-            Write-Warn "Failed to invoke companion script: $_"
-        }
-        $found = $true
-        break
+# Ensure destination exists
+try {
+    if (-not (Test-Path -Path $InstallDir)) {
+        New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+        Write-Info "Created install directory: $InstallDir"
     }
-}
-
-if (-not $found) {
-    Write-Info "No companion install_libsodium script found; skipping dependency installation."
-    Write-Info "If you expect dependencies to be installed on target machines, add packaging/windows/install_libsodium.ps1 and implement the required steps."
+} catch {
+    Write-Err ("Failed to ensure InstallDir exists: {0}" -f $_.Exception.Message)
+    exit 2
 }
 
 # Exit successfully so packaging includes this file and installer execution doesn't abort unexpectedly.

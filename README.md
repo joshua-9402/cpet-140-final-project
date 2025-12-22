@@ -86,11 +86,11 @@ This project is a C++ application that demonstrates a payroll and monitoring sys
 - Build system: CMake v3.22
 - UI: Hello ImGui (immediate-mode GUI) v1.19.3
 - Database: SQLite (single-file, local, embedded)
-- Cryptography: libsodium (for password hashing, encryption, decryption, salting, etc.)
+- Cryptography: optional (used for password hashing, encryption, decryption, salting, etc.)
 - Architecture: modular with clear separation of concerns (UI, DB, core logic, system)
 - Target platforms: Desktop (Windows/macOS)
 
-- Recent repository updates: several small, backwards-compatible fixes and CI improvements were applied to keep builds stable across platforms (notably: `system::createDirectory` now returns `bool`, `system::appShutdown` uses a portable partial_sort variant, and cryptography helper types were clarified to use byte vectors for keys/salts and in-place decryption semantics). For full details and troubleshooting steps (libsodium, freetype, Windows linking, macOS toolchain), see the "Troubleshooting & Debugging Tips" section below.
+- Recent repository updates: several small, backwards-compatible fixes and CI improvements were applied to keep builds stable across platforms (notably: `system::createDirectory` now returns `bool`, `system::appShutdown` uses a portable partial_sort variant, and cryptography helper types were clarified to use byte vectors for keys/salts and in-place decryption semantics). For full details and troubleshooting steps (freetype, Windows linking, macOS toolchain), see the "Troubleshooting & Debugging Tips" section below.
 
 ### Repository Structure
       cpet-140-final-project/
@@ -454,17 +454,12 @@ The participation of everyone is needed to make this project a success. Please f
 ### Troubleshooting & Debugging Tips
 This section highlights common issues seen in local and CI builds and concrete fixes that reflect recent changes.
 
-1) libsodium / cryptography issues
-   - Symptom: Linker errors (undefined symbols like `sodium_init`, `crypto_aead_xchacha20poly1305_ietf_encrypt`, etc.) or runtime `crypto` failures.
+1) cryptography / encryption notes
+   - Symptom: Linker errors or runtime crypto failures.
    - Fixes:
-     - Ensure libsodium is installed for the platform and matches the target architecture (x64 vs. ARM64). In CI add a step to install libsodium BEFORE CMake configure. Example (GitHub Actions):
-
-       - For Linux (Debian/Ubuntu): `sudo apt-get install -y libsodium-dev`
-       - For macOS (Homebrew): `brew install libsodium`
-       - For Windows: download the proper prebuilt libsodium matching your MSVC toolset and place in `dependencies/libsodium` or install via vcpkg with the correct triplet.
-
-     - When linking on macOS, ensure the linker can find the `libsodium.dylib` (use -L/opt/homebrew/lib and set rpath if necessary). The CMake configuration already attempts to find libsodium; adjust runner environment if the library is installed in a non-default location.
-     - On Windows ensure the libsodium lib's machine type and runtime (v142/v143) match the build target. Use the proper libsodium subfolder (x64/ARM64/Win32) in `dependencies/libsodium` if bundling the library.
+     - If you rely on optional cryptography, ensure any required crypto runtime/library is installed on the target system or vendor it into `dependencies/`.
+     - For macOS, ensure custom dylib locations are discoverable by the linker (use -L flags or rpath adjustments).
+     - For Windows, include matching runtime library artifacts in `dependencies/` with appropriate architecture.
 
 2) Freetype version failing in CI
    - Symptom: CMake: "Could NOT find Freetype: Found unsuitable version ... but required is at least 2.12"

@@ -150,35 +150,9 @@ target_include_directories(structuracost PRIVATE ${CMAKE_SOURCE_DIR}/dependencie
 # -------------------------------
 # SECTION: CRYPTO (libsodium detection & linking)
 # -------------------------------
-# Use a small, cross-platform detection: prefer an installed libsodium (system or package manager)
-# If found, add include dir and link the library. Otherwise emit a warning and continue.
-# Support SODIUM_LIBRARY and SODIUM_INCLUDE_DIR hints from environment or CMake cache.
-find_library(SODIUM_LIBRARY
-    NAMES sodium libsodium
-    HINTS ${SODIUM_LIBRARY} ENV SODIUM_LIBRARY_FILE
-    PATHS
-        ${CMAKE_SOURCE_DIR}/dependencies/libsodium
-        ${CMAKE_SOURCE_DIR}/dependencies/libsodium/lib
-        ${CMAKE_SOURCE_DIR}/dependencies/libsodium/x64/Release/v143/dynamic
-        ${CMAKE_SOURCE_DIR}/dependencies/libsodium/Win32/Release/v143/dynamic
-    PATH_SUFFIXES lib
-)
-
-find_path(SODIUM_INCLUDE_DIR
-    NAMES sodium.h
-    HINTS ${SODIUM_INCLUDE_DIR} ENV SODIUM_INCLUDE_DIR
-    PATHS
-        ${CMAKE_SOURCE_DIR}/dependencies/libsodium/include
-    PATH_SUFFIXES include
-)
-
-if(SODIUM_LIBRARY AND SODIUM_INCLUDE_DIR)
-    # libsodium found - configure targets
-    target_include_directories(structuracost PRIVATE ${SODIUM_INCLUDE_DIR})
-    target_link_libraries(structuracost PRIVATE ${SODIUM_LIBRARY})
-else()
-    message(FATAL_ERROR "libsodium not found - libsodium is required. Configure aborted.")
-endif()
+# NOTE: libsodium removal: project no longer depends on libsodium by default.
+# If you need to re-enable libsodium later, add a Find or external project and
+# link the resulting library and include directories here.
 
 
 # -------------------------------
@@ -253,7 +227,7 @@ if(APPLE)
     install(TARGETS structuracost BUNDLE DESTINATION .)
     install(DIRECTORY assets/ DESTINATION "structuracost.app/Contents/Resources/assets")
 
-    # Do not automatically bundle libsodium dylibs here. If a dylib from dependencies needs
+    # Do not automatically bundle third-party dylibs here. If a dylib from dependencies needs
     # to be bundled into the app, manage that explicitly in packaging scripts or by adding
     # the specific files to the install rules. This keeps the CMake configuration simple.
 
@@ -279,13 +253,7 @@ elseif(WIN32)
             PATTERN "*"
             PATTERN ". git" EXCLUDE)
 
-    # If there are prebuilt libsodium dlls in dependencies, include them in the installer root
-    file(GLOB_RECURSE _WIN_SODIUM_DLLS "${CMAKE_SOURCE_DIR}/dependencies/libsodium/*.dll")
-    foreach(_dll ${_WIN_SODIUM_DLLS})
-        if(EXISTS "${_dll}")
-            install(FILES "${_dll}" DESTINATION ".")
-        endif()
-    endforeach()
+    # Previously we bundled prebuilt libsodium DLLs from dependencies; libsodium is no longer included.
 
     # Add app icon to installer payload so installer can use it for shortcuts
     if(EXISTS "${CMAKE_SOURCE_DIR}/assets/icons/app_icon.png")
@@ -302,7 +270,6 @@ elseif(WIN32)
     # Define packaging files to copy and install
     set(_PACKAGING_FILES
         "packaging/windows/install_dependencies.ps1:."
-        "packaging/windows/install_libsodium.ps1:."
         "packaging/windows/README_WINDOWS.txt:."
         "doc/WINDOWS_ERROR_0xc000007b_FIX.md:doc"
     )
@@ -329,7 +296,7 @@ elseif(WIN32)
         message(STATUS "Staged ${_STAGED_COUNT} packaging files")
     endif()
 
-    # NSIS install commands
+    # NSIS install commands: run the dependency installer (now only install_dependencies.ps1)
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
         DetailPrint 'Installing required dependencies...'
         ExecWait 'powershell -ExecutionPolicy Bypass -WindowStyle Normal -File \\\"$INSTDIR\\\\install_dependencies.ps1\\\" -InstallDir \\\"$INSTDIR\\\"'
