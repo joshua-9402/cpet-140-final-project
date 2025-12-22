@@ -20,8 +20,10 @@
 
 
 #include "db.h"
+
 #include "../config/config.h"
 #include "system.h"
+
 #include <sqlite3.h>
 #include <string>
 #include <fstream>
@@ -32,45 +34,34 @@
 
 
 bool db::isSQLiteAvailable() {
-    // Check if the SQLite library is available by verifying the version
-    if (const char* version = sqlite3_libversion(); version == nullptr || version[0] == '\0') {
+    if (const char* l_version = sqlite3_libversion(); l_version == nullptr || l_version[0] == '\0') {
+        system::logMessage(system::messageClassification::ERROR, "DB VERSION IS NULL");
         return false;
     }
-
-    // Alternatively, try to open and close an in-memory database
-    sqlite3* testDb = nullptr;
-    if (const int rc = sqlite3_open(":memory:", &testDb); rc == SQLITE_OK && testDb != nullptr) {
-        sqlite3_close(testDb);
-        return true;
-    }
-
-    if (testDb) sqlite3_close(testDb);
-    return false;
+    system::logMessage(system::messageClassification::INFO, std::string("SQLite version ") + sqlite3_libversion() + " detected");
+    return true;
 }
 
 
 bool db::createDatabase(const std::string& p_dbName) {
-    sqlite3* dbPointer = nullptr;
+    sqlite3* l_dbPointer = nullptr;
 
     // Open (or create) a database file
-    if (const int returnCode = sqlite3_open_v2(p_dbName.c_str(), &dbPointer,SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr); returnCode != SQLITE_OK) {
-        if (dbPointer) sqlite3_close(dbPointer);
+    if (const int l_returnCode = sqlite3_open_v2(p_dbName.c_str(), &l_dbPointer,SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr); l_returnCode != SQLITE_OK) {
+        if (l_dbPointer) sqlite3_close(l_dbPointer);
         system::logMessage(system::messageClassification::ERROR, "DB CREATE failed db=" + p_dbName);
         return false;
     }
 
-    std::vector<std::string> tablesSql;
+    std::vector<std::string> l_tablesSql;
 
-    // Normalize to filename only so callers can pass full paths
-    std::string filename = p_dbName;
-    if (const size_t pos = filename.find_last_of("/\\"); pos != std::string::npos) {
-        filename = filename.substr(pos + 1);
-    }
+    std::string l_filename = p_dbName;
+    if (const size_t pos = l_filename.find_last_of("/\\"); pos != std::string::npos) {l_filename = l_filename.substr(pos + 1);}
 
 
     // Use column names that match the rest of the code (insert/update)
-    if (filename == appConfig::g_dbNamePayroll || p_dbName == appConfig::g_dbNamePayroll) {
-        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS EMPLOYEES ("
+    if (l_filename == appConfig::g_dbNamePayroll || p_dbName == appConfig::g_dbNamePayroll) {
+        l_tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS EMPLOYEES ("
             "EMPLOYEE_ID INTEGER PRIMARY KEY AUTOINCREMENT,"
             "NAME TEXT NOT NULL,"
             "POSITION TEXT NOT NULL,"
@@ -81,7 +72,7 @@ bool db::createDatabase(const std::string& p_dbName) {
             ");"
         );
         // Integrate weekly attendance into base_payroll.db as a central ledger
-        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
+        l_tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
             "EMPLOYEE_ID INTEGER NOT NULL,"
             "WEEK_START TEXT NOT NULL,"
             "SUN REAL NOT NULL,"
@@ -94,8 +85,8 @@ bool db::createDatabase(const std::string& p_dbName) {
             "PRIMARY KEY (EMPLOYEE_ID, WEEK_START)"
             ");"
         );
-    } else if (filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
-        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
+    } else if (l_filename == appConfig::g_dbNameProject || p_dbName == appConfig::g_dbNameProject) {
+        l_tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS PROJECT_LIST ("
             "PROJECT_ID TEXT PRIMARY KEY,"
             "PROJECT_NAME TEXT NOT NULL,"
             "STATUS TEXT NOT NULL,"
@@ -105,16 +96,16 @@ bool db::createDatabase(const std::string& p_dbName) {
             ");"
         );
     } else if (
-        filename.find("PRJ") != std::string::npos &&
-        filename.find(".db") != std::string::npos){
-        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS MATERIALS ("
+        l_filename.find("PRJ") != std::string::npos &&
+        l_filename.find(".db") != std::string::npos){
+        l_tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS MATERIALS ("
             "MATERIAL_ID TEXT PRIMARY KEY,"
             "MATERIAL_NAME TEXT NOT NULL,"
             "QUANTITY REAL NOT NULL,"
             "UNIT_PRICE REAL NOT NULL"
             ");"
         );
-        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS PAYROLL_EXPENSES ("
+        l_tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS PAYROLL_EXPENSES ("
             "EMPLOYEE_ID INTEGER PRIMARY KEY,"
             "EMPLOYEE_NAME TEXT NOT NULL,"
             "POSITION TEXT NOT NULL,"
@@ -126,13 +117,13 @@ bool db::createDatabase(const std::string& p_dbName) {
     } else if (
         // Weekly attendance database detection (format: MM-DD-DD.db or MM-DD-MM-DD.db)
         // Must have 2 or 3 hyphens and be short filename
-        (std::count(filename.begin(), filename.end(), '-') == 2 ||
-         std::count(filename.begin(), filename.end(), '-') == 3) &&
-        filename.find(".db") != std::string::npos &&
-        filename.length() < 20 &&
-        filename.find("PRJ") == std::string::npos) {
+        (std::count(l_filename.begin(), l_filename.end(), '-') == 2 ||
+         std::count(l_filename.begin(), l_filename.end(), '-') == 3) &&
+        l_filename.find(".db") != std::string::npos &&
+        l_filename.length() < 20 &&
+        l_filename.find("PRJ") == std::string::npos) {
         // Attendance database for weekly records
-        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
+        l_tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS WEEKLY_ATTENDANCE ("
             "EMPLOYEE_ID TEXT NOT NULL,"
             "WEEK_START TEXT NOT NULL,"
             "SUN REAL NOT NULL,"
@@ -146,10 +137,10 @@ bool db::createDatabase(const std::string& p_dbName) {
             ");"
         );
     } else if (
-        filename.find("PRJ-") == std::string::npos &&
-        filename.find("20") != std::string::npos &&
-        filename.find(".db") != std::string::npos) {
-        tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS TIMESHEET ("
+        l_filename.find("PRJ-") == std::string::npos &&
+        l_filename.find("20") != std::string::npos &&
+        l_filename.find(".db") != std::string::npos) {
+        l_tablesSql.emplace_back("CREATE TABLE IF NOT EXISTS TIMESHEET ("
             "EMPLOYEE_ID INTEGER PRIMARY KEY,"
             "MON REAL NOT NULL,"
             "TUE REAL NOT NULL,"
@@ -161,82 +152,53 @@ bool db::createDatabase(const std::string& p_dbName) {
             ");"
         );
     } else {
-        sqlite3_close(dbPointer);
+        sqlite3_close(l_dbPointer);
         return false;
     }
 
     // Execute all queued table creation statements
-    for (const auto& sqlStmt : tablesSql) {
-        char* err = nullptr;
-        if (const int execRc = sqlite3_exec(dbPointer, sqlStmt.c_str(), nullptr, nullptr, &err); execRc != SQLITE_OK) {
-            if (err) sqlite3_free(err);
-            sqlite3_close(dbPointer);
+    for (const auto& sqlStmt : l_tablesSql) {
+        char* l_error = nullptr;
+        if (const int execRc = sqlite3_exec(l_dbPointer, sqlStmt.c_str(), nullptr, nullptr, &l_error); execRc != SQLITE_OK) {
+            if (l_error) sqlite3_free(l_error);
+            sqlite3_close(l_dbPointer);
             system::logMessage(system::messageClassification::ERROR, "DB CREATE failed during schema init db=" + p_dbName);
             return false;
         }
     }
 
-    sqlite3_close(dbPointer);
-    // Avoid logging data content; only operation and target DB
+    sqlite3_close(l_dbPointer);
     system::logMessage(system::messageClassification::INFO, "DB CREATE ok db=" + p_dbName);
     return true;
-}
-
-
-bool db::openDatabase(const std::string& p_dbName) {
-    sqlite3* dbPtr = nullptr;
-
-    if (const int database = sqlite3_open(p_dbName.c_str(), &dbPtr); database == SQLITE_OK) {
-        if (dbPtr) sqlite3_close(dbPtr);
-        system::logMessage(system::messageClassification::INFO, "DB OPEN ok db=" + p_dbName);
-        return true;
-    }
-    system::logMessage(system::messageClassification::ERROR, "DB OPEN failed db=" + p_dbName);
-    return false;
-}
-
-
-bool db::closeDatabase() {
-    // If a persistent sqlite3\* connection member (e.g., m_db) is added later, close it here:
-    //     if (m_db) { sqlite3_close(m_db); m_db = nullptr; }
-    // As a best-effort cleanup, shut down the SQLite library to free resources.
-    const int rc = sqlite3_shutdown();
-    if (rc == SQLITE_OK) {
-        system::logMessage(system::messageClassification::INFO, "DB CLOSE ok");
-        return true;
-    }
-    system::logMessage(system::messageClassification::ERROR, "DB CLOSE failed");
-    return false;
 }
 
 
 // p_data should contain comma-separated values matching the column order (e.g., "'John Doe', 'Manager', 'Manila', 100.0, 160.0, 0.0").
 bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) {
     // Check if database exists and has content; if not or empty, create it with proper schema
-    std::ifstream dbCheck(p_dbName, std::ios::binary | std::ios::ate);
-    bool needsCreation = false;
+    std::ifstream l_dbCheck(p_dbName, std::ios::binary | std::ios::ate);
+    bool l_needsCreation = false;
 
-    if (!dbCheck.good()) {
-        needsCreation = true;
+    if (!l_dbCheck.good()) {
+        l_needsCreation = true;
     } else {
         // Check file size - if 0 bytes, we need to create the schema
-        const std::streamsize size = dbCheck.tellg();
-        if (size == 0) {
-            needsCreation = true;
+        if (const std::streamsize size = l_dbCheck.tellg(); size == 0) {
+            l_needsCreation = true;
         }
     }
-    dbCheck.close();
+    l_dbCheck.close();
 
-    if (needsCreation) {
+    if (l_needsCreation) {
         if (!createDatabase(p_dbName)) {
             system::logMessage(system::messageClassification::ERROR, "DB INSERT failed (create) db=" + p_dbName);
             return false;
         }
     }
 
-    sqlite3* dbPointer = nullptr;
-    if (sqlite3_open(p_dbName.c_str(), &dbPointer) != SQLITE_OK) {
-        if (dbPointer) sqlite3_close(dbPointer);
+    sqlite3* l_dbPointer = nullptr;
+    if (sqlite3_open(p_dbName.c_str(), &l_dbPointer) != SQLITE_OK) {
+        if (l_dbPointer) sqlite3_close(l_dbPointer);
         system::logMessage(system::messageClassification::ERROR, "DB INSERT failed (open) db=" + p_dbName);
         return false;
     }
@@ -249,30 +211,20 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
 
     std::string sqlite;
     if (p_dbName == appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll) {
-        // p_data should match the column order: NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE
         sqlite = "INSERT INTO EMPLOYEES (NAME, POSITION, SITE_LOCATION, SALARY, REGULAR_HOUR, ADVANCE) VALUES (" + p_data + ");";
     } else if (p_dbName == appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject) {
-        // ...existing code...
         sqlite = "INSERT INTO PROJECT_LIST (PROJECT_ID, PROJECT_NAME, STATUS, START_DATE, END_DATE, NOTE) VALUES (" + p_data + ");";
 
         // Extract PROJECT_ID from p_data to create corresponding expense database
         // ...existing code...
-        size_t firstQuote = p_data.find('\'');
-        size_t secondQuote = p_data.find('\'', firstQuote + 1);
-        if (firstQuote != std::string::npos && secondQuote != std::string::npos) {
-            std::string projectId = p_data.substr(firstQuote + 1, secondQuote - firstQuote - 1);
-
-            // Create expense database for this project: expense/PRJ-00001.db
-            std::string expenseDbPath = appConfig::g_dataDirectory +
-                                       appConfig::g_projectDirectory +
-                                       appConfig::g_projectExpenseDirectory +
-                                       projectId + ".db";
-
-            // Create the expense database with MATERIALS table
-            createDatabase(expenseDbPath);
+        size_t l_firstQuote = p_data.find('\'');
+        size_t l_secondQuote = p_data.find('\'', l_firstQuote + 1);
+        if (l_firstQuote != std::string::npos && l_secondQuote != std::string::npos) {
+            std::string projectId = p_data.substr(l_firstQuote + 1, l_secondQuote - l_firstQuote - 1);
+            std::string l_expenseDbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory + projectId + ".db";
+            createDatabase(l_expenseDbPath);
         }
     } else if (filename.find("PRJ-") != std::string::npos && filename.find(".db") != std::string::npos) {
-        // Material database (expense/PRJ-xxxxx.db)
         sqlite = "INSERT INTO MATERIALS (MATERIAL_ID, MATERIAL_NAME, QUANTITY, UNIT_PRICE) VALUES (" + p_data + ");";
     } else if (
         // SIMPLIFIED: Attendance database - has hyphen, not PRJ, has .db
@@ -282,14 +234,14 @@ bool db::appendDatabase(const std::string& p_dbName, const std::string& p_data) 
         // Attendance database
         sqlite = "INSERT INTO WEEKLY_ATTENDANCE (EMPLOYEE_ID, WEEK_START, SUN, MON, TUE, WED, THU, FRI, SAT) VALUES (" + p_data + ");";
     } else {
-        if (dbPointer) sqlite3_close(dbPointer);
+        if (l_dbPointer) sqlite3_close(l_dbPointer);
         return false;
     }
 
     char* err = nullptr;
-    const int rc = sqlite3_exec(dbPointer, sqlite.c_str(), nullptr, nullptr, &err);
+    const int rc = sqlite3_exec(l_dbPointer, sqlite.c_str(), nullptr, nullptr, &err);
     if (err) sqlite3_free(err);
-    sqlite3_close(dbPointer);
+    sqlite3_close(l_dbPointer);
     if (rc == SQLITE_OK) {
         // Identify entity by db filename without exposing values
         std::string dbName = p_dbName;
@@ -352,6 +304,7 @@ bool db::updateDatabase(const std::string& p_dbName, const std::string& p_id, co
     system::logMessage(system::messageClassification::ERROR, "DB UPDATE failed db=" + p_dbName);
     return false;
 }
+
 
 // Delete a row by employee ID or project ID
 bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
@@ -423,6 +376,7 @@ bool db::deleteRow(const std::string& p_dbName, const std::string& p_id) {
     system::logMessage(system::messageClassification::WARNING, "DB DELETE no-op or failed db=" + p_dbName);
     return false;
 }
+
 
 // Check if there are gaps in employee IDs that need rearranging
 bool db::checkEmployeeChanges() {
@@ -525,6 +479,7 @@ bool db::rearrangeEmployeeIDs() {
     return true;
 }
 
+
 bool db::checkProjectChanges() {
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
 
@@ -573,6 +528,7 @@ bool db::checkProjectChanges() {
     sqlite3_close(dbPtr);
     return hasGaps;
 }
+
 
 bool db::rearrangeProjectIDs() {
     const std::string dbPath = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
@@ -658,6 +614,7 @@ bool db::rearrangeProjectIDs() {
 //     // use 'name'
 // }
 
+
 // Fetch a single cell value by 1-based row and column indices
 std::string db::fetchCell(const std::string& p_dbName, const size_t p_row, const size_t p_col) {
     if (p_row == 0 || p_col == 0) return "";
@@ -717,6 +674,7 @@ std::string db::fetchCell(const std::string& p_dbName, const size_t p_row, const
     return result;
 }
 
+
 // Ensure WEEKLY_ATTENDANCE table exists (composite PK) regardless of db name
 bool db::ensureWeeklyAttendanceTable(const std::string& p_dbName) {
     sqlite3* dbPtr = nullptr;
@@ -752,6 +710,7 @@ bool db::ensureWeeklyAttendanceTable(const std::string& p_dbName) {
     return false;
 }
 
+
 // Insert or upsert a weekly attendance row. valuesCsv should be:
 //  '\''EMP-00001'\'', '\''2025-01-05'\'', 8, 8, 8, 8, 8, 0, 0
 bool db::insertWeeklyAttendance(const std::string& p_dbName, const std::string& valuesCsv) {
@@ -782,6 +741,7 @@ bool db::insertWeeklyAttendance(const std::string& p_dbName, const std::string& 
     return false;
 }
 
+
 bool db::updateWeeklyAttendanceRow(const std::string& p_dbName, const std::string& employeeId, const std::string& weekStartIso, const std::string& setClause) {
     // Ensure table exists
     if (!ensureWeeklyAttendanceTable(p_dbName)) return false;
@@ -806,6 +766,7 @@ bool db::updateWeeklyAttendanceRow(const std::string& p_dbName, const std::strin
     return false;
 }
 
+
 bool db::deleteWeeklyAttendanceRow(const std::string& p_dbName, const std::string& employeeId, const std::string& weekStartIso) {
     if (!ensureWeeklyAttendanceTable(p_dbName)) return false;
     sqlite3* dbPtr = nullptr;
@@ -826,6 +787,7 @@ bool db::deleteWeeklyAttendanceRow(const std::string& p_dbName, const std::strin
     system::logMessage(system::messageClassification::WARNING, "DB ATTENDANCE DELETE no-op or failed db=" + p_dbName);
     return false;
 }
+
 
 // Insert or upsert a payroll expense row. valuesCsv should be:
 //  1, 'John Doe', 'Engineer', 50.0, 0, 0
@@ -854,6 +816,7 @@ bool db::insertPayrollExpense(const std::string& p_dbName, const std::string& va
     return false;
 }
 
+
 bool db::updatePayrollExpense(const std::string& p_dbName, const std::string& employeeId, const std::string& setClause) {
     sqlite3* dbPtr = nullptr;
     if (sqlite3_open(p_dbName.c_str(), &dbPtr) != SQLITE_OK) {
@@ -874,6 +837,7 @@ bool db::updatePayrollExpense(const std::string& p_dbName, const std::string& em
     system::logMessage(system::messageClassification::ERROR, "DB PAYROLL_EXPENSE UPDATE failed db=" + p_dbName);
     return false;
 }
+
 
 bool db::deletePayrollExpense(const std::string& p_dbName, const std::string& employeeId) {
     sqlite3* dbPtr = nullptr;
