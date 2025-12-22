@@ -87,8 +87,8 @@ hello_imgui_add_app(
         src/security/auth.cpp
         src/security/auth.h
 
-        src/security/cryptography.cpp
-        src/security/cryptography.h
+        #src/security/cryptography.cpp
+        #src/security/cryptography.h
 
 
         # UI Components
