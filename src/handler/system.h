@@ -43,34 +43,55 @@ class system {
             FATAL
         };
 
+        enum inputType {
+            EMPLOYEE_ID,            // Validate employee ID (positive integer)
+            PROJECT_ID,             // Check if input matches PRJ-##### format
+            MATERIAL_ID,            // Validate material ID (MAT-#####)
+
+            NAME,                   // Validate name (letters and spaces only, max 100 chars)
+            POSITION,               // Validate position (letters and spaces only, max 50 chars)
+            HOURLY_RATE,            // Validate salary (numbers and decimal point only, must be > 0)
+            REGULAR_HOURS,          // Validate hours (numbers and decimal point only, 0-168)
+            ADVANCE,                // Validate advance (numbers and decimal point only, >= 0, can be empty)
+            SITE_LOCATION,          // Validate site location (Main Office, Warehouse, or PRJ-XXXXX)
+            DATE,                   // Check if input matches ISO 8601 date format (YYYY-MM-DD)
+
+            NUMBER,                 // General number (positive integer or decimal)
+        };
+
+        enum backupAction {
+            FULL_LATEST_VERSION_OVERWRITE,
+            FULL_LATEST_VERSION,
+            DELETE_LATEST_VERSION,
+            DELETE_ALL_BACKUP
+        };
+
+        // Validates input based on the specified type.
+        static std::string validateInput(inputType p_inputType, const std::string &p_input);
+
         // Returns the requested part of the current local time.
         // Example: fetchTime(PartDateTime::HOUR) -> 0..23
         static int fetchTime(PartDateTime part);
 
+        static std::string dateString();
 
+        static std::string timeString();
+
+        // Returns a string representation of the current date and time
         static std::string timeDateString();
 
         // Get the application support directory path for storing app data
         // Returns platform-specific path (e.g., ~/Library/Application Support/StructuraCost on macOS)
-        static std::string getAppSupportDirectory();
+        static std::string getDocumentDirectory();
 
-        // Logs a message to the rolling daily log file under `logs/`.
+
+        static void performBackup(backupAction p_action);
+
+        // Logs a message to a unique log file per application session under `logs/`.
+        // Each time the application starts, a new log file is created with a timestamp.
         // Thread-safe. Messages below the current log level are ignored.
-        static void logMessage(messageClassification classification, const std::string &message);
+        static void logMessage(messageClassification p_classification, const std::string &p_message);
 
-        // Configure minimum log level to write (default: INFO).
-        static void setLogLevel(messageClassification level);
-        static messageClassification getLogLevel();
-
-        // Mirror WARNING/ERROR/FATAL to console (stderr). Default: true.
-        static void setLogToConsole(bool enabled);
-        static bool getLogToConsole();
-
-        // Capture std::cout and std::cerr and forward them to the logger.
-        // When enabled, stdout lines are logged as INFO and stderr lines as ERROR.
-        // Console mirroring is temporarily disabled while capture is active to avoid loops.
-        static void setCaptureStdStreams(bool enable);
-        static bool getCaptureStdStreams();
 
         // Creates a directory with the specified name.
         // Returns true on success, false on failure.
@@ -97,50 +118,18 @@ class system {
 
         // Print payslips for the specified employee IDs from the database.
         // Returns true on success, false on failure.
-        static bool printPayslips(const std::string& dbPath, const std::string& logoPath, const std::vector<int>& employeeIds);
+        static bool printPayslips(const std::string& p_dbPath, const std::string& p_logoPath, const std::vector<int>& p_employeeIds);
 
         // Print project report for the specified project ID.
         // Returns true on success, false on failure.
-        static bool printProjectReport(const std::string& projectId, const std::string& logoPath);
+        static bool printProjectReport(const std::string& p_projectId, const std::string& l_logoPath);
 
         // Open a file in the system's default browser.
         // Returns true on success, false on failure.
-        static bool openFileInBrowser(const std::string& filePath);
+        static bool openFileInBrowser(const std::string& p_filePath);
 
         // Application shutdown routine to clean up resources.
         static void appShutdown();
-
-        // ============================================================================
-        // Input Validation System
-        // ============================================================================
-
-        // Validation types for validateInput function
-        enum class ValidationType {
-            NOT_EMPTY,              // Check if input is not empty or whitespace
-            DIGITS_ONLY,            // Check if input contains only digits
-            POSITIVE_INTEGER,       // Check if input is a positive integer (> 0)
-            NON_NEGATIVE_INTEGER,   // Check if input is a non-negative integer (>= 0)
-            POSITIVE_DECIMAL,       // Check if input is a positive decimal number
-            NON_NEGATIVE_DECIMAL,   // Check if input is a non-negative decimal number
-            ALPHANUMERIC_SPACES,    // Check if input contains only alphanumeric and spaces
-            PROJECT_ID_FORMAT,      // Check if input matches PRJ-##### format
-            DATE_FORMAT,            // Check if input matches ISO 8601 date format (YYYY-MM-DD)
-            EMPLOYEE_ID,            // Validate employee ID (positive integer)
-            NAME,                   // Validate name (letters and spaces only, max 100 chars)
-            POSITION,               // Validate position (letters and spaces only, max 50 chars)
-            SALARY,                 // Validate salary (numbers and decimal point only, must be > 0)
-            HOURS,                  // Validate hours (numbers and decimal point only, 0-168)
-            ADVANCE,                // Validate advance (numbers and decimal point only, >= 0, can be empty)
-            QUANTITY,               // Validate quantity (non-negative decimal)
-            MATERIAL_ID,            // Validate material ID (not empty)
-            SITE_LOCATION           // Validate site location (Main Office, Warehouse, or PRJ-XXXXX)
-        };
-
-        // Validate input based on validation type
-        // Returns the input string if validation passes, empty string if it fails
-        // validationType: type of validation to perform
-        // input: the input string to validate
-        static std::string validateInput(ValidationType validationType, const std::string& input);
 };
 
 
