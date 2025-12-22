@@ -20,8 +20,6 @@
 
 
 #include <string>
-#include <thread>
-#include <atomic>
 
 #include "ui/ui.h"
 #include "config/config.h"
@@ -31,24 +29,26 @@
 
 
 void systemCheck() {
-    // System check: Ensure libsodium is initialized properly
-    if (!cryptography::checkSodium()) {
-        system::logMessage(system::messageClassification::ERROR, "libsodium initialization failed.\n");
-        ui::g_failedMessage = "Error: libsodium initialization failed.";
-        ui::constructUI(appConfig::g_errorTitle, appConfig::g_fontName, appConfig::g_errorWidth, appConfig::g_defaultHeight, "failed");
-    }
-    system::logMessage(system::messageClassification::INFO, "libsodium initialized successfully.\n");
+    // // System check: Ensure libsodium is initialized properly
+    // if (!cryptography::checkSodium()) {
+    //     system::logMessage(system::messageClassification::ERROR, "libsodium initialization failed.");
+    // }
+    // system::logMessage(system::messageClassification::INFO, "libsodium initialized successfully.");
 
     // Database check: Ensure SQLite is available
     if (!db::isSQLiteAvailable()) {
-        system::logMessage(system::messageClassification::ERROR, "sqlite initialization failed.\n");
-        ui::g_failedMessage = "Error: sqlite initialization failed.";
-        ui::constructUI(appConfig::g_errorTitle, appConfig::g_fontName, appConfig::g_errorWidth, appConfig::g_defaultHeight, "failed");
+        system::logMessage(system::messageClassification::ERROR, "sqlite initialization failed.");
     }
-    system::logMessage(system::messageClassification::INFO, "sqlite initialized successfully.\n");
+    system::logMessage(system::messageClassification::INFO, "sqlite initialized successfully.");
+}
 
+
+void directoryCheck() {
     // Create the necessary directories and database files
     if (!system::searchDirectory(appConfig::g_logsDirectory)) {system::createDirectory(appConfig::g_logsDirectory);}
+    if (!system::searchDirectory(appConfig::g_backupDirectory + "latest/")) {system::createDirectory(appConfig::g_backupDirectory + "latest/");}
+    if (!system::searchDirectory(appConfig::g_backupDirectory + "history/")) {system::createDirectory(appConfig::g_backupDirectory + "history/");}
+
     if (!system::searchDirectory(appConfig::g_backupDirectory)) {system::createDirectory(appConfig::g_backupDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory)) {system::createDirectory(appConfig::g_dataDirectory);}
 
@@ -60,74 +60,42 @@ void systemCheck() {
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory);}
     if (!system::searchDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory)) {system::createDirectory(appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_projectExpenseDirectory);}
 
-    // Only create base DBs if neither plaintext nor encrypted files exist
-    const std::string payrollDb = appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll;
-    if (const std::string payrollEnc = payrollDb + ".enc"; !system::searchFile(payrollDb) && !system::searchFile(payrollEnc)) {
-        db::createDatabase(payrollDb);
-    }
-    const std::string projectDb = appConfig::g_dataDirectory + appConfig::g_projectDirectory + appConfig::g_dbNameProject;
-    if (const std::string projectEnc = projectDb + ".enc"; !system::searchFile(projectDb) && !system::searchFile(projectEnc)) {
-        db::createDatabase(projectDb);
-    }
-}
-
-static std::atomic<bool> s_runBackground{true};
-
-void runUIFlow() {
-    // Show login if not authenticated
-    if (!appConfig::g_auth) {
-        ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth");
-        // When the Run returns, check if authentication was set. If not, user chose to exit — stop the app.
-        if (!appConfig::g_auth) {
-            s_runBackground.store(false, std::memory_order_relaxed);
-            system::logMessage(system::messageClassification::INFO, "Application exiting.\n");
-            return;
-        }
-    }
-
-    // Store auth state before showing main UI
-    const bool wasAuthenticated = appConfig::g_auth;
-
-    // Show main UI
-    ui::constructUI(appConfig::g_appTitle, appConfig::g_fontName, appConfig::g_defaultWidth, appConfig::g_defaultHeight, "main");
-
-    // After main UI closes, check if we should restart (logout was pressed)
-    if (wasAuthenticated && !appConfig::g_auth) {
-        // User logged out - restart the UI flow
-        runUIFlow();
-    }
+    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll)) {system::createFile(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNamePayroll);}
+    if (!system::searchFile(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNameProject)) {system::createFile(appConfig::g_dataDirectory + appConfig::g_payrollDirectory + appConfig::g_dbNameProject);}
 }
 
 int main() {
-    // Capture terminal output (stdout/stderr) into the system logger
-    system::setCaptureStdStreams(true);
-
     // Perform checks before starting the application
-    system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Initiated.\n");
+    system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Initiated.");
     systemCheck();
-    system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Completed Successfully.\n");
-    system::logMessage(system::messageClassification::INFO, "Main Application Starting.\n");
+    directoryCheck();
+    system::logMessage(system::messageClassification::INFO, "Application Self Pre-Check Completed Successfully.");
+    system::logMessage(system::messageClassification::INFO, "Main Application Starting.");
 
-    // Background thread to monitor and rearrange employee IDs and project IDs periodically.
-    std::thread([] {
-        while (s_runBackground.load(std::memory_order_relaxed)) {
-            // Avoid touching databases while not authenticated (maybe encrypted)
-            if (appConfig::g_auth) {
-                if (db::checkEmployeeChanges()) {
-                    db::rearrangeEmployeeIDs();
-                }
-                if (db::checkProjectChanges()) {
-                    db::rearrangeProjectIDs();
-                }
+    // Main application loop: show login or main UI based on auth status
+    while (true) {
+        if (!appConfig::g_auth) {
+            ui::constructUI(appConfig::g_loginTitle, appConfig::g_fontName, appConfig::g_loginWidth, appConfig::g_loginHeight, "auth");
+
+            if (!appConfig::g_auth) {
+                system::logMessage(system::messageClassification::INFO, "Application closed from login screen.");
+                break;
             }
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+        } else {
+            // Show main UI
+            ui::constructUI(appConfig::g_appTitle, appConfig::g_fontName, appConfig::g_defaultWidth, appConfig::g_defaultHeight, "main");
+
+            if (!appConfig::g_auth) {
+                system::logMessage(system::messageClassification::INFO, "Returning to login screen.");
+                continue;
+            }
+
+            system::logMessage(system::messageClassification::INFO, "Application closed from main screen.");
+            break;
         }
-    }).detach();
+    }
 
-    // Start the UI flow
-    runUIFlow();
-
-    // Perform cleanup after UI flow exits
     system::appShutdown();
+    system::logMessage(system::messageClassification::INFO, "Application terminated successfully.");
     return 0;
 }
