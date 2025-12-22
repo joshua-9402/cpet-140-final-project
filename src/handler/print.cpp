@@ -283,13 +283,25 @@ std::string makePayslipHtml(const employee& data, const std::string& logo) {
     o << "  </tr>\n";
     o << "  <tr>\n";
     o << "   <td>Hours Worked:</td><td class=\"amount\">" << data.hoursWorked << " hrs</td>\n";
+    o << "   <td>SSS:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionSSS << "</td>\n";
+    o << "  </tr>\n";
+    o << "  <tr>\n";
     o << "   <td></td><td></td>\n";
+    o << "   <td>PhilHealth (HMO):</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionPhilHealth << "</td>\n";
+    o << "  </tr>\n";
+    o << "  <tr>\n";
+    o << "   <td></td><td></td>\n";
+    o << "   <td>Pag-IBIG:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionPagIbig << "</td>\n";
+    o << "  </tr>\n";
+    o << "  <tr>\n";
+    o << "   <td></td><td></td>\n";
+    o << "   <td>Tax:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionTax << "</td>\n";
     o << "  </tr>\n";
     // Show overtime only when applicable
     if (overtimeHours > 0.0) {
         o << "  <tr>\n";
         o << "   <td>Overtime (hrs):</td><td class=\"amount\">" << overtimeHours << " hrs</td>\n";
-        o << "   <td>Overtime Pay:</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << overtimePay << "</td>\n";
+        o << "   <td></td><td></td>\n";
         o << "  </tr>\n";
     }
     o << "  <tr class=\"total-row\">\n";
@@ -297,18 +309,6 @@ std::string makePayslipHtml(const employee& data, const std::string& logo) {
     o << "   <td><strong>Total Deductions:</strong></td><td class=\"amount\"><strong>₱" << std::fixed << std::setprecision(2) << totalDeductions << "</strong></td>\n";
     o << "  </tr>\n";
 
-    // Detailed deductions rows (separate section for clarity)
-    o << "  <tr><td colspan=\"4\"><div class=\"deductions-detail\">\n";
-    o << "   <table class=\"deductions-detail-table\">\n";
-    o << "    <tr><td>Advance</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionAdvance << "</td></tr>\n";
-    o << "    <tr><td>Others</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionOthers << "</td></tr>\n";
-    o << "    <tr><td>SSS</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionSSS << "</td></tr>\n";
-    o << "    <tr><td>PhilHealth (HMO)</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionPhilHealth << "</td></tr>\n";
-    o << "    <tr><td>Pag-IBIG</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionPagIbig << "</td></tr>\n";
-    o << "    <tr><td>Tax</td><td class=\"amount\">₱" << std::fixed << std::setprecision(2) << deductionTax << "</td></tr>\n";
-    o << "    <tr class=\"total-row\"><td><strong>Total Deductions</strong></td><td class=\"amount\"><strong>₱" << std::fixed << std::setprecision(2) << totalDeductions << "</strong></td></tr>\n";
-    o << "   </table>\n";
-    o << "  </div></td></tr>\n";
 
     o << " </table>\n";
 
