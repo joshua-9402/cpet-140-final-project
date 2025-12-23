@@ -1,6 +1,8 @@
 ## What's Changed
 
-- macOS: added ad-hoc code signing for the `.app` artifact and a CI step to apply ad-hoc signing to macOS builds to reduce Gatekeeper friction.
+- macOS: added ad-hoc code signing for the `.app` artifact.
+- CI: added a CI step to apply ad-hoc signing to macOS builds to reduce Gatekeeper friction.
+- Docs: updated macOS launch instructions and Gatekeeper troubleshooting.
 
 
 ## Supported Platforms
