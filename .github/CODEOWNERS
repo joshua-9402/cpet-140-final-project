@@ -1,3 +1,6 @@
 # Require review for critical paths
 /src/       @joshua-9402
 /packaging/ @joshua-9402
+/dependencies/ @joshua-9402
+/assets/ @joshua-9402
+/.github/ @joshua-9402
