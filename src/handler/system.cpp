@@ -27,6 +27,8 @@
 #include <string>
 #include <string_view>
 #include <ranges>
+#include <array>
+#include <cctype>
 
 #include "print.h"
 #include "../config/config.h"
@@ -382,7 +384,7 @@ bool system::openFileInBrowser(const std::string& p_filePath) {
 
 #ifdef _WIN32
     // Windows: use start command
-    std::string command = "start \"\" \"" + l_pathStr + "\"";
+    const std::string l_command = "start \"\" \"" + l_pathStr + "\"";
 #elif defined(__APPLE__)
     // macOS: use open command
     const std::string l_command = "open \"" + l_pathStr + "\"";

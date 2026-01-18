@@ -122,12 +122,11 @@ jobs:
     if: inputs.macos != 'skip'
     strategy:
       matrix:
-        # Keep the `macos` input but reduce the matrix to a single target.
-        # Behavior:
-        # - if inputs.macos == 'intel' -> build intel
-        # - if inputs.macos == 'arm64' -> build arm64
-        # - otherwise (including 'both' default) -> build arm64 to speed runs
-        include: ${{ fromJSON(inputs.macos == 'intel' && '[{"target":"intel","runner":"macos-15-intel","deployment":"11.0"}]' || inputs.macos == 'arm64' && '[{"target":"arm64","runner":"macos-15","deployment":"14.0"}]' || '[{"target":"arm64","runner":"macos-15","deployment":"14.0"}]') }}
+        # Mirror Windows' behavior: when 'both' is selected, run both macOS targets.
+        # - if inputs.macos == 'both'  -> build arm64 + intel
+        # - if inputs.macos == 'arm64'  -> build arm64 only
+        # - if inputs.macos == 'intel'  -> build intel only
+        include: ${{ fromJSON(inputs.macos == 'both' && '[{"target":"arm64","runner":"macos-15","deployment":"14.0"},{"target":"intel","runner":"macos-15-intel","deployment":"11.0"}]' || inputs.macos == 'arm64' && '[{"target":"arm64","runner":"macos-15","deployment":"14.0"}]' || inputs.macos == 'intel' && '[{"target":"intel","runner":"macos-15-intel","deployment":"11.0"}]' || '[{"target":"arm64","runner":"macos-15","deployment":"14.0"}]') }}
 
     steps:
     - name: Checkout code
