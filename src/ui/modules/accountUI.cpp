@@ -21,6 +21,7 @@
 #include "../../config/config.h"
 #include "../../handler/system.h"
 #include "hello_imgui/hello_imgui.h"
+#include <algorithm>
 
 void account::displayAccount() {
     // Load business logo only once on the first call
