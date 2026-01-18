@@ -45,6 +45,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Windows: enforce Release config and the release CRT (/MD) to avoid debug DLLs
+if(WIN32)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Force Release build on Windows" FORCE)
+    if(CMAKE_CONFIGURATION_TYPES)
+        set(CMAKE_CONFIGURATION_TYPES "Release" CACHE STRING "Only build Release on Windows" FORCE)
+    endif()
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL" CACHE STRING "Use release MSVC runtime (/MD)" FORCE)
+endif()
+
 
 include(FetchContent) # Fetch Hello ImGui (automatic download)
 FetchContent_Declare(
